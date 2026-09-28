@@ -9,7 +9,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "check": "tsc -p tsconfig.json --noEmit"
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test dist/tests/layer-detector/LayerDetector.test.js dist/tests/discovery/SessionIds.test.js dist/tests/discovery/FrameNormalization.test.js"
   },
   "dependencies": {
     "playwright": "^1.63.0"
