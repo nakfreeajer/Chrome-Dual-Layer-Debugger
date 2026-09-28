@@ -3,6 +3,7 @@ export * from './core/LayerDetector.js';
 export * from './core/TargetRegistry.js';
 export * from './core/SessionClock.js';
 export * from './core/SessionIds.js';
+export * from './core/CrossLayerMapper.js';
 export * from './browser/BrowserDiscovery.js';
 export * from './browser/ConnectOptions.js';
 export * from './browser/PlaywrightBrowserDiscovery.js';
