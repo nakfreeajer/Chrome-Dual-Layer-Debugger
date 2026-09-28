@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+*.log
+.env
+.env.*
+
+# AMO local working evidence — never commit
+.agent-work/
+
+# Local trace/debug artifacts
+trace.jsonl
+*.trace.zip
+playwright-report/
+test-results/
