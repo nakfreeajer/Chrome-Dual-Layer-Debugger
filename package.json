@@ -1,0 +1,21 @@
+{
+  "name": "chrome-dual-layer-debugger",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Unified Playwright/CDP debugger with optional Google Apps Script runtime tracing",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "playwright": "^1.55.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.0"
+  }
+}
