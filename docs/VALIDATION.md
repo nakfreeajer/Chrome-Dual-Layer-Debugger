@@ -19,32 +19,54 @@ Accepted bootstrap evidence:
 - Executor reported clean `main...origin/main` status after setup;
 - no tracked files were changed and no debugger implementation occurred.
 
-Local-only filesystem facts cannot be reconstructed from GitHub, so future Architect review of such facts relies on the bounded Human-relayed Executor evidence unless additional local evidence is supplied. That limitation must be stated rather than silently treated as remote verification.
+Local-only filesystem facts cannot be reconstructed from GitHub, so Architect review of such facts relies on bounded Human-relayed Executor evidence unless additional local evidence is supplied.
 
 ## Accepted V0.1A browser attachment/read-only discovery validation
 V0.1A is accepted against baseline `736742a08cf357fe19acac7e4425f6de54090643`, with final implementation at `f1cf95158eba7342d627a5526f04766b24c1d5d2`.
 
 Accepted deterministic validation:
 - `npm run check` passed;
-- `npm test` passed 8 tests, 0 failed, 0 cancelled, 0 skipped, 0 todo;
-- `git diff --check` passed for the complete baseline-to-final range;
-- tests cover deterministic URL classification, deceptive non-GAS URLs, stable context/page IDs, stable frame IDs, and low-intrusion endpoint options.
+- `npm test` passed 8 tests, 0 failed;
+- `git diff --check` passed;
+- tests cover URL classification, deceptive non-GAS URLs, stable context/page/frame IDs, and low-intrusion endpoint options.
 
 Accepted live validation against `http://127.0.0.1:9222`:
 - connection options were exactly `{ noDefaults: true, isLocal: true }`;
-- two `discover()` passes on the same `PlaywrightBrowserDiscovery` object returned the same `CONTEXT-0001`, `PAGE-0001`, and `FRAME-0001` for the same live identities;
-- the page was classified `BROWSER_PLUS_GAS` solely because its URL started with `https://script.google.com/macros/`;
-- browser target IDs before and after disconnect were unchanged;
-- the endpoint remained responsive after disconnect;
-- no navigation, click, typing, reload, storage mutation, DOM mutation, page close, or browser-process close occurred;
-- `GasAdapter` was not activated.
+- two discovery passes returned stable context/page/frame IDs for the same live identities;
+- target IDs before and after disconnect were unchanged;
+- endpoint remained responsive;
+- no navigation, reload, click, typing, storage/DOM mutation, page close or browser-process close occurred.
 
-The V0.1A low-intrusion contract therefore includes:
-- use public Playwright APIs only;
-- connect with `noDefaults: true`;
-- use `isLocal: true` only for loopback endpoint hosts (`localhost`, `127.0.0.1`, `::1`);
-- retain debugger-local context/page/frame IDs for the lifetime of one connected discovery session;
-- disconnect without destroying the existing browser process or page targets.
+## Accepted V0.1B GAS dual-layer coexistence validation
+V0.1B is accepted against baseline `4d19e3b1f3ad776ac64deedbccbd66f6e440d60a`, with implementation at `83ba33d5bb67fc362a1d3e7e5226e5627de2f22e`.
+
+Dependency baseline:
+- repository: `nakfreeajer/gas-remote-debug`;
+- accepted inspected dependency HEAD: `ac4359aa790af19cafe1a7e9a55ecd50f68e9169`;
+- version: `0.1.0`;
+- dependency test result: 94 passed, 0 failed;
+- npm registry lookup returned 404, so the dependency is commit-pinned from GitHub rather than npm-published.
+
+Accepted deterministic primary validation:
+- `npm run check` passed;
+- `npm test` passed 13 tests, 0 failed, 0 cancelled, 0 skipped, 0 todo;
+- `git diff --check` passed for the complete V0.1B range;
+- tests cover GAS activation gating, dependency-native ID preservation, disconnect-only behavior, exact FrameId mapping and unsupported relationships remaining unmapped.
+
+Accepted live coexistence validation against `http://127.0.0.1:9222`:
+- the already-open page classified `BROWSER_PLUS_GAS` solely through the exact URL-prefix rule;
+- Playwright retained the V0.1A low-intrusion options;
+- `GasAdapter` connected to the same endpoint and delegated browser-root recursive discovery to `gas-remote-debug`;
+- dependency reported 2 targets, 2 attached sessions and 3 execution contexts;
+- a second Playwright discovery succeeded while `GasAdapter` remained connected;
+- exact shared root protocol FrameId evidence mapped the Playwright root frame to dependency context 25;
+- sibling sandbox contexts 3 and 1 had no matching Playwright frame and remained unmapped;
+- Playwright Page-to-raw-TargetId remained unmapped because the public Playwright discovery surface does not expose TargetId;
+- dependency frame registry contained no entries in this live run, so accepted root frame evidence came from dependency execution-context `frameId` metadata;
+- target identities before and after disconnect were unchanged;
+- endpoint remained responsive after cleanup;
+- navigation, reload, click, typing, DOM mutation, storage mutation, page close and browser-process close were all `NO`;
+- the only runtime evaluation was the dependency-generated read-only generic GAS context probe.
 
 ## Browser attachment validation for future regressions
 A later milestone that materially changes browser attachment/discovery should preserve, as applicable:
@@ -54,22 +76,24 @@ A later milestone that materially changes browser attachment/discovery should pr
 - stable debugger-local identities across repeated discovery in one connection;
 - low-intrusion connection options;
 - disconnect leaves existing browser/page targets usable;
-- layer detection returns `BROWSER_PLUS_GAS` only for URLs beginning with `https://script.google.com/macros/`;
-- ordinary pages remain `BROWSER_ONLY`.
+- exact GAS prefix detection remains authoritative.
 
-## GAS integration validation
-When GAS mode is exercised:
-- `GasAdapter` activates only after the prefix rule selects `BROWSER_PLUS_GAS`;
-- `gas-remote-debug` remains the owner of recursive GAS/OOPIF target/context discovery;
-- the project records enough identity evidence to correlate the selected Playwright page with GAS target/session/context evidence without inventing relationships;
-- coexistence with Playwright-backed CDP observation does not create destructive browser side effects;
-- accepted V0.1A browser attachment behavior must not regress.
+## GAS integration validation for future regressions
+- `GasAdapter` activates only after the exact prefix rule selects `BROWSER_PLUS_GAS`;
+- `gas-remote-debug` remains owner of recursive GAS/OOPIF target/context discovery;
+- dependency-native identifiers are preserved;
+- only deterministic identity evidence is promoted to a cross-layer mapping;
+- unsupported relationships remain explicitly unmapped;
+- coexistence with Playwright must not introduce destructive browser side effects.
 
 ## Timeline validation
-- Events receive deterministic event identity and ordering metadata.
-- Native source timestamps are retained when available.
-- Unknown correlation remains unknown rather than guessed.
-- JSONL output is appendable and parseable line by line.
+V0.1C should prove:
+- events receive deterministic debugger event identity and ordering metadata;
+- wall-clock timestamps and native source timestamps are retained when available;
+- browser and GAS events can coexist in one normalized chronology;
+- unknown correlation remains unknown rather than guessed;
+- appendable JSONL output is parseable one event per line;
+- timeline generation does not change the V0.1A/V0.1B read-only browser contract.
 
 ## Test evidence
 Executor reports should state exact commands, pass/fail totals, skipped/cancelled tests when relevant, and any live/runtime validation performed.
