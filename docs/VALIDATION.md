@@ -3,6 +3,24 @@
 ## General rule
 Important conclusions must come from recorded evidence rather than assumption. Validation should be proportional to milestone risk.
 
+## Accepted local-workspace bootstrap validation
+The 2026-09-28 bootstrap is accepted based on the Human-relayed Executor terminal report plus independent GitHub verification of the reported remote baseline.
+
+Accepted bootstrap evidence:
+- local root: `C:\Users\nitro\Projects\Chrome-Dual-Remote-Debugger`;
+- repository: `nakfreeajer/Chrome-Dual-Layer-Debugger`;
+- branch: `main`;
+- Executor-reported local HEAD: `d157bd48ded35c1714d64635539569ca799da72d`;
+- independent GitHub verification confirmed that exact commit in the authoritative repository;
+- target directory was empty before clone, so clone/init was appropriate;
+- tracked project structure was reported complete;
+- `.agent-work/` was created with `tools/setup-agent-work.ps1`;
+- `git check-ignore` confirmed `.agent-work/` is ignored;
+- Executor reported clean `main...origin/main` status after setup;
+- no tracked files were changed and no debugger implementation occurred.
+
+Local-only filesystem facts cannot be reconstructed from GitHub, so future Architect review of such facts relies on the bounded Human-relayed Executor evidence unless additional local evidence is supplied. That limitation must be stated rather than silently treated as remote verification.
+
 ## v0.1 browser attachment validation
 A milestone involving an already-running Chrome/Chromium instance should prove, as applicable:
 - attachment succeeds through the configured debugging endpoint;
