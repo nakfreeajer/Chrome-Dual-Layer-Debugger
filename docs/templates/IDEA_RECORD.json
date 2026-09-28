@@ -1,0 +1,15 @@
+{
+  "ideaId": "IDEA-CDLD-<YYYYMMDD>-<NNN>",
+  "capturedAt": "<ISO-8601>",
+  "origin": "HUMAN_ARCHITECT_DISCUSSION",
+  "activeMilestone": null,
+  "title": "<TITLE>",
+  "problem": "<WHY>",
+  "proposal": "<WHAT>",
+  "status": "CAPTURED",
+  "milestoneImpact": "OUT_OF_SCOPE",
+  "scopeChangeAuthorized": false,
+  "affectedAreas": [],
+  "decisionReferences": [],
+  "architectNote": "<NOTE>"
+}
