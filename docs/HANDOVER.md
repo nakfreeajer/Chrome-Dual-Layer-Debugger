@@ -23,44 +23,50 @@ Rony Finster is final Human authority. ChatGPT is the Architect-Curator for this
 - Branch: `main`
 - Local root: `C:\Users\nitro\Projects\Chrome-Dual-Remote-Debugger`
 - Accepted V0.1A implementation HEAD: `f1cf95158eba7342d627a5526f04766b24c1d5d2`.
-- V0.1A implementation commits:
-  - `aa886de935678e48f1f8a424728c6711dd701586` — initial read-only discovery implementation;
-  - `f1cf95158eba7342d627a5526f04766b24c1d5d2` — low-intrusion/stable-identity correction.
+- Accepted V0.1B implementation HEAD: `83ba33d5bb67fc362a1d3e7e5226e5627de2f22e`.
+- `gas-remote-debug` dependency is pinned to `ac4359aa790af19cafe1a7e9a55ecd50f68e9169`.
 
 ## Accepted V0.1A capability
-The project can attach to an already-running Chromium-family browser through Playwright `connectOverCDP`, enumerate existing contexts/pages/frames, classify pages through the deterministic GAS URL-prefix rule, observe `Page`/`Runtime` evidence through public Playwright `CDPSession`, and retain debugger-local context/page/frame identity across repeated discovery passes within one connection.
+The project can attach read-only to an already-running Chromium-family browser through Playwright `connectOverCDP`, enumerate contexts/pages/frames, classify pages with the exact GAS URL-prefix rule, observe public page/frame CDP evidence, retain stable debugger-local identities during one connection, and disconnect without destroying existing targets.
 
-Low-intrusion connection behavior is part of the accepted contract:
-- `noDefaults: true`;
-- `isLocal: true` only for loopback endpoints (`localhost`, `127.0.0.1`, `::1`);
-- no navigation/click/type/reload/DOM/storage mutation;
-- disconnect must not close the existing browser process or page targets.
+## Accepted V0.1B capability
+The project now composes the V0.1A Playwright path with `gas-remote-debug` against the same browser.
 
-Accepted validation included 8/8 tests, typecheck, clean diff check, two-pass stable-ID live validation, unchanged browser target snapshots before/after disconnect, and a responsive endpoint after disconnect.
+Accepted behavior:
+- `GasAdapter` remains inactive for `BROWSER_ONLY` pages;
+- `GasAdapter` activates only after the exact prefix rule selects `BROWSER_PLUS_GAS`;
+- `gas-remote-debug` owns browser-root target/session/context discovery and recursive attachment;
+- the primary project preserves native GAS TargetId/SessionId/FrameId/ExecutionContextId evidence;
+- `CrossLayerMapper` records mappings only when exact shared protocol FrameId evidence exists and target/session evidence is consistent;
+- sibling sandbox contexts without proven Playwright identity remain `UNMAPPED`;
+- Playwright Page-to-raw-TargetId remains `UNMAPPED` through the current public discovery surface;
+- simultaneous Playwright + GAS attachment was proven non-destructive in the bounded live validation.
+
+Accepted V0.1B validation included primary typecheck, 13/13 primary tests, 94/94 dependency tests, clean diff check, simultaneous two-layer live discovery, unchanged browser target identities before/after disconnect, and a responsive endpoint after cleanup.
 
 ## Architecture baseline
 - Project is independent from AFFOTECH.
-- TypeScript/Node.js direction selected.
 - Browser semantic interaction belongs to Playwright.
 - Normal page/frame CDP observation uses public Playwright CDP sessions.
 - GAS-specific browser-root recursive/OOPIF discovery belongs to `gas-remote-debug` behind `GasAdapter`.
-- GAS detection is only the `https://script.google.com/macros/` prefix rule in v0.1.
+- GAS activation is only the `https://script.google.com/macros/` prefix rule in v0.1.
 - Unified timeline/correlation belongs to Chrome-Dual-Layer-Debugger.
-- Unknown cross-layer relationships must remain unknown until proven.
+- Unknown relationships must remain unknown until deterministically proven.
 
 ## Workflow note
-Local raw evidence belongs under ignored `.agent-work/`. Because relay is manual, the Human Owner transports the bounded Executor report/evidence to the Architect-Curator. Do not require an automated bridge, watcher, doorbell, or orchestrator state to continue.
+Local raw evidence belongs under ignored `.agent-work/`. Because relay is manual, the Human Owner transports bounded Executor reports/evidence to the Architect-Curator. Do not require an automated bridge, watcher, doorbell, or orchestrator state.
 
 ## What must not be repeated
-- Do not recreate the repository or local bootstrap unless direct evidence shows it is broken.
-- Do not rebuild the accepted V0.1A normal-browser discovery path absent direct regression evidence.
-- Do not rebuild the AMO/orchestration infrastructure for this project.
-- Do not duplicate `gas-remote-debug` recursive GAS/OOPIF discovery.
-- Do not infer Playwright-to-GAS target/session/context mappings from timestamps alone.
+- Do not recreate the repository or local bootstrap without direct regression evidence.
+- Do not rebuild accepted V0.1A browser attachment/discovery absent direct regression evidence.
+- Do not duplicate `gas-remote-debug` recursive discovery.
+- Do not replace the accepted commit-pinned dependency boundary casually.
+- Do not infer Playwright/GAS relationships from timestamps or URL equality alone.
+- Do not reopen intentionally unmapped sibling GAS contexts merely because they are unmapped.
 
 ## Exact next intended action
-Define and execute V0.1B: GAS dual-layer coexistence/integration proof.
+Define and execute V0.1C: Read-Only Unified Timeline.
 
-The Executor should inspect the current public API and implementation boundary of `nakfreeajer/gas-remote-debug`, choose the smallest composition method, and prove that its browser-root recursive GAS discovery can operate alongside the accepted Playwright V0.1A observation path against the same running browser without destructive side effects.
+The Executor should normalize already-proven browser and GAS observations into the shared `TraceEvent`/Timeline/JSONL layer, retain native timestamps where available, assign deterministic debugger event identity/order, and keep cross-layer events uncorrelated unless deterministic evidence already supports the relationship.
 
-Do not jump yet to full `google.script.run` end-to-end trace propagation, server instrumentation, GUI work, breakpoints, or broad automation.
+Do not jump yet to `google.script.run` propagation, GAS server instrumentation, GUI work, breakpoints, mutation features, or broad automation.
