@@ -24,14 +24,25 @@ Only Architect-Curator accepted milestones belong here.
 - Baseline: `736742a08cf357fe19acac7e4425f6de54090643`.
 - Initial implementation: `aa886de935678e48f1f8a424728c6711dd701586` (`Implement read-only browser discovery`).
 - Correction: `f1cf95158eba7342d627a5526f04766b24c1d5d2` (`Correct low-intrusion discovery identities`).
-- Implemented configurable Playwright `chromium.connectOverCDP()` attachment to an already-running Chromium-family browser.
-- Implemented low-intrusion connection options using `noDefaults: true`; `isLocal: true` is restricted to loopback endpoints.
-- Implemented existing context/page/frame discovery, current URL/title reporting, deterministic GAS URL-prefix classification, public Playwright `CDPSession` observation, `Page.getFrameTree`, and `Runtime.executionContextCreated` capture.
-- Implemented session-local stable IDs for contexts/pages/frames across repeated discovery passes.
-- The first Architect review identified two blockers: missing `noDefaults`/bounded `isLocal` options and counter-only IDs that changed across repeated discovery. Executor corrected both in the same milestone.
-- Final Architect review inspected the complete baseline-to-final patch and classified the milestone `ACCEPTED`.
-- Accepted validation: `npm run check` passed; `npm test` passed 8/8; `git diff --check` passed; two live discovery passes retained the same context/page/frame IDs; target identities before/after disconnect were unchanged; CDP endpoint remained responsive; no page/browser-process closure or application mutation occurred.
+- Implemented configurable Playwright `chromium.connectOverCDP()` attachment, low-intrusion options, existing context/page/frame discovery, deterministic GAS URL-prefix classification, public `CDPSession` observation and stable debugger-local IDs.
+- The first Architect review identified missing low-intrusion connection options and unstable counter-only identities; both were corrected in the same milestone.
+- Accepted validation: typecheck; 8/8 tests; clean diff check; two-pass stable-ID live validation; unchanged target identities before/after disconnect; responsive endpoint; no application/browser mutation.
 - `GasAdapter` remained inactive; V0.1A proved only the browser-side foundation and URL mode classification.
-- Accepted implementation was pushed to authoritative GitHub `main` through `f1cf95158eba7342d627a5526f04766b24c1d5d2`.
+- Accepted implementation was published through `f1cf95158eba7342d627a5526f04766b24c1d5d2`.
 
-The next bounded milestone is V0.1B: compose `gas-remote-debug` and prove safe dual-layer GAS coexistence against the accepted V0.1A browser observation path.
+## 2026-09-28 — V0.1B GAS Dual-Layer Coexistence / Integration Proof — ACCEPTED
+- Baseline: `4d19e3b1f3ad776ac64deedbccbd66f6e440d60a`.
+- Implementation: `83ba33d5bb67fc362a1d3e7e5226e5627de2f22e` (`Prove GAS browser discovery coexistence`).
+- Inspected current `nakfreeajer/gas-remote-debug` at `ac4359aa790af19cafe1a7e9a55ecd50f68e9169`; dependency tests passed 94/94.
+- Because the dependency was not published to npm, the primary project adopted a commit-pinned Git dependency at that exact SHA.
+- Implemented `GasAdapter` activation only after the exact GAS URL-prefix rule selects `BROWSER_PLUS_GAS`.
+- Delegated browser-root target discovery, recursive attachment and execution-context discovery to `gas-remote-debug`; no dependency source was copied or modified.
+- Implemented `CrossLayerMapper` that accepts only exact shared protocol FrameId evidence and consistent target/session context evidence; unsupported relationships remain explicitly unmapped.
+- Live coexistence proved Playwright and `gas-remote-debug` can remain simultaneously usable against the same already-running browser.
+- Live dependency evidence contained 2 targets, 2 sessions and 3 execution contexts; the root FrameId mapped to dependency context 25.
+- Sibling sandbox execution contexts 3 and 1 remained unmapped to Playwright frames; Playwright Page-to-raw-TargetId also remained unmapped because the public discovery result exposes no TargetId.
+- Accepted validation: primary typecheck; 13/13 primary tests; 94/94 dependency tests; clean diff check; second Playwright discovery while GAS remained connected; unchanged target identities before/after cleanup; responsive endpoint; no navigation/reload/click/type/DOM/storage/page/browser-process mutation.
+- Architect-Curator independently inspected the complete review packet and accepted the milestone.
+- Accepted implementation was published to authoritative GitHub `main` at `83ba33d5bb67fc362a1d3e7e5226e5627de2f22e`.
+
+The next bounded milestone is V0.1C: normalize the accepted browser/GAS observations into a read-only unified timeline and appendable JSONL evidence without inventing new cross-layer correlations.
