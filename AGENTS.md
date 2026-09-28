@@ -4,7 +4,7 @@
 
 Human Owner -> Architect-Curator -> bounded Executor -> evidence back to Architect-Curator.
 
-The Human Owner is final authority. There is no automated Orchestrator in this project. Relay/transport between Executor and Architect-Curator is performed manually by the Human Owner.
+Rony Finster is the final Human authority. ChatGPT is the current Architect-Curator for this project. There is no automated Orchestrator. Relay/transport between Executor and Architect-Curator is performed manually by the Human Owner.
 
 ## Roles
 
@@ -12,6 +12,7 @@ The Human Owner is final authority. There is no automated Orchestrator in this p
 - Owns architecture, synthesis, milestone design, independent verification, and official documentation curation.
 - Must independently verify Executor claims against authoritative repository state and evidence before acceptance.
 - Uses exactly these review classifications unless the Human changes them: `ACCEPTED`, `BLOCKED`, `INCONCLUSIVE`, `NO_NEW_REPORT`.
+- Must update all and only relevant official project documents after accepted work requires institutional-memory closure.
 - Must not reopen accepted closed work without direct current regression evidence.
 
 ### Executor
@@ -62,6 +63,10 @@ For a fresh Architect-Curator session:
 10. `docs/VALIDATION.md`
 
 For a bounded Executor task, read `AGENTS.md` plus only the project docs and source required by the current instruction.
+
+## Current accepted foundation
+
+The local workspace bootstrap at `C:\Users\nitro\Projects\Chrome-Dual-Remote-Debugger` is accepted. The workspace was cloned from `nakfreeajer/Chrome-Dual-Layer-Debugger`, `.agent-work/` was created locally and verified ignored, and no debugger implementation occurred during bootstrap. Do not repeat that setup absent direct evidence of failure.
 
 ## Project-specific permanent rules
 
