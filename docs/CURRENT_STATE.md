@@ -1,21 +1,19 @@
 # Current State
 
 ## Status
-V0.1A browser attachment/read-only discovery accepted and published; ready for the first bounded GAS coexistence milestone.
+V0.1B GAS dual-layer coexistence/integration proof accepted and published; ready for the read-only unified timeline milestone.
 
 ## Repository
 - Repository: `nakfreeajer/Chrome-Dual-Layer-Debugger`
 - Branch: `main`
 - Accepted V0.1A implementation HEAD: `f1cf95158eba7342d627a5526f04766b24c1d5d2`
-- V0.1A implementation commits:
-  - `aa886de935678e48f1f8a424728c6711dd701586` — `Implement read-only browser discovery`
-  - `f1cf95158eba7342d627a5526f04766b24c1d5d2` — `Correct low-intrusion discovery identities`
+- Accepted V0.1B implementation HEAD: `83ba33d5bb67fc362a1d3e7e5226e5627de2f22e`
+- V0.1B dependency baseline: `nakfreeajer/gas-remote-debug@ac4359aa790af19cafe1a7e9a55ecd50f68e9169`
 - Language/runtime: TypeScript + Node.js
 
 ## Local workspace
 - Local root: `C:\Users\nitro\Projects\Chrome-Dual-Remote-Debugger`
-- Local workspace was cloned from the authoritative repository during the accepted bootstrap.
-- Ignored `.agent-work/` hierarchy is the local raw-evidence workspace.
+- Ignored `.agent-work/` hierarchy remains the local raw-evidence workspace.
 - Relay between Executor and Architect-Curator is manual and performed by Rony.
 
 ## Architect-Curator verification status
@@ -23,39 +21,40 @@ V0.1A browser attachment/read-only discovery accepted and published; ready for t
 `ACCEPTED` on 2026-09-28.
 
 ### V0.1A — Browser attachment & read-only discovery
-`ACCEPTED` on 2026-09-28 after independent Architect review of the complete baseline-to-final patch and bounded live evidence.
+`ACCEPTED` on 2026-09-28 and published at `f1cf95158eba7342d627a5526f04766b24c1d5d2`.
 
-Published remote implementation is now visible on GitHub at `f1cf95158eba7342d627a5526f04766b24c1d5d2`.
+### V0.1B — GAS dual-layer coexistence / integration proof
+`ACCEPTED` on 2026-09-28 after independent Architect review of the complete baseline-to-final patch and bounded live coexistence evidence. Published remote implementation is visible on GitHub at `83ba33d5bb67fc362a1d3e7e5226e5627de2f22e`.
 
-Accepted V0.1A capabilities:
-- configurable Chromium CDP endpoint;
-- Playwright `chromium.connectOverCDP()` attachment;
-- low-intrusion connection options with `noDefaults: true` and loopback-only `isLocal: true`;
-- context/page/frame enumeration;
-- current URL and page-title discovery;
-- deterministic layer classification using only the `https://script.google.com/macros/` prefix rule;
-- Playwright-backed public `CDPSession` observation with `Page` and `Runtime` enabled;
-- `Page.getFrameTree` frame discovery;
-- execution-context ID capture from `Runtime.executionContextCreated`;
-- stable debugger-local Context/Page/Frame IDs across repeated discovery passes within one connection;
-- disconnect behavior proven to leave the existing browser process and target set intact in the accepted live validation.
+Accepted V0.1B capabilities:
+- commit-pinned Git dependency on `gas-remote-debug` at `ac4359aa790af19cafe1a7e9a55ecd50f68e9169` because no npm-published package exists;
+- `GasAdapter` activates only when the exact `https://script.google.com/macros/` prefix rule selects `BROWSER_PLUS_GAS`;
+- browser-root target/session/context discovery is delegated to `gas-remote-debug` rather than duplicated;
+- Playwright and `gas-remote-debug` can remain simultaneously connected to the same already-running browser;
+- dependency-native TargetId, SessionId, FrameId and ExecutionContextId evidence is preserved;
+- cross-layer mapping is accepted only for exact shared protocol FrameId evidence plus matching dependency target/session context evidence;
+- unsupported relationships remain explicitly `UNMAPPED`;
+- disconnect preserved the existing browser process and target set in live validation.
 
-Accepted V0.1A validation:
-- `npm run check` passed;
-- `npm test` passed: 8/8 tests;
+Accepted V0.1B validation:
+- primary `npm run check` passed;
+- primary `npm test` passed: 13/13 tests;
+- dependency `npm test` passed: 94/94 tests;
 - `git diff --check` passed;
-- two discovery passes retained `CONTEXT-0001`, `PAGE-0001`, and `FRAME-0001` for the same live identities;
-- before/after target snapshots were unchanged;
-- CDP endpoint remained responsive after disconnect;
-- no navigation, click, typing, reload, DOM mutation, storage mutation, page close, or browser-process close occurred;
-- `GasAdapter` was not activated.
+- live proof observed 1 Playwright context/page/frame and dependency discovery of 2 targets, 2 sessions and 3 execution contexts;
+- exact root FrameId mapping was proven to dependency context 25;
+- sibling sandbox contexts 3 and 1 remained unmapped to Playwright frames;
+- Playwright Page-to-raw-TargetId remained unmapped because the public Playwright discovery surface does not expose TargetId;
+- a second Playwright discovery succeeded while `GasAdapter` remained connected;
+- before/after target identities were unchanged and the endpoint remained responsive;
+- no navigation, reload, click, typing, DOM/storage mutation, page close, or browser-process close occurred.
 
 ## Established architecture
-- Playwright owns ordinary semantic interaction.
-- Normal browser CDP observation uses Playwright public `CDPSession` APIs rather than a second raw CDP engine.
-- GAS-specific browser-root recursive/OOPIF discovery is delegated to `nakfreeajer/gas-remote-debug` through `GasAdapter`.
-- Unified cross-layer chronology and evidence correlation are owned by this project.
-- Correlation must be evidence-backed; timing proximity alone is not enough.
+- Playwright owns ordinary semantic interaction and normal page/frame CDP observation.
+- `gas-remote-debug` owns browser-root recursive GAS/OOPIF target/session/context discovery.
+- Chrome-Dual-Layer-Debugger owns layer selection, composition, debugger-local identities, cross-layer evidence mapping, and future unified chronology.
+- Correlation must be evidence-backed; timing or URL equality alone is insufficient.
+- Unknown relationships remain unknown rather than guessed.
 
 ## GAS mode rule
 `https://script.google.com/macros/` prefix -> `BROWSER_PLUS_GAS`; otherwise -> `BROWSER_ONLY`.
@@ -68,15 +67,12 @@ Accepted V0.1A validation:
 - Relay is manual.
 
 ## Next engineering step
-Define and execute V0.1B: bounded GAS dual-layer coexistence/integration proof.
+Define and execute V0.1C: Read-Only Unified Timeline.
 
-V0.1B should inspect and compose `nakfreeajer/gas-remote-debug` rather than duplicate its recursive browser-root/OOPIF discovery. It must prove safe coexistence of:
-- Playwright normal-browser observation from the accepted V0.1A path; and
-- `gas-remote-debug` browser-root target/session/execution-context discovery on a GAS page.
-
-The milestone must preserve the low-intrusion boundary and record only identity mappings that can be proven.
+V0.1C should normalize already-proven browser and GAS observations into the shared trace model and appendable JSONL output while preserving source-native timestamps and leaving cross-layer events uncorrelated unless deterministic evidence links them.
 
 ## Unresolved items
-- Exact dependency integration method for `gas-remote-debug` must be proven in V0.1B.
-- Exact mapping contract between Playwright Page/Frame identities and GAS raw-CDP target/session/context identities still needs runtime evidence.
+- Sibling GAS runtime contexts remain intentionally unmapped to Playwright frames when no shared protocol FrameId exists.
+- Playwright Page-to-raw-TargetId remains intentionally unmapped through the current public discovery surface.
+- `GasAdapter` currently proves one active GAS discovery connection at a time; multi-GAS-tab orchestration has not been established.
 - Whether optional Playwright native tracing is useful alongside the JSONL unified timeline remains a future evidence-based decision.
