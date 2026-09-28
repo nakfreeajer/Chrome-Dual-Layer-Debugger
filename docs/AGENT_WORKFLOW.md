@@ -3,7 +3,7 @@
 ## Model
 Human Owner -> Architect-Curator -> bounded Executor -> evidence back to Architect-Curator.
 
-This project intentionally omits the automated AMO Orchestrator. The Human Owner performs relay manually.
+Rony Finster is final Human authority. ChatGPT is the current Architect-Curator. This project intentionally omits the automated AMO Orchestrator. The Human Owner performs relay manually.
 
 ## Discovery loop
 - Human and Architect may explore freely.
@@ -31,6 +31,18 @@ Before implementation, the Architect should be able to explain:
 7. Architect classifies `ACCEPTED`, `BLOCKED`, `INCONCLUSIVE`, or `NO_NEW_REPORT`.
 8. If accepted work changes institutional memory, Architect-Curator updates all and only relevant official docs.
 9. Commit/push/tag/deploy remain separate authorizations when applicable.
+
+## Accepted bootstrap checkpoint
+The initial local workspace bootstrap is closed and accepted:
+- local root: `C:\Users\nitro\Projects\Chrome-Dual-Remote-Debugger`;
+- repository: `nakfreeajer/Chrome-Dual-Layer-Debugger`;
+- branch: `main`;
+- accepted bootstrap baseline: `d157bd48ded35c1714d64635539569ca799da72d`;
+- `.agent-work/` created locally using `tools/setup-agent-work.ps1`;
+- `.agent-work/` verified ignored;
+- no tracked/source/debugger implementation changes occurred during the bootstrap.
+
+This checkpoint is a dependency for future milestones and must not be rerun unless direct current evidence shows the workspace contract has failed.
 
 ## Evidence challenge rule
 If source, tests, runtime behavior, or repository history contradicts the instruction, Executor stops the affected path and reports the contradiction. It must not force compliance or silently work around the evidence.
@@ -79,6 +91,9 @@ Created locally by `tools/setup-agent-work.ps1` and ignored by Git:
 ```
 
 The `bridge/` folder is only a manual staging/redaction boundary here; no automated synchronization is assumed.
+
+## Documentation closure
+There is no automated documentation doorbell. When accepted work materially changes current state, decisions, history, architecture, workflow, validation, lessons, roadmap or handover state, the Architect-Curator performs the bounded documentation synchronization directly after acceptance.
 
 ## Non-regression
 Accepted closed capabilities become dependencies. Reopen only when direct current evidence shows the documented contract has failed.
