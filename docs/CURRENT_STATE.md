@@ -1,31 +1,61 @@
 # Current State
 
 ## Status
-Planning / foundation setup complete; ready for first bounded implementation milestone.
+V0.1A browser attachment/read-only discovery accepted and published; ready for the first bounded GAS coexistence milestone.
 
 ## Repository
 - Repository: `nakfreeajer/Chrome-Dual-Layer-Debugger`
 - Branch: `main`
-- Authoritative remote baseline at accepted bootstrap: `d157bd48ded35c1714d64635539569ca799da72d`
-- Language/runtime direction: TypeScript + Node.js
+- Accepted V0.1A implementation HEAD: `f1cf95158eba7342d627a5526f04766b24c1d5d2`
+- V0.1A implementation commits:
+  - `aa886de935678e48f1f8a424728c6711dd701586` — `Implement read-only browser discovery`
+  - `f1cf95158eba7342d627a5526f04766b24c1d5d2` — `Correct low-intrusion discovery identities`
+- Language/runtime: TypeScript + Node.js
 
 ## Local workspace
 - Local root: `C:\Users\nitro\Projects\Chrome-Dual-Remote-Debugger`
-- Local workspace was cloned from the authoritative repository because the target directory existed but was empty.
-- Executor reported clean `main...origin/main` state at bootstrap completion.
-- Ignored `.agent-work/` hierarchy was created using `tools/setup-agent-work.ps1`.
-- `.agent-work/` ignore behavior was checked with Git and produced no tracked/untracked Git noise.
+- Local workspace was cloned from the authoritative repository during the accepted bootstrap.
+- Ignored `.agent-work/` hierarchy is the local raw-evidence workspace.
+- Relay between Executor and Architect-Curator is manual and performed by Rony.
 
 ## Architect-Curator verification status
-The 2026-09-28 local-filesystem bootstrap is `ACCEPTED`.
+### Local filesystem/bootstrap
+`ACCEPTED` on 2026-09-28.
 
-Independent GitHub verification confirmed that the reported baseline commit exists in the authoritative repository and is the architecture/manual-relay baseline. Local-only facts such as the exact filesystem tree and ignore check were supplied through the Human-relayed Executor terminal report and are accepted for this bootstrap because no source mutation occurred and the remote repository remained unchanged.
+### V0.1A — Browser attachment & read-only discovery
+`ACCEPTED` on 2026-09-28 after independent Architect review of the complete baseline-to-final patch and bounded live evidence.
+
+Published remote implementation is now visible on GitHub at `f1cf95158eba7342d627a5526f04766b24c1d5d2`.
+
+Accepted V0.1A capabilities:
+- configurable Chromium CDP endpoint;
+- Playwright `chromium.connectOverCDP()` attachment;
+- low-intrusion connection options with `noDefaults: true` and loopback-only `isLocal: true`;
+- context/page/frame enumeration;
+- current URL and page-title discovery;
+- deterministic layer classification using only the `https://script.google.com/macros/` prefix rule;
+- Playwright-backed public `CDPSession` observation with `Page` and `Runtime` enabled;
+- `Page.getFrameTree` frame discovery;
+- execution-context ID capture from `Runtime.executionContextCreated`;
+- stable debugger-local Context/Page/Frame IDs across repeated discovery passes within one connection;
+- disconnect behavior proven to leave the existing browser process and target set intact in the accepted live validation.
+
+Accepted V0.1A validation:
+- `npm run check` passed;
+- `npm test` passed: 8/8 tests;
+- `git diff --check` passed;
+- two discovery passes retained `CONTEXT-0001`, `PAGE-0001`, and `FRAME-0001` for the same live identities;
+- before/after target snapshots were unchanged;
+- CDP endpoint remained responsive after disconnect;
+- no navigation, click, typing, reload, DOM mutation, storage mutation, page close, or browser-process close occurred;
+- `GasAdapter` was not activated.
 
 ## Established architecture
 - Playwright owns ordinary semantic interaction.
-- Normal browser CDP observation should prefer Playwright public `CDPSession` APIs rather than a second raw CDP engine.
+- Normal browser CDP observation uses Playwright public `CDPSession` APIs rather than a second raw CDP engine.
 - GAS-specific browser-root recursive/OOPIF discovery is delegated to `nakfreeajer/gas-remote-debug` through `GasAdapter`.
-- Unified cross-layer chronology is owned by this project.
+- Unified cross-layer chronology and evidence correlation are owned by this project.
+- Correlation must be evidence-backed; timing proximity alone is not enough.
 
 ## GAS mode rule
 `https://script.google.com/macros/` prefix -> `BROWSER_PLUS_GAS`; otherwise -> `BROWSER_ONLY`.
@@ -35,15 +65,18 @@ Independent GitHub verification confirmed that the reported baseline commit exis
 - Architect-Curator: ChatGPT Architect for this project.
 - Executor: bounded Codex execution role.
 - There is no automated Orchestrator.
-- Relay between Architect-Curator and Executor is manual and performed by the Human Owner.
-
-## Existing scaffold
-The repository contains initial `src/core`, `src/browser`, `src/gas`, `src/trace`, `src/cli`, `tests`, `docs`, governance files, templates and local-workspace setup tooling. The implementation code remains intentionally skeletal pending bounded implementation milestones.
+- Relay is manual.
 
 ## Next engineering step
-Define and execute the first bounded v0.1 attachment/discovery milestone. It should prove attachment to an already-running Chromium browser, page/target/frame enumeration, low-intrusion observation, and the Playwright/CDP boundary before broader GAS trace-correlation work.
+Define and execute V0.1B: bounded GAS dual-layer coexistence/integration proof.
+
+V0.1B should inspect and compose `nakfreeajer/gas-remote-debug` rather than duplicate its recursive browser-root/OOPIF discovery. It must prove safe coexistence of:
+- Playwright normal-browser observation from the accepted V0.1A path; and
+- `gas-remote-debug` browser-root target/session/execution-context discovery on a GAS page.
+
+The milestone must preserve the low-intrusion boundary and record only identity mappings that can be proven.
 
 ## Unresolved items
-- Exact dependency integration method for `gas-remote-debug` should be proven during the first integration milestone.
-- Exact mapping contract between Playwright Page/Frame identities and GAS raw-CDP target/session/context identities needs runtime evidence.
+- Exact dependency integration method for `gas-remote-debug` must be proven in V0.1B.
+- Exact mapping contract between Playwright Page/Frame identities and GAS raw-CDP target/session/context identities still needs runtime evidence.
 - Whether optional Playwright native tracing is useful alongside the JSONL unified timeline remains a future evidence-based decision.
