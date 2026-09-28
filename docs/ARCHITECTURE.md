@@ -1,43 +1,79 @@
 # Architecture
 
-## Principle
+## Core principle
 
-Playwright owns ordinary semantic browser interaction. CDP owns low-level observation and verification. The GAS layer is enabled only for pages whose active URL starts with `https://script.google.com/macros/`.
+Playwright owns ordinary semantic browser interaction. For normal pages, low-level CDP observation should prefer Playwright public `CDPSession` access. The GAS layer is enabled only when the current page URL starts with `https://script.google.com/macros/`.
 
-## Layers
+## Runtime architecture
 
 ```text
 Chrome / Chromium
-  |
-  +-- PlaywrightAdapter ---- semantic browser interaction
-  |
-  +-- CDPAdapter ----------- browser/runtime/network observation
-  |
-  +-- GasAdapter ----------- GAS/OOPIF runtime discovery when enabled
-           |
-           +-- reuses gas-remote-debug public API
+        |
+        +-- PlaywrightAdapter
+        |     +-- connectOverCDP
+        |     +-- pages / frames / locators / actions
+        |
+        +-- CDPObserver
+        |     +-- Playwright newCDPSession(Page/Frame)
+        |     +-- Runtime / Page / Network / DOM / console evidence
+        |
+        +-- LayerDetector
+              |
+              +-- BROWSER_ONLY
+              |
+              +-- BROWSER_PLUS_GAS
+                        |
+                        +-- GasAdapter
+                              |
+                              +-- gas-remote-debug
+                                    +-- browser-root CDP
+                                    +-- Target discovery
+                                    +-- recursive OOPIF/session discovery
+                                    +-- execution-context discovery
 
-Adapters -> normalized TraceEvent -> Timeline -> JSONL
+All adapters -> normalized TraceEvent -> Timeline -> JSONL
 ```
+
+## GAS detection
+
+The v0.1 detector is intentionally deterministic and simple:
+
+```text
+currentUrl.startsWith("https://script.google.com/macros/")
+  -> BROWSER_PLUS_GAS
+otherwise
+  -> BROWSER_ONLY
+```
+
+Detection and runtime discovery are separate concerns. The URL rule decides whether `GasAdapter` is required; `gas-remote-debug` then performs GAS-specific discovery.
 
 ## GAS composition decision
 
 Do not fork or duplicate the recursive CDP engine already present in `nakfreeajer/gas-remote-debug`.
 
-`GasAdapter` should compose that package for browser-root target discovery, recursive attachment, session/frame/execution-context registries, runtime-context selection, safe evaluation, and redaction.
+`GasAdapter` composes that package for browser-root target discovery, recursive attachment, target/session/frame/execution-context registries, runtime-context selection, safe evaluation, and redaction.
 
-The dual-layer debugger remains responsible for:
-
-- selecting the active debug page;
+Chrome-Dual-Layer-Debugger remains responsible for:
+- selecting the page/session under inspection;
 - URL-based mode detection;
 - Playwright semantic control;
-- general browser/CDP observations;
-- page/target identity correlation;
+- normal page/frame CDP observations;
+- cross-layer identity mapping where it can be proven;
 - assigning unified event/trace identity;
 - chronological normalization into one timeline.
 
-The GAS package remains responsible for GAS/OOPIF-specific runtime discovery and exact `sessionId + executionContextId` access.
+## Identity rule
 
-## Avoid duplicate ownership
+Playwright Page/Frame identity, CDP TargetId/FrameId/SessionId, and GAS execution-context identity are related but not assumed identical. `TargetRegistry` records only mappings supported by evidence.
 
-The browser CDP observer and GAS adapter may both receive CDP evidence, but only one component should own recursive GAS target/context discovery. In Version 0.1 that owner is `gas-remote-debug` through `GasAdapter`.
+## Trace rule
+
+Every observation may have an `eventId`. A higher-level `traceId` is assigned only when deterministic evidence links events. Timestamp proximity alone is not proof of correlation.
+
+## Low-intrusion rule
+
+Observation is the default. Do not navigate, close, click, type, mutate DOM/runtime state, or close the browser unless the active bounded milestone explicitly authorizes it.
+
+## Engineering workflow architecture
+
+The project uses an AMO-inspired Human -> Architect-Curator -> Executor authority model, but **no automated Orchestrator is part of this project**. Relay is performed manually by the Human Owner. Repository governance and the software runtime architecture are independent concerns.
