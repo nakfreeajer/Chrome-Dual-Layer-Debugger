@@ -17,26 +17,31 @@ Only accepted near-term sequencing belongs here. Exploratory ideas remain in `ID
 
 Accepted implementation HEAD: `f1cf95158eba7342d627a5526f04766b24c1d5d2`.
 
-## V0.1B — GAS Dual-Layer Coexistence / Integration Proof — NEXT
-- Inspect the current public API and composition boundary of `nakfreeajer/gas-remote-debug`.
-- On a GAS page, prove the accepted Playwright V0.1A attachment/observation path and `gas-remote-debug` browser-root discovery can coexist safely against the same browser.
-- Activate `GasAdapter` only when the current URL starts with `https://script.google.com/macros/`.
-- Record GAS target/session/frame/execution-context evidence from `gas-remote-debug` without duplicating its recursive discovery engine.
-- Record only proven mappings or disagreements between Playwright Page/Frame identities and raw CDP target/session/context identities.
-- Preserve V0.1A low-intrusion and stable-identity guarantees.
-- No navigation, reload, click, typing, DOM/storage mutation, page close, or browser-process close.
+## V0.1B — GAS Dual-Layer Coexistence / Integration Proof — ACCEPTED
+- `gas-remote-debug` inspected and pinned at `ac4359aa790af19cafe1a7e9a55ecd50f68e9169`.
+- Proven safe coexistence of the accepted Playwright path and `gas-remote-debug` against the same running browser.
+- `GasAdapter` activates only when the exact GAS URL prefix selects `BROWSER_PLUS_GAS`.
+- Browser-root recursive target/session/context discovery remains owned by `gas-remote-debug`.
+- Dependency-native TargetId/SessionId/FrameId/ExecutionContextId evidence is preserved.
+- Cross-layer mapping is promoted only when exact shared protocol FrameId evidence exists and target/session evidence is consistent.
+- Unsupported sibling GAS contexts and Playwright Page-to-TargetId relationships remain explicitly unmapped.
+- V0.1A low-intrusion and stable-identity guarantees were preserved.
 
-## V0.1C — Read-Only Unified Timeline
-After V0.1B establishes the dual-layer identity boundary:
-- normalize browser and GAS observations into the shared `TraceEvent` model;
-- retain native source timestamps where available;
-- assign deterministic event ordering/identity;
-- write appendable JSONL timeline evidence;
-- leave cross-layer events uncorrelated unless deterministic evidence links them.
+Accepted implementation HEAD: `83ba33d5bb67fc362a1d3e7e5226e5627de2f22e`.
+
+## V0.1C — Read-Only Unified Timeline — NEXT
+- Normalize accepted browser and GAS observations into the shared `TraceEvent` model.
+- Assign deterministic debugger event IDs and sequence ordering.
+- Retain wall-clock timestamps plus native/source monotonic timestamps where available.
+- Record source/category/type and relevant browser/page/frame/target/session/execution-context identifiers without synthesizing unsupported identities.
+- Write appendable JSONL, one normalized event per line.
+- Preserve explicitly unknown/unmapped relationships rather than correlating by timing or URL alone.
+- Prove browser-only and GAS-mode events can coexist in one chronology without regression of the V0.1A/V0.1B read-only safety contract.
 
 ## Later, not yet authorized for implementation
 - Deterministic cross-boundary trace propagation through `google.script.run`.
 - GAS server-side tracing adapter details beyond the proven `gas-remote-debug` composition boundary.
+- Multi-GAS-tab orchestration beyond the single active GAS discovery proof.
 - UI/visual timeline.
 - Breakpoints or powerful mutation/control features.
 - Additional backend adapters.
