@@ -21,14 +21,39 @@ Accepted bootstrap evidence:
 
 Local-only filesystem facts cannot be reconstructed from GitHub, so future Architect review of such facts relies on the bounded Human-relayed Executor evidence unless additional local evidence is supplied. That limitation must be stated rather than silently treated as remote verification.
 
-## v0.1 browser attachment validation
-A milestone involving an already-running Chrome/Chromium instance should prove, as applicable:
-- attachment succeeds through the configured debugging endpoint;
-- existing pages/tabs can be enumerated;
-- current URLs and frame hierarchy can be observed;
-- Playwright Page/Frame and relevant CDP identities are captured where available;
-- browser observation does not navigate, close pages, or close the browser unless explicitly authorized;
-- disconnect leaves the existing browser usable;
+## Accepted V0.1A browser attachment/read-only discovery validation
+V0.1A is accepted against baseline `736742a08cf357fe19acac7e4425f6de54090643`, with final implementation at `f1cf95158eba7342d627a5526f04766b24c1d5d2`.
+
+Accepted deterministic validation:
+- `npm run check` passed;
+- `npm test` passed 8 tests, 0 failed, 0 cancelled, 0 skipped, 0 todo;
+- `git diff --check` passed for the complete baseline-to-final range;
+- tests cover deterministic URL classification, deceptive non-GAS URLs, stable context/page IDs, stable frame IDs, and low-intrusion endpoint options.
+
+Accepted live validation against `http://127.0.0.1:9222`:
+- connection options were exactly `{ noDefaults: true, isLocal: true }`;
+- two `discover()` passes on the same `PlaywrightBrowserDiscovery` object returned the same `CONTEXT-0001`, `PAGE-0001`, and `FRAME-0001` for the same live identities;
+- the page was classified `BROWSER_PLUS_GAS` solely because its URL started with `https://script.google.com/macros/`;
+- browser target IDs before and after disconnect were unchanged;
+- the endpoint remained responsive after disconnect;
+- no navigation, click, typing, reload, storage mutation, DOM mutation, page close, or browser-process close occurred;
+- `GasAdapter` was not activated.
+
+The V0.1A low-intrusion contract therefore includes:
+- use public Playwright APIs only;
+- connect with `noDefaults: true`;
+- use `isLocal: true` only for loopback endpoint hosts (`localhost`, `127.0.0.1`, `::1`);
+- retain debugger-local context/page/frame IDs for the lifetime of one connected discovery session;
+- disconnect without destroying the existing browser process or page targets.
+
+## Browser attachment validation for future regressions
+A later milestone that materially changes browser attachment/discovery should preserve, as applicable:
+- attachment through the configured debugging endpoint;
+- existing page/tab enumeration;
+- current URLs and frame hierarchy;
+- stable debugger-local identities across repeated discovery in one connection;
+- low-intrusion connection options;
+- disconnect leaves existing browser/page targets usable;
 - layer detection returns `BROWSER_PLUS_GAS` only for URLs beginning with `https://script.google.com/macros/`;
 - ordinary pages remain `BROWSER_ONLY`.
 
@@ -37,7 +62,8 @@ When GAS mode is exercised:
 - `GasAdapter` activates only after the prefix rule selects `BROWSER_PLUS_GAS`;
 - `gas-remote-debug` remains the owner of recursive GAS/OOPIF target/context discovery;
 - the project records enough identity evidence to correlate the selected Playwright page with GAS target/session/context evidence without inventing relationships;
-- coexistence with Playwright-backed CDP observation does not create destructive browser side effects.
+- coexistence with Playwright-backed CDP observation does not create destructive browser side effects;
+- accepted V0.1A browser attachment behavior must not regress.
 
 ## Timeline validation
 - Events receive deterministic event identity and ordering metadata.
