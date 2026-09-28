@@ -1,4 +1,4 @@
-export type TraceSource = 'CORE' | 'PLAYWRIGHT' | 'CDP' | 'GAS';
+export type TraceSource = 'CORE' | 'PLAYWRIGHT' | 'CDP' | 'GAS' | 'TRACE';
 
 export interface TraceEvent {
   eventId: string;
@@ -14,6 +14,8 @@ export interface TraceEvent {
   pageId?: string;
   targetId?: string;
   frameId?: string;
+  protocolFrameId?: string;
+  sessionId?: string;
   executionContextId?: number;
   url?: string;
   parentEventId?: string;

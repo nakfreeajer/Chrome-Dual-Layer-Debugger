@@ -84,6 +84,20 @@ export interface GasRemoteDebugApi {
 
 const dependency = require('gas-remote-debug') as GasRemoteDebugApi;
 
+export function redactGasSecrets(value: string): string {
+  const redacted = dependency.redactSecrets(value);
+  try {
+    const url = new URL(redacted);
+    url.pathname = url.pathname.replace(/(\/macros\/s\/)[^/]+/i, '$1[REDACTED]');
+    if (url.search) {
+      for (const key of url.searchParams.keys()) url.searchParams.set(key, '[REDACTED]');
+    }
+    return url.toString();
+  } catch {
+    return redacted;
+  }
+}
+
 export function parseBrowserEndpoint(endpoint: string): { host: string; port: number } {
   const parsed = new URL(endpoint);
   if (!['http:', 'https:', 'ws:', 'wss:'].includes(parsed.protocol)) {
