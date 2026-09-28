@@ -4,6 +4,7 @@ export * from './core/TargetRegistry.js';
 export * from './core/SessionClock.js';
 export * from './core/SessionIds.js';
 export * from './browser/BrowserDiscovery.js';
+export * from './browser/ConnectOptions.js';
 export * from './browser/PlaywrightBrowserDiscovery.js';
 export * from './browser/PlaywrightAdapter.js';
 export * from './browser/CDPAdapter.js';

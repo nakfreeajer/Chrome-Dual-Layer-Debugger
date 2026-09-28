@@ -29,7 +29,6 @@ export interface DiscoveryResult {
 }
 
 export interface PageDiscoveryInput {
-  contextId: string;
   url: string;
   title?: string;
   frames: DiscoveredFrame[];
