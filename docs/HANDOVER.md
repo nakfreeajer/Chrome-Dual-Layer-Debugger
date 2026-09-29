@@ -25,31 +25,34 @@ Rony Finster is final Human authority. ChatGPT is the Architect-Curator for this
 - Accepted V0.1A implementation HEAD: `f1cf95158eba7342d627a5526f04766b24c1d5d2`.
 - Accepted V0.1B implementation HEAD: `83ba33d5bb67fc362a1d3e7e5226e5627de2f22e`.
 - Accepted V0.1C implementation HEAD: `21b5f9c30460c38e11c16f04b44fa8ac3a5210f5`.
+- Accepted V0.1D implementation HEAD: `b14fda0db3b4d150064c91eab86dfdda19b6cd1f`.
 - `gas-remote-debug` dependency is pinned to `ac4359aa790af19cafe1a7e9a55ecd50f68e9169`.
 
 ## Accepted capability
-V0.1A established low-intrusion Playwright browser attachment/discovery. V0.1B established safe coexistence with `gas-remote-debug` and deterministic evidence-backed identity mapping. V0.1C now normalizes those accepted observations into one appendable read-only JSONL chronology.
+V0.1A established low-intrusion Playwright browser discovery. V0.1B established safe coexistence with `gas-remote-debug` and deterministic evidence-backed mapping. V0.1C normalized those observations into appendable read-only JSONL. V0.1D adds explicit debugger-run identity so multiple runs can coexist in one JSONL file without ambiguous event identity.
 
-Accepted V0.1C behavior:
-- deterministic per-run `EVENT-000001`-style IDs and strictly increasing sequence numbers;
-- wall-clock ingestion timestamps and preservation of source monotonic timestamps only when actually supplied;
-- normalized browser context/page/frame/runtime events;
-- normalized GAS target/session/frame/runtime-context events using dependency-native IDs;
-- mapping evidence emitted only from the accepted deterministic mapper;
-- unsupported relationships emitted as explicit `IDENTITY_UNMAPPED` evidence;
-- URL query values and Apps Script deployment path tokens are redacted from timeline/CLI output;
-- JSONL output is appendable, UTF-8 and independently parseable line by line;
-- accepted read-only browser contract remains intact.
+Accepted V0.1D behavior:
+- one immutable `runId` per `Timeline`;
+- default run IDs from Node `crypto.randomUUID()`;
+- deterministic constructor injection available for tests;
+- required `TraceEvent.runId` on newly emitted V0.1D events;
+- per-run event numbering still starts at `EVENT-000001`;
+- `(runId,eventId)` is the unambiguous cross-run event key;
+- `Timeline.append()` rejects foreign-run events;
+- JSONL format and append behavior remain unchanged;
+- historical V0.1C JSONL is not rewritten or migrated;
+- CLI prints the active Run ID;
+- accepted URL redaction and read-only browser behavior remain intact.
 
-Accepted validation included typecheck, 19/19 tests, clean baseline-to-HEAD diff check, and a live 40-event JSONL run with no malformed lines, duplicate event IDs or sequence gaps. The live evidence contained 2 proven mappings and 3 explicit unmapped identities; before/after target identities were unchanged and the endpoint remained responsive.
+Accepted validation included typecheck, 22/22 tests, clean baseline-to-HEAD diff check, and a live two-run append proof containing 83 valid JSONL events across two distinct run IDs. Each run restarted at `EVENT-000001`, duplicate raw event IDs were expected, duplicate `(runId,eventId)` pairs were zero, every run had one session start/end, browser targets were unchanged, and the endpoint remained responsive.
 
 ## Architecture baseline
-- Project is independent from AFFOTECH.
+- Project is independent from AFFOTECH and other projects.
 - Browser semantic interaction belongs to Playwright.
 - Normal page/frame CDP observation uses public Playwright CDP sessions.
 - GAS-specific browser-root recursive/OOPIF discovery belongs to `gas-remote-debug` behind `GasAdapter`.
 - GAS activation remains only the `https://script.google.com/macros/` prefix rule in v0.1.
-- Unified timeline/correlation belongs to Chrome-Dual-Layer-Debugger.
+- Unified timeline, run identity and correlation ownership belong to Chrome-Dual-Layer-Debugger.
 - Unknown relationships must remain unknown until deterministically proven.
 
 ## Workflow note
@@ -62,9 +65,9 @@ Local raw evidence belongs under ignored `.agent-work/`. Because relay is manual
 - Do not replace the accepted commit-pinned dependency boundary casually.
 - Do not infer Playwright/GAS relationships from timestamps or URL equality alone.
 - Do not reopen intentionally unmapped sibling GAS contexts merely because they are unmapped.
-- Do not redesign the accepted V0.1C normalized timeline without direct regression evidence.
+- Do not redesign the accepted V0.1C timeline or V0.1D run identity without direct regression evidence.
 
 ## Exact next intended action
-Select the next bounded milestone from the accepted V0.1C baseline. If multiple debugger runs must append to one JSONL file, establish an explicit run/trace namespace before claiming event-ID uniqueness across runs. Deeper `google.script.run` propagation remains separate future work and must not be mixed into a small run-identity milestone.
+Select the next bounded milestone from the accepted V0.1D baseline. Deterministic cross-boundary propagation through `google.script.run` is a possible future direction, but it is not yet authorized and must remain separate from already-closed timeline/run-identity work.
 
 Do not jump directly to GUI work, breakpoints, destructive browser controls, broad automation, or unbounded server instrumentation.
