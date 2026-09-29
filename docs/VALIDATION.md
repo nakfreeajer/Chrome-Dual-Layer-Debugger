@@ -44,31 +44,52 @@ V0.1C is accepted against baseline `4045ccbf0949878d14bda5931ecee139c9e7f759`, w
 
 Accepted deterministic validation:
 - `npm run check` passed;
-- `npm test` passed 19 tests, 0 failed, 0 cancelled, 0 skipped, 0 todo;
+- `npm test` passed 19/19;
 - `git diff --check` passed for the complete baseline-to-final range;
-- tests cover deterministic event ID/sequence allocation, strict append ordering, preservation/non-fabrication of monotonic timestamps, JSONL append/parse behavior, normalized browser/GAS evidence, mapping evidence and explicit unmapped identities;
-- JSONL writer append behavior was proven with separate writer instances in a temporary directory.
+- tests cover deterministic per-run event ID/sequence allocation, strict append ordering, source monotonic timestamp preservation/non-fabrication, JSONL append/parse behavior, normalized browser/GAS evidence, mapping evidence and explicit unmapped identities.
 
 Accepted live validation against `http://127.0.0.1:9222`:
 - one already-open GAS page was observed without navigation;
-- output contained exactly 40 JSONL events;
-- first event: `EVENT-000001` / `CORE/SESSION/SESSION_STARTED`;
-- last event: `EVENT-000040` / `CORE/SESSION/SESSION_ENDED`;
+- output contained exactly 40 valid JSONL events;
 - duplicate event IDs: 0;
 - sequence gaps: 0;
 - malformed JSON lines: 0;
 - timeline contained 2 `MAPPING_PROVEN` events and 3 `IDENTITY_UNMAPPED` events;
 - browser target identities before/after disconnect were unchanged;
 - endpoint remained responsive after cleanup;
-- three query-bearing timeline URLs had all query values redacted;
-- Apps Script deployment path token was redacted;
-- navigation, reload, click, typing, DOM mutation, storage mutation, page close and browser-process close were all `NO`;
-- no new Runtime evaluation was introduced beyond the already accepted dependency-generated read-only GAS probe.
+- URL query values and Apps Script deployment path token were redacted;
+- no destructive browser/application mutation occurred.
 
-Accepted V0.1C limitation:
-- event IDs are deterministic and unique within one debugger run only;
-- a fresh run restarts at `EVENT-000001`;
-- therefore multiple runs appended into one JSONL file require a future run/trace namespace before cross-run event-ID uniqueness can be claimed.
+## Accepted V0.1D run / trace identity validation
+V0.1D is accepted against baseline `6c737e981901c79d3425c5b3288c4b8b737761e5`, with implementation at `b14fda0db3b4d150064c91eab86dfdda19b6cd1f`.
+
+Accepted deterministic validation:
+- `npm run check` passed;
+- `npm test` passed 22 tests, 0 failed, 0 cancelled, 0 skipped, 0 todo;
+- `git diff --check 6c737e981901c79d3425c5b3288c4b8b737761e5..HEAD` passed;
+- tests cover fixed/injected run identity, distinct default run IDs, per-run event numbering, immutable/consistent run ownership, session start/end identity, browser/GAS/mapping propagation, foreign-run append rejection, and two-run JSONL append behavior;
+- historical V0.1C JSONL was not rewritten.
+
+Accepted live two-run validation against `http://127.0.0.1:9222`:
+- two sequential debugger executions used the same fresh ignored JSONL output file;
+- total JSONL events: 83;
+- distinct run IDs: 2;
+- run 1 contained 41 events, `EVENT-000001` through `EVENT-000041`;
+- run 2 contained 42 events, `EVENT-000001` through `EVENT-000042`;
+- duplicate raw `eventId` values across the file: 41, expected because numbering is per-run;
+- duplicate `(runId,eventId)` pairs: 0;
+- malformed JSON lines: 0;
+- each run contained exactly one `SESSION_STARTED` and one `SESSION_ENDED`;
+- browser target identities before and after both runs were unchanged;
+- endpoint remained responsive after both runs;
+- accepted V0.1C URL redaction remained intact;
+- navigation, reload, click, typing, DOM mutation, storage mutation, page close and browser-process close were all `NO`.
+
+Accepted V0.1D identity rule:
+- event IDs remain deterministic and unique only within a run;
+- `runId` identifies the debugger execution;
+- `(runId,eventId)` is the cross-run event identity;
+- no existing JSONL scan is used to continue event numbering across processes.
 
 ## Regression contracts
 Future work must preserve, as applicable:
@@ -79,7 +100,9 @@ Future work must preserve, as applicable:
 - deterministic evidence-only mapping;
 - explicit unknown/unmapped relationships;
 - normalized timeline ordering without speculative clock reconciliation;
-- independently parseable JSONL output;
+- required run identity for newly generated V0.1D+ trace events;
+- per-run event numbering with cross-run identity defined by `(runId,eventId)`;
+- independently parseable appendable JSONL output;
 - no destructive browser/application mutation unless a separately authorized milestone explicitly changes that contract.
 
 ## Test evidence
