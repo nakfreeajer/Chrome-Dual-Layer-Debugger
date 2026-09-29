@@ -1,6 +1,7 @@
 export type TraceSource = 'CORE' | 'PLAYWRIGHT' | 'CDP' | 'GAS' | 'TRACE';
 
 export interface TraceEvent {
+  runId: string;
   eventId: string;
   traceId?: string;
   sequence: number;

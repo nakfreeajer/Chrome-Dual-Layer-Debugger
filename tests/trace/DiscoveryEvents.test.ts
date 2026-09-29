@@ -24,7 +24,7 @@ const gas: GasDiscoveryResult = {
 };
 
 test('normalizes browser and GAS discovery while preserving dependency-native identities', () => {
-  const timeline = new Timeline();
+  const timeline = new Timeline({ runId: 'RUN-NORMALIZE-1' });
   emitBrowserDiscovery(timeline, browser);
   emitGasDiscovery(timeline, gas);
   const events = timeline.snapshot();
@@ -35,10 +35,11 @@ test('normalizes browser and GAS discovery while preserving dependency-native id
   assert.ok(events.some((event) => event.type === 'GAS_SESSION_DISCOVERED' && event.sessionId === 'native-session'));
   assert.ok(events.some((event) => event.type === 'GAS_EXECUTION_CONTEXT_DISCOVERED' && event.executionContextId === 89));
   assert.ok(events.some((event) => event.type === 'GENERIC_GAS_RUNTIME_CONTEXT_MATCHED' && event.executionContextId === 88));
+  assert.ok(events.every((event) => event.runId === 'RUN-NORMALIZE-1'));
 });
 
 test('emits proven frame/context mappings and leaves unsupported identities explicitly unmapped', () => {
-  const timeline = new Timeline();
+  const timeline = new Timeline({ runId: 'RUN-MAPPING-1' });
   const mappings = mapCrossLayerIdentities(browser.contexts[0].pages, gas);
   emitMappingEvidence(timeline, mappings);
   const events = timeline.snapshot();
@@ -46,6 +47,7 @@ test('emits proven frame/context mappings and leaves unsupported identities expl
   assert.ok(events.some((event) => event.type === 'MAPPING_PROVEN' && event.executionContextId === 88));
   assert.ok(events.some((event) => event.type === 'IDENTITY_UNMAPPED' && (event.data as { identity?: string }).identity === 'PAGE-0001'));
   assert.ok(events.some((event) => event.type === 'IDENTITY_UNMAPPED' && (event.data as { identity?: string }).identity === '89'));
+  assert.ok(events.every((event) => event.runId === 'RUN-MAPPING-1'));
 });
 
 test('redacts URL query values in timeline evidence', () => {

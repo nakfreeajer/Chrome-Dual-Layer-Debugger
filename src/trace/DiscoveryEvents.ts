@@ -5,7 +5,7 @@ import { redactGasSecrets } from '../gas/GasAdapter.js';
 import type { TraceEvent } from './TraceEvent.js';
 import { Timeline } from './Timeline.js';
 
-function emit(timeline: Timeline, event: Omit<TraceEvent, 'eventId' | 'sequence' | 'timestamp'>): TraceEvent {
+function emit(timeline: Timeline, event: Parameters<Timeline['create']>[0]): ReturnType<Timeline['create']> {
   const normalized = timeline.create(event);
   timeline.append(normalized);
   return normalized;

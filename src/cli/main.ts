@@ -30,6 +30,7 @@ export async function runCli(args: string[]): Promise<void> {
   const gasAdapter = new GasAdapter();
   const timeline = new Timeline();
   emitSessionEvent(timeline, 'SESSION_STARTED');
+  console.log(`Run ID: ${timeline.runId}`);
   try {
     const result = await discovery.discover();
     emitBrowserDiscovery(timeline, result, redactGasSecrets);
