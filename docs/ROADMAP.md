@@ -33,16 +33,24 @@ Accepted implementation HEAD: `83ba33d5bb67fc362a1d3e7e5226e5627de2f22e`.
 
 Accepted implementation HEAD: `21b5f9c30460c38e11c16f04b44fa8ac3a5210f5`.
 
+## V0.1D — Run / Trace Identity — ACCEPTED
+- Add one explicit immutable `runId` per debugger Timeline/run.
+- Generate default run IDs with Node `crypto.randomUUID()` while allowing deterministic injection for tests.
+- Require `runId` on newly generated trace events.
+- Preserve per-run `EVENT-000001` numbering rather than creating global counters.
+- Define `(runId,eventId)` as the unambiguous event identity across appended runs.
+- Reject foreign-run events when appended to a Timeline.
+- Keep JSONL append format unchanged and leave historical V0.1C evidence untouched.
+- Preserve accepted redaction, mapping and browser/GAS read-only behavior.
+
+Accepted implementation HEAD: `b14fda0db3b4d150064c91eab86dfdda19b6cd1f`.
+
 ## Next bounded milestone — TO SELECT
-The smallest known timeline follow-up is run/trace identity if multiple debugger runs must append safely into one JSONL file. V0.1C event IDs are intentionally per-run and restart at `EVENT-000001` for a fresh process.
+The timeline now has explicit cross-run identity. The next milestone should be selected based on a concrete debugging need rather than continuing infrastructure automatically.
 
-A future bounded milestone may establish:
-- explicit run/trace identity;
-- unambiguous cross-run event identity when appending multiple sessions to one file;
-- compatibility with the accepted V0.1C event model and JSONL reader contract;
-- no change to browser/GAS mutation boundaries.
+A likely future direction is deterministic cross-boundary tracing of application calls through `google.script.run`, but that work should first establish a narrow evidence contract for linking frontend invocation, GAS execution and frontend callback/failure without timing-based guesses.
 
-Do not mix that small identity concern with deeper application tracing unless explicitly selected by the Architect/Human.
+Do not mix that work with GUI, breakpoints, browser mutation or broad server instrumentation.
 
 ## Later, not yet authorized for implementation
 - Deterministic cross-boundary trace propagation through `google.script.run`.
