@@ -14,3 +14,4 @@ export * from './trace/TraceEvent.js';
 export * from './trace/Timeline.js';
 export * from './trace/JsonlTraceWriter.js';
 export * from './trace/DiscoveryEvents.js';
+export * from './correlation/V1CorrelationRecognizer.js';
