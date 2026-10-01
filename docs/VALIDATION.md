@@ -110,3 +110,36 @@ Executor reports should state exact commands, pass/fail totals, skipped/cancelle
 
 ## Safety boundary
 Do not treat successful tests as authorization for commit, push, tag, deployment, browser mutation, or unrelated scope expansion.
+
+
+## Accepted V0.1E-V0.1H correlation discovery and contract qualification
+- V0.1E accepted conclusion: `PROPAGATED_CORRELATION_ID_REQUIRED`; native browser/CDP identity did not link the complete frontend invocation -> GAS execution -> callback chain. Timing, order, function-name coincidence and URL similarity are not valid correlation evidence.
+- V0.1F disposable fixture proved an exact opaque token across invocation, CDP request/response, dedicated GAS execution and callback, paired with native CDP requestId; success and controlled failure were observed.
+- V0.1G compatibility evidence showed transparent wrapping can alter native Apps Script `ScriptError` behavior. Correlation success alone does not prove semantic transparency.
+- V0.1H qualified explicit cooperative, versioned participation; ordinary native calls remain untouched, and explicit application failures do not claim native `ScriptError` equivalence.
+
+## Accepted V0.1I passive V1 recognizer validation
+V0.1I was accepted and published at `348dfa6b9c81dbf55233bc87ce05f417973fb61d` as `IMPLEMENTED_WITH_EXPLICIT_LIMITATIONS`.
+
+Accepted deterministic evidence:
+- `npm run check` passed;
+- `npm test` passed 52/52;
+- `git diff --check` passed;
+- focused tests cover exact requestId/token/marker joins, success and explicit application failure, evidence-order independence, concurrent same/different functions, duplicate/conflicting/missing/unknown evidence, run scoping, finalization, and privacy minimization.
+
+Accepted disposable live evidence:
+- one correlated success and one correlated explicit application failure were proven alongside one ordinary native call;
+- exactly two unique `CORRELATION_PROVEN` events were emitted; the ordinary native call remained uncorrelated;
+- native `google.script.run` identity/property descriptor remained unchanged;
+- temporary project/deployment was removed; endpoint returned 404 after cleanup.
+
+## V0.1I regression contracts
+- Never correlate by timing, arrival order, function name or URL similarity.
+- Never use a token prefix as contract-version evidence.
+- Assign `correlationId` only after complete deterministic proof and finalization.
+- Leave ordinary native traffic untouched and uncorrelated.
+- Feed only privacy-reduced evidence; do not retain raw arguments, bodies, headers, cookies, credentials or sensitive URLs.
+- Preserve CDP requestId as a distinct transport identity.
+- Treat CDP requestId as session-scoped; add observer/session scope before sharing identities across multiple CDP sessions.
+- Do not claim native `ScriptError` equivalence for the cooperative V1 explicit-failure result.
+- The recognizer does not currently have automatic CLI/page/network evidence ingestion.

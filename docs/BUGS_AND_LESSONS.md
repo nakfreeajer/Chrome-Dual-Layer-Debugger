@@ -12,3 +12,7 @@ Playwright already exposes public page/frame `CDPSession` capability. Normal bro
 
 ### L-003 — Detection and discovery are separate concerns
 GAS mode selection can remain a simple URL-prefix decision. Complex target/context discovery belongs after mode selection inside the GAS adapter.
+
+
+### L-004 - Correlation does not prove transparent runner semantics
+V0.1G showed that a debugger-owned wrapper can correlate calls and still change observable failure behavior: reconstructing native Apps Script `ScriptError` behavior as a JavaScript `Error` is not equivalent. Successful correlation is not proof of semantic transparency. Prefer an explicit cooperative contract over impersonating arbitrary native `google.script.run` behavior; leave ordinary calls untouched.

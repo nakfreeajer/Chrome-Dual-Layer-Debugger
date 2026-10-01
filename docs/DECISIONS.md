@@ -25,3 +25,15 @@ This project uses an AMO-inspired Architect-Curator / Executor workflow but does
 
 ## D-008 — Architect-Curator authority
 Rony Finster is the final Human authority. ChatGPT serves as the project Architect-Curator: it owns architecture, milestone design, independent verification, acceptance classification, and synchronization of all relevant official project documentation after accepted work. The Codex Executor remains bounded implementation authority only and never accepts its own work.
+
+## D-009 - Explicit cooperative correlation contract
+Deterministic frontend-to-GAS correlation requires explicit application cooperation through the versioned V1 evidence contract. Universal transparent wrapping of arbitrary `google.script.run` runners is rejected because it can alter observable native failure semantics. Ordinary native calls remain untouched and uncorrelated.
+
+## D-010 - Passive fail-closed correlation
+The debugger recognizes privacy-reduced evidence and does not patch `google.script.run`, inject calls or rewrite arguments. It assigns `correlationId` only after finalization proves all required evidence agrees. Missing, malformed, duplicate, conflicting, incomplete or unsupported-version evidence remains uncorrelated.
+
+## D-011 - Correlation identity and version authority
+CDP `requestId` remains a transport identity; the exact opaque application token may become `correlationId` only after proof. Request contract version 1 and completion-marker version 1 are authoritative; response token equality is required, but response version is not independently parsed. Token prefix, timing, ordering, function name and URL similarity never establish correlation.
+
+## D-012 - Privacy-reduced recognizer input
+Only privacy-reduced evidence may enter the V1 recognizer. Raw arguments, request/response bodies, headers, cookies, credentials and sensitive URLs are not retained as normalized correlation evidence. Any future CDP producer must preserve observer/session scope because native request IDs are session-scoped.

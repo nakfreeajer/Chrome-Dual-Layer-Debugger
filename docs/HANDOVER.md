@@ -26,6 +26,7 @@ Rony Finster is final Human authority. ChatGPT is the Architect-Curator for this
 - Accepted V0.1B implementation HEAD: `83ba33d5bb67fc362a1d3e7e5226e5627de2f22e`.
 - Accepted V0.1C implementation HEAD: `21b5f9c30460c38e11c16f04b44fa8ac3a5210f5`.
 - Accepted V0.1D implementation HEAD: `b14fda0db3b4d150064c91eab86dfdda19b6cd1f`.
+- Accepted V0.1I implementation HEAD: `348dfa6b9c81dbf55233bc87ce05f417973fb61d`.
 - `gas-remote-debug` dependency is pinned to `ac4359aa790af19cafe1a7e9a55ecd50f68e9169`.
 
 ## Accepted capability
@@ -45,6 +46,20 @@ Accepted V0.1D behavior:
 - accepted URL redaction and read-only browser behavior remain intact.
 
 Accepted validation included typecheck, 22/22 tests, clean baseline-to-HEAD diff check, and a live two-run append proof containing 83 valid JSONL events across two distinct run IDs. Each run restarted at `EVENT-000001`, duplicate raw event IDs were expected, duplicate `(runId,eventId)` pairs were zero, every run had one session start/end, browser targets were unchanged, and the endpoint remained responsive.
+
+## Accepted correlation chain - V0.1E through V0.1I
+V0.1E found native browser/CDP identity insufficient for deterministic frontend-to-GAS-to-callback correlation. V0.1F proved exact opaque-token propagation in a disposable fixture when paired with the native CDP requestId. V0.1G showed universal transparent runner wrapping can change native `ScriptError` failure semantics. V0.1H therefore qualified explicit cooperative, versioned application participation. V0.1I implemented and published a passive, run-scoped V1 recognizer at `348dfa6b9c81dbf55233bc87ce05f417973fb61d` (52/52 tests).
+
+The recognizer fails closed and assigns `correlationId` only after exact requestId/token/response/transport/completion-marker evidence agrees. Request version 1 and completion-marker version 1 are authoritative; token prefixes do not establish version, and response token equality is required. Ordinary native calls remain untouched and uncorrelated. Explicit application failures are not native `ScriptError` equivalence.
+
+Automatic CLI/page/network evidence ingestion is not implemented. Recognizer inputs must be privacy-reduced, and CDP request IDs require an additional observer/session scope before multi-session integration.
+
+Do not repeat these conclusions or approaches:
+- Do not rediscover whether explicit token propagation works.
+- Do not attempt universal transparent `google.script.run` wrapping.
+- Do not infer correlation from timing, ordering, function names or URL similarity.
+- Do not treat a token prefix as contract-version evidence.
+- Do not assign `correlationId` before complete proof.
 
 ## Architecture baseline
 - Project is independent from AFFOTECH and other projects.
@@ -68,6 +83,6 @@ Local raw evidence belongs under ignored `.agent-work/`. Because relay is manual
 - Do not redesign the accepted V0.1C timeline or V0.1D run identity without direct regression evidence.
 
 ## Exact next intended action
-Select the next bounded milestone from the accepted V0.1D baseline. Deterministic cross-boundary propagation through `google.script.run` is a possible future direction, but it is not yet authorized and must remain separate from already-closed timeline/run-identity work.
+No next implementation is authorized by this documentation closure. If work resumes, select a bounded privacy-limited V1 evidence producer with CDP observer/session scoping and Timeline lifecycle integration. Do not claim that producer or CLI ingestion already exists. Manual Human relay remains the governance model; no RELAY.1A implementation is recorded here.
 
 Do not jump directly to GUI work, breakpoints, destructive browser controls, broad automation, or unbounded server instrumentation.

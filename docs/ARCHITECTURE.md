@@ -66,9 +66,22 @@ Chrome-Dual-Layer-Debugger remains responsible for:
 
 Playwright Page/Frame identity, CDP TargetId/FrameId/SessionId, and GAS execution-context identity are related but not assumed identical. `TargetRegistry` records only mappings supported by evidence.
 
-## Trace rule
+## Trace and correlation identity
 
-Every observation may have an `eventId`. A higher-level `traceId` is assigned only when deterministic evidence links events. Timestamp proximity alone is not proof of correlation.
+Every observation has its normal event identity; the V0.1D run-scoped event key is `(runId,eventId)`. For V0.1I correlation, CDP `requestId` remains the transport identity and the application token becomes `correlationId` only after complete deterministic proof. These identities are not interchangeable.
+
+Ordinary native `google.script.run` traffic remains untouched and uncorrelated. Only privacy-reduced evidence from the explicitly cooperative V1 contract is eligible for recognition:
+
+```text
+V1 request evidence + same-request response token + transport completion
++ validated V1 completion marker
+        -> passive run-scoped recognizer
+        -> proven correlation event in Timeline
+```
+
+Recognition finalizes before assigning `correlationId`; incomplete, duplicate, conflicting, malformed or unknown-version evidence fails closed. Request `contractVersion === 1` and completion-marker `contractVersion === 1` are authoritative. Response token equality is required, but response version is not independently parsed. A token prefix never establishes contract version. Timing, ordering, function name and URL similarity are not evidence.
+
+This architecture describes the accepted recognizer only. No production CLI/page/network evidence producer currently feeds it automatically. Explicit application failure is represented by the cooperative V1 result contract and does not claim native Apps Script `ScriptError` equivalence.
 
 ## Low-intrusion rule
 

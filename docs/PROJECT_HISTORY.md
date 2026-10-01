@@ -61,4 +61,19 @@ Only Architect-Curator accepted milestones belong here.
 - Accepted live validation: two sequential debugger runs appended to one fresh file; 83 events total; two distinct run IDs; both runs restarted at `EVENT-000001`; 41 expected duplicate raw event IDs; 0 duplicate `(runId,eventId)` pairs; 0 malformed lines; one session start/end per run; unchanged browser targets; responsive endpoint; no browser/application mutation.
 - Accepted implementation was published to authoritative GitHub `main` at `b14fda0db3b4d150064c91eab86dfdda19b6cd1f`.
 
-The next bounded milestone must be selected from the accepted V0.1D baseline without reopening closed work. Deterministic `google.script.run` cross-boundary propagation remains a separate future direction and is not yet authorized.
+The next bounded integration, if separately authorized, should evaluate a privacy-limited V1 evidence producer with CDP observer/session scoping and Timeline lifecycle integration.
+
+
+## 2026-10-01 - V0.1E Correlation Discovery through V0.1H Contract Qualification - ACCEPTED
+- V0.1E concluded `PROPAGATED_CORRELATION_ID_REQUIRED`: native browser/CDP identity did not provide a deterministic full frontend-to-GAS-to-callback chain; timing/order and similarity-based guesses were rejected.
+- V0.1F disposable fixture proved the same token through client invocation, CDP transport/response, dedicated GAS execution and callback, paired by exact native CDP requestId; success and controlled failure both passed.
+- V0.1G demonstrated that universal transparent `google.script.run` wrapping can change failure semantics from native Apps Script `ScriptError` to reconstructed JavaScript errors, so successful correlation did not establish semantic transparency.
+- V0.1H qualified an explicit cooperative versioned contract. Ordinary native calls remain untouched and uncorrelated; explicit failure is not native `ScriptError` equivalence.
+
+## 2026-10-01 - V0.1I Passive V1 Correlation Recognizer - ACCEPTED
+- Published implementation: `348dfa6b9c81dbf55233bc87ce05f417973fb61d` (`feat(correlation): add passive v1 recognizer`).
+- Added a run-scoped passive recognizer that joins privacy-reduced request, response, transport completion and validated V1 completion-marker evidence; `correlationId` is assigned only after complete proof.
+- Fail-closed behavior covers missing, malformed, duplicate, conflicting, incomplete and unknown-version evidence. CDP requestId stays separate; ordinary native/no-token traffic remains uncorrelated and quiet.
+- Accepted deterministic validation: `npm run check`; `npm test` 52/52; `git diff --check` passed.
+- Accepted disposable live validation proved one correlated success and one explicit application failure alongside one ordinary uncorrelated native call; native runner identity/property descriptor was unchanged, two unique proof events were emitted, and disposable infrastructure was removed.
+- Automatic production CLI/page/network evidence ingestion remains unimplemented. Evidence inputs must be privacy-reduced and CDP request IDs require observer/session scope for any future multi-session integration.

@@ -1,7 +1,7 @@
 # Current State
 
 ## Status
-V0.1D run/trace identity accepted and published. The unified JSONL timeline can now append multiple debugger runs without ambiguity by pairing required `runId` with the existing per-run `eventId`.
+V0.1I passive V1 correlation recognizer accepted and published. The accepted V0.1E-V0.1I chain established an explicit cooperative correlation contract and a run-scoped fail-closed recognizer. Automatic CLI/network evidence ingestion is not implemented.
 
 ## Repository
 - Repository: `nakfreeajer/Chrome-Dual-Layer-Debugger`
@@ -10,6 +10,7 @@ V0.1D run/trace identity accepted and published. The unified JSONL timeline can 
 - Accepted V0.1B implementation HEAD: `83ba33d5bb67fc362a1d3e7e5226e5627de2f22e`
 - Accepted V0.1C implementation HEAD: `21b5f9c30460c38e11c16f04b44fa8ac3a5210f5`
 - Accepted V0.1D implementation HEAD: `b14fda0db3b4d150064c91eab86dfdda19b6cd1f`
+- Accepted V0.1I implementation HEAD: `348dfa6b9c81dbf55233bc87ce05f417973fb61d`
 - `gas-remote-debug` dependency baseline: `nakfreeajer/gas-remote-debug@ac4359aa790af19cafe1a7e9a55ecd50f68e9169`
 - Language/runtime: TypeScript + Node.js
 
@@ -75,12 +76,22 @@ Accepted V0.1D validation:
 - There is no automated Orchestrator.
 - Relay is manual.
 
-## Next engineering step
-Select the next bounded milestone from the accepted V0.1D baseline. Deeper cross-boundary tracing through `google.script.run` remains a separate future milestone and must preserve the accepted read-only and evidence-only correlation contracts.
+## Accepted correlation chain - V0.1E through V0.1I
+- V0.1E established that native browser/CDP identities do not deterministically link a frontend `google.script.run` invocation to GAS execution and its callback; timing, ordering, function name and URL similarity are not correlation authority.
+- V0.1F proved in a disposable fixture that an explicit opaque token, paired with the exact CDP requestId, can link client invocation, transport, dedicated GAS execution, response and callback.
+- V0.1G found that transparent universal wrapping can change native Apps Script failure semantics, so semantic transparency is not established.
+- V0.1H qualified an explicit cooperative, versioned application contract. Native calls remain untouched and uncorrelated; explicit application failures are not native `ScriptError` equivalence.
+- V0.1I implemented a passive, run-scoped V1 evidence recognizer. It assigns `correlationId` only after request, response, transport completion and validated completion marker agree. Ordinary traffic remains quiet and uncorrelated.
+- V0.1I was accepted and published at `348dfa6b9c81dbf55233bc87ce05f417973fb61d`; deterministic validation passed (`npm run check`, `npm test` 52/52, `git diff --check`). Accepted disposable live validation proved one success and one explicit application failure correlation alongside an untouched ordinary native call.
+
+## Current integration boundary
+The recognizer exists, but no production CLI/page/network producer automatically feeds evidence into it. Inputs must already be privacy-reduced. CDP `requestId` is session-scoped; a future multi-session producer must add observer/session scope while preserving native request identity. V1 version authority comes from request `contractVersion === 1` and a validated V1 completion marker; response token equality is required, while response version is not independently parsed. `correlationId` remains absent unless finalization proves the complete evidence chain.
+
+When resumed, the next non-relay debugger integration should be a bounded privacy-limited V1 evidence producer with CDP observer/session scoping and Timeline lifecycle integration. This is a proposed boundary, not authorization to implement it.
 
 ## Unresolved items
 - Historical V0.1C JSONL lacks `runId`; it remains valid historical evidence and is not migrated by V0.1D.
 - Sibling GAS runtime contexts remain intentionally unmapped to Playwright frames when no shared protocol FrameId exists.
 - Playwright Page-to-raw-TargetId remains intentionally unmapped through the current public discovery surface.
 - `GasAdapter` currently proves one active GAS discovery connection at a time; multi-GAS-tab orchestration has not been established.
-- Deterministic `google.script.run` cross-boundary trace propagation remains future work.
+- Automatic production CLI/page/network evidence ingestion into the accepted V1 recognizer remains unimplemented.

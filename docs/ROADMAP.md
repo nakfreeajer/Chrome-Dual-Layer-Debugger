@@ -45,15 +45,37 @@ Accepted implementation HEAD: `21b5f9c30460c38e11c16f04b44fa8ac3a5210f5`.
 
 Accepted implementation HEAD: `b14fda0db3b4d150064c91eab86dfdda19b6cd1f`.
 
-## Next bounded milestone — TO SELECT
-The timeline now has explicit cross-run identity. The next milestone should be selected based on a concrete debugging need rather than continuing infrastructure automatically.
+## V0.1E - Google.script.run Correlation Discovery - ACCEPTED / CLOSED
+- Native browser/CDP identity did not deterministically link frontend invocation, GAS execution and callback.
+- Timing, ordering, function name and URL similarity were rejected as correlation authority.
+- Conclusion: `PROPAGATED_CORRELATION_ID_REQUIRED`.
 
-A likely future direction is deterministic cross-boundary tracing of application calls through `google.script.run`, but that work should first establish a narrow evidence contract for linking frontend invocation, GAS execution and frontend callback/failure without timing-based guesses.
+## V0.1F - Disposable Correlation-Token Fixture Proof - ACCEPTED / CLOSED
+- A disposable fixture proved exact opaque-token propagation through client invocation, CDP request/response, dedicated GAS execution and callback, with native CDP requestId pairing.
+- Success and controlled failure were proven without timing/order inference.
+- Conclusion: `PROPAGATED_TOKEN_END_TO_END_PROVEN`.
 
-Do not mix that work with GUI, breakpoints, browser mutation or broad server instrumentation.
+## V0.1G - Opt-In Instrumentation Compatibility Proof - ACCEPTED / CLOSED
+- Transparent wrapping could correlate concurrent calls but changed failure behavior relative to native Apps Script `ScriptError` semantics.
+- Universal transparent wrapping was rejected as semantically unsafe.
+- Conclusion: `CORRELATION_WORKS_BUT_SEMANTICS_UNSAFE`.
+
+## V0.1H - Explicit Token-Aware Application Contract - ACCEPTED / CLOSED
+- Qualified an explicit cooperative, versioned contract; ordinary native calls remain untouched and non-opted-in calls remain uncorrelated.
+- Explicit application failure does not claim native `ScriptError` equivalence.
+- Conclusion: `EXPLICIT_CONTRACT_PROVEN_WITH_LIMITATIONS`.
+
+## V0.1I - Passive V1 Correlation Recognizer - ACCEPTED / CLOSED
+- Implemented run-scoped exact evidence joining with fail-closed finalization and privacy-reduced inputs.
+- `correlationId` is assigned only after request, response, transport completion and completion marker agree; ordinary traffic remains quiet and uncorrelated.
+- Accepted implementation HEAD: `348dfa6b9c81dbf55233bc87ce05f417973fb61d`.
+- Accepted validation: typecheck passed; 52/52 tests passed; `git diff --check` passed; disposable live proof covered success, explicit failure and an ordinary uncorrelated call.
+
+## Next bounded integration - NOT AUTHORIZED
+If resumed, evaluate a privacy-limited V1 evidence producer, CDP observer/session scoping and Timeline lifecycle integration. The recognizer currently has no automatic CLI/page/network evidence ingestion. Selecting this boundary does not authorize implementation.
 
 ## Later, not yet authorized for implementation
-- Deterministic cross-boundary trace propagation through `google.script.run`.
+- Automatic evidence production and session-scoped integration for the accepted V1 recognizer.
 - GAS server-side tracing adapter details beyond the proven `gas-remote-debug` composition boundary.
 - Multi-GAS-tab orchestration beyond the single active GAS discovery proof.
 - Optional Playwright native trace integration if evidence shows value alongside JSONL.
