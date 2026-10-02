@@ -1,7 +1,7 @@
 # Current State
 
 ## Status
-V0.1I passive V1 correlation recognizer accepted and published. The accepted V0.1E-V0.1I chain established an explicit cooperative correlation contract and a run-scoped fail-closed recognizer. Automatic CLI/network evidence ingestion is not implemented.
+V0.1I passive V1 correlation recognizer and RELAY.1A durable prompt artifact foundation are accepted and published. RELAY.1A implementation HEAD: `163b0c008097eb24f1412be31e527f4697d0fc35`. The accepted V0.1E-V0.1I chain established an explicit cooperative correlation contract and a run-scoped fail-closed recognizer. Automatic CLI/network evidence ingestion is not implemented. RELAY.1A adds ignored local prompt artifact persistence; the normal full-prompt manual relay remains active. RELAY.1B is not yet authorized.
 
 ## Repository
 - Repository: `nakfreeajer/Chrome-Dual-Layer-Debugger`
@@ -95,3 +95,12 @@ When resumed, the next non-relay debugger integration should be a bounded privac
 - Playwright Page-to-raw-TargetId remains intentionally unmapped through the current public discovery surface.
 - `GasAdapter` currently proves one active GAS discovery connection at a time; multi-GAS-tab orchestration has not been established.
 - Automatic production CLI/page/network evidence ingestion into the accepted V1 recognizer remains unimplemented.
+
+## Accepted engineering-workflow persistence - RELAY.1A
+- RELAY.1A durable prompt artifact foundation was accepted and published at `163b0c008097eb24f1412be31e527f4697d0fc35`.
+- Schema v1 identity is `(project, milestoneId, promptSha256, promptByteLength)`, with canonical project `Chrome-Dual-Layer-Debugger` and repository `nakfreeajer/Chrome-Dual-Layer-Debugger`. No `transactionId` was introduced; debugger `runId` remains runtime trace identity.
+- Exact prompt Buffer bytes are stored under ignored `.agent-work/prompts/<milestoneId>/<promptSha256>.md`; manifests and lifecycle records are immutable content-addressed JSON. `.agent-work/current/executor-prompt.json` is only a mutable recovery locator, never authority by itself.
+- Staging does not authorize execution. Authorization requires an explicit caller-supplied approval reference. Current authorization cannot be displaced by direct authorization; changed decisions require explicit supersession. Revocation and supersession are checked against durable lifecycle evidence and fail closed.
+- Verified loading checks locator, manifest, lifecycle, path containment, exact bytes, SHA-256 and byte length. Fresh-store and second-process recovery passed.
+- Validation: `npm run check` passed; `npm test` passed 102/102; `git diff --check` passed. The 102 tests include 50 RELAY.1A-focused tests.
+- The normal Architect -> Human -> Executor full-prompt relay remains in force. No compact dispatch or auto-execution exists; RELAY.1B is not yet authorized.

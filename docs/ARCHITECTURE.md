@@ -90,3 +90,23 @@ Observation is the default. Do not navigate, close, click, type, mutate DOM/runt
 ## Engineering workflow architecture
 
 The project uses an AMO-inspired Human -> Architect-Curator -> Executor authority model, but **no automated Orchestrator is part of this project**. Relay is performed manually by the Human Owner. Repository governance and the software runtime architecture are independent concerns.
+
+## Engineering-workflow prompt persistence layer
+
+This local workflow persistence layer is separate from browser/CDP runtime architecture:
+
+```text
+Architect decision
+    -> exact prompt bytes
+    -> content-addressed artifact
+    -> immutable manifest and lifecycle evidence
+    -> verified authorized loader
+```
+
+RELAY.1A stores artifacts only under ignored `.agent-work/`. Schema v1 identity is `(project, milestoneId, promptSha256, promptByteLength)`; the frozen milestoneId is workflow identity. No transactionId is used, and runtime trace runId is not repurposed.
+
+Prompt bytes are Buffer-exact: line endings, Unicode, whitespace and trailing newline are not normalized. SHA-256 and byte length are checked after publication and again on verified load. Immutable prompt, manifest and lifecycle files use unique sibling temporary files, exclusive creation, complete synced writes, same-directory hard-link no-clobber publication and readback verification. The mutable current locator uses a synced sibling temporary file and same-directory atomic rename. This was qualified on local Windows/NTFS using same-volume hard-link and rename semantics; directory fsync is best effort on Windows. The locator only locates evidence; lifecycle and artifact verification determine whether loading is permitted. Simultaneous lifecycle/locator writers are not qualified, and there is no multi-process lock.
+
+Staging is not authorization. Authorization requires an explicit approval reference and does not cryptographically authenticate the approval. Direct authorization cannot silently replace an active current prompt. Changed decisions use explicit supersession; revocation and supersession are checked against immutable lifecycle evidence. Invalid or corrupt durable state fails closed.
+
+Compact Executor dispatch is not active. The full manual prompt relay remains authoritative until any separately reviewed and accepted RELAY.1B.

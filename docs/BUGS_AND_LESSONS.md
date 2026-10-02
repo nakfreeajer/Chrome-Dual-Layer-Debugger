@@ -16,3 +16,10 @@ GAS mode selection can remain a simple URL-prefix decision. Complex target/conte
 
 ### L-004 - Correlation does not prove transparent runner semantics
 V0.1G showed that a debugger-owned wrapper can correlate calls and still change observable failure behavior: reconstructing native Apps Script `ScriptError` behavior as a JavaScript `Error` is not equivalent. Successful correlation is not proof of semantic transparency. Prefer an explicit cooperative contract over impersonating arbitrary native `google.script.run` behavior; leave ordinary calls untouched.
+
+
+### L-005 - Content addressing does not govern current authorization
+RELAY.1A review found that a mutable current locator could otherwise silently displace an active authorized prompt even though each prompt and manifest was immutable. Authorization transitions must be guarded by verified durable lifecycle evidence; changed decisions require explicit supersession. Completed supersession evidence must also reject replay of a stale prior locator.
+
+### L-006 - Byte identity requires hash gates
+A publication hash mismatch exposed mojibake in a reviewed patch representation for a synthetic Unicode fixture. Byte-level diagnosis distinguished content changes from line-ending changes; the accepted current fixture was independently reviewed. Exact SHA-256 gates remain authoritative whenever exact prompt bytes matter. The responsible tool or process was not determined, so no attribution is made.

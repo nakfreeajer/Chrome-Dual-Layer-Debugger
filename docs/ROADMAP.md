@@ -82,3 +82,18 @@ If resumed, evaluate a privacy-limited V1 evidence producer, CDP observer/sessio
 - UI/visual timeline.
 - Breakpoints or powerful mutation/control features.
 - Additional backend adapters.
+
+## RELAY.1A - Durable Prompt Artifact Foundation - ACCEPTED
+- Published implementation HEAD: `163b0c008097eb24f1412be31e527f4697d0fc35`.
+- Added exact-byte, content-addressed local prompt artifacts under ignored `.agent-work/`, immutable manifests and lifecycle records, explicit authorization, revocation, supersession and fail-closed verified loading/recovery.
+- Validation: `npm run check`; `npm test` 102/102; `git diff --check`.
+- Full-prompt manual relay remains the operating procedure. RELAY.1A does not change Executor dispatch or execute prompts.
+
+## RELAY.1B - Compact Executor Relay - NOT YET AUTHORIZED
+Potential bounded intent, subject to a separate reviewed authorization:
+- Architect prompt is staged exactly once as exact bytes.
+- A compact descriptor is transported.
+- Executor independently verifies artifact, hash, byte length, project/milestone identity and lifecycle.
+- Only exact verified bytes are used; no equivalent prompt is regenerated.
+
+Listing this candidate does not authorize implementation. Do not begin RELAY.1B without a separate bounded instruction.

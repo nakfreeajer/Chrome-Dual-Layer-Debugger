@@ -37,3 +37,24 @@ CDP `requestId` remains a transport identity; the exact opaque application token
 
 ## D-012 - Privacy-reduced recognizer input
 Only privacy-reduced evidence may enter the V1 recognizer. Raw arguments, request/response bodies, headers, cookies, credentials and sensitive URLs are not retained as normalized correlation evidence. Any future CDP producer must preserve observer/session scope because native request IDs are session-scoped.
+
+## D-013 - Prompt workflow identity
+For RELAY schema v1, workflow prompt identity is `(project, milestoneId, promptSha256, promptByteLength)`. The canonical project/repository identity is Chrome-Dual-Layer-Debugger / nakfreeajer/Chrome-Dual-Layer-Debugger. No transactionId is introduced; debugger runId remains trace-runtime identity.
+
+## D-014 - Exact-byte content-addressed prompts
+Prompt artifacts are hashed and length-checked over exact Buffer bytes. No line-ending, Unicode, whitespace or trailing-newline normalization is allowed. Immutable prompt, manifest and lifecycle objects are content-addressed and never silently overwritten. Historical prompts are not reconstructed or migrated.
+
+## D-015 - Immutable lifecycle and locator boundary
+Lifecycle transitions are separate immutable evidence. The mutable current locator is only a recovery locator and never authority by itself. Authorization, revocation and supersession are determined by fully verified durable evidence; corrupt or conflicting state fails closed.
+
+## D-016 - Authorization is separate from integrity
+Staging or a valid SHA-256 proves neither permission nor approval. Authorization requires a non-empty explicit approval reference supplied by the caller. The store records this reference but does not authenticate it cryptographically; Rony Finster remains final Human authority.
+
+## D-017 - Explicit prompt supersession
+An active authorized prompt cannot be displaced by direct authorization. A changed decision affecting it requires explicit supersession, immutable supersession evidence and verified locator transition. Revoked identities cannot simply be re-authorized.
+
+## D-018 - Local evidence and no historical reconstruction
+Prompt artifacts remain under ignored local `.agent-work/`; they are not committed project source. Do not reconstruct historical prompt bytes from chat or migrate old prompts without separate authority.
+
+## D-019 - Manual relay remains active
+RELAY.1A supplies durable local prompt storage and verified loading only. It does not change the full-prompt Architect -> Human -> Executor procedure, authorize compact dispatch, or execute prompts. Any compact relay requires separate RELAY.1B review and authorization.

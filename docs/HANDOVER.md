@@ -27,6 +27,7 @@ Rony Finster is final Human authority. ChatGPT is the Architect-Curator for this
 - Accepted V0.1C implementation HEAD: `21b5f9c30460c38e11c16f04b44fa8ac3a5210f5`.
 - Accepted V0.1D implementation HEAD: `b14fda0db3b4d150064c91eab86dfdda19b6cd1f`.
 - Accepted V0.1I implementation HEAD: `348dfa6b9c81dbf55233bc87ce05f417973fb61d`.
+- Accepted RELAY.1A implementation HEAD: `163b0c008097eb24f1412be31e527f4697d0fc35`.
 - `gas-remote-debug` dependency is pinned to `ac4359aa790af19cafe1a7e9a55ecd50f68e9169`.
 
 ## Accepted capability
@@ -70,6 +71,13 @@ Do not repeat these conclusions or approaches:
 - Unified timeline, run identity and correlation ownership belong to Chrome-Dual-Layer-Debugger.
 - Unknown relationships must remain unknown until deterministically proven.
 
+## RELAY.1A durable prompt artifact foundation
+RELAY.1A stores exact prompt bytes under ignored `.agent-work/prompts/<milestoneId>/<promptSha256>.md`, with immutable manifests/lifecycle evidence and a mutable current locator. Schema v1 identity is `(project, milestoneId, promptSha256, promptByteLength)`; no transactionId exists, and debugger runId is not workflow identity. Hash and byte length cover exact Buffer bytes without normalization.
+
+Staging is not authorization. Explicit approval references are required. Active authorization cannot be displaced through direct authorization; supersession is explicit, and revocation/supersession/corrupt state are verified fail-closed from durable evidence. The locator is a recovery pointer, not authority. No auto-execution or compact Executor dispatch is active.
+
+The full Architect -> Human -> Executor prompt relay remains the operating procedure. RELAY.1B compact transport is only a possible next separately authorized milestone.
+
 ## Workflow note
 Local raw evidence belongs under ignored `.agent-work/`. Because relay is manual, the Human Owner transports bounded Executor reports/evidence to the Architect-Curator. Do not require an automated bridge, watcher, doorbell, or orchestrator state.
 
@@ -82,7 +90,7 @@ Local raw evidence belongs under ignored `.agent-work/`. Because relay is manual
 - Do not reopen intentionally unmapped sibling GAS contexts merely because they are unmapped.
 - Do not redesign the accepted V0.1C timeline or V0.1D run identity without direct regression evidence.
 
-## Exact next intended action
-No next implementation is authorized by this documentation closure. If work resumes, select a bounded privacy-limited V1 evidence producer with CDP observer/session scoping and Timeline lifecycle integration. Do not claim that producer or CLI ingestion already exists. Manual Human relay remains the governance model; no RELAY.1A implementation is recorded here.
+## Next boundaries (not authorization)
+No implementation is authorized by this documentation closure. The previously identified non-relay debugger integration remains a privacy-limited V1 evidence producer with CDP observer/session scoping and Timeline lifecycle integration; automatic CLI/network ingestion does not exist. If relay work is separately authorized, the next relay milestone is RELAY.1B compact transport integration: exact prompt staging, compact descriptor transport, and independent identity/hash/length/lifecycle verification before use. It must not regenerate equivalent prompt bytes. The full manual relay remains active until RELAY.1B is reviewed and accepted; no auto-execution exists.
 
 Do not jump directly to GUI work, breakpoints, destructive browser controls, broad automation, or unbounded server instrumentation.

@@ -143,3 +143,34 @@ Accepted disposable live evidence:
 - Treat CDP requestId as session-scoped; add observer/session scope before sharing identities across multiple CDP sessions.
 - Do not claim native `ScriptError` equivalence for the cooperative V1 explicit-failure result.
 - The recognizer does not currently have automatic CLI/page/network evidence ingestion.
+
+## Accepted RELAY.1A durable prompt artifact validation
+RELAY.1A was accepted and published at `163b0c008097eb24f1412be31e527f4697d0fc35`.
+
+Accepted publication evidence:
+- `npm run check` passed;
+- `npm test` passed 102/102 (prior regression suite plus 50 RELAY.1A-focused tests);
+- `git diff --check` passed;
+- post-publication worktree was clean;
+- reviewed source hashes were verified before and after publication, including the accepted Unicode fixture.
+
+The focused tests cover exact Buffer identity, LF/CRLF and Unicode preservation, trailing-newline identity, SHA-256 and byte length, malformed/missing/corrupt state, identity/path validation, immutable no-clobber publication, explicit approval, current authorization displacement prevention, revocation and supersession, stale-locator replay rejection, and fresh-store/second-process recovery.
+
+Accepted persistence invariants:
+- immutable prompt/manifest/lifecycle objects use exclusive sibling temporary files, synced complete writes, same-directory hard-link no-clobber publication and final readback verification;
+- locator replacement uses a synced sibling temporary file and same-directory atomic rename; directory fsync is best effort on Windows;
+- persistence semantics were qualified on local Windows/NTFS and same-volume hard-link/rename;
+- staging and hash validity do not authorize execution; approval references are audit evidence, not signatures;
+- current authorized prompts cannot be silently displaced; supersession is explicit and durable lifecycle evidence rejects stale locator replay;
+- corrupt or incomplete locator/lifecycle/artifact evidence fails closed;
+- recovery follows exact identity references, never directory recency/order guesses.
+
+## RELAY.1A regression contracts for future compact transport
+- Never execute before verified authorized loading.
+- Never treat a path or mutable locator alone as authority.
+- Never regenerate an equivalent prompt in place of exact stored bytes.
+- Never silently replace a current AUTHORIZED prompt.
+- Never bypass verified revocation or supersession lifecycle.
+- Preserve Human approval authority; integrity hashes are not permission.
+- Do not reconstruct or bulk-migrate historical prompts.
+- Full-prompt manual relay remains active until RELAY.1B is separately reviewed and accepted.

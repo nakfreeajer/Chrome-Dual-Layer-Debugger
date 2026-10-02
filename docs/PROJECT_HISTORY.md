@@ -77,3 +77,11 @@ The next bounded integration, if separately authorized, should evaluate a privac
 - Accepted deterministic validation: `npm run check`; `npm test` 52/52; `git diff --check` passed.
 - Accepted disposable live validation proved one correlated success and one explicit application failure alongside one ordinary uncorrelated native call; native runner identity/property descriptor was unchanged, two unique proof events were emitted, and disposable infrastructure was removed.
 - Automatic production CLI/page/network evidence ingestion remains unimplemented. Evidence inputs must be privacy-reduced and CDP request IDs require observer/session scope for any future multi-session integration.
+
+## 2026-10-02 - RELAY.1A Durable Prompt Artifact Foundation - ACCEPTED
+- Initial implementation established exact-byte, content-addressed prompt storage, immutable manifests/lifecycle evidence, explicit authorization, revocation, supersession and a fail-closed verified loader under ignored `.agent-work/`.
+- Architect review found that direct `authorizePrompt()` could silently replace a different active authorized prompt. The correction made current authorization displacement require explicit `supersedeCurrent(...)`, verified revoked state before a new authorization, rejected corrupt locator state, and added stale-locator anti-replay coverage backed by durable `SUPERSESSION_COMMITTED` evidence.
+- Accepted validation: `npm run check`; `npm test` 102/102; `git diff --check`.
+- Publication hash verification stopped when the reviewed patch representation differed in a synthetic Unicode fixture. Byte-level diagnosis found a content difference, not a line-ending difference; the current intended Unicode fixture was independently reviewed and accepted. Process/tool attribution was not established.
+- Published implementation: `163b0c008097eb24f1412be31e527f4697d0fc35`. Exact accepted hashes: PromptArtifactStore.ts `9f727dc352e5691b2a15e98e5242acd57137e8af5fdc6bd6b051a7d98e458d4e`; PromptArtifactStore.test.ts `dbabddb3530c0d177b8d1a02ab6db43922e2653e65f8985a7831654ddd3b7430`.
+- No real prompt artifact was created or committed. Normal Executor dispatch remains unchanged; RELAY.1B was not started.
