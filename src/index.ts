@@ -16,3 +16,4 @@ export * from './trace/JsonlTraceWriter.js';
 export * from './trace/DiscoveryEvents.js';
 export * from './correlation/V1CorrelationRecognizer.js';
 export * from './relay/PromptArtifactStore.js';
+export * from './relay/PromptRelayDescriptor.js';

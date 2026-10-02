@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build && node --test dist/tests/layer-detector/LayerDetector.test.js dist/tests/discovery/SessionIds.test.js dist/tests/discovery/FrameNormalization.test.js dist/tests/discovery/ConnectOptions.test.js dist/tests/discovery/GasAdapter.test.js dist/tests/discovery/CrossLayerMapper.test.js dist/tests/trace/Timeline.test.js dist/tests/trace/JsonlTraceWriter.test.js dist/tests/trace/DiscoveryEvents.test.js dist/tests/correlation/V1CorrelationRecognizer.test.js dist/tests/relay/PromptArtifactStore.test.js"
+    "test": "npm run build && node --test dist/tests/layer-detector/LayerDetector.test.js dist/tests/discovery/SessionIds.test.js dist/tests/discovery/FrameNormalization.test.js dist/tests/discovery/ConnectOptions.test.js dist/tests/discovery/GasAdapter.test.js dist/tests/discovery/CrossLayerMapper.test.js dist/tests/trace/Timeline.test.js dist/tests/trace/JsonlTraceWriter.test.js dist/tests/trace/DiscoveryEvents.test.js dist/tests/correlation/V1CorrelationRecognizer.test.js dist/tests/relay/PromptArtifactStore.test.js dist/tests/relay/PromptRelayDescriptor.test.js dist/tests/relay/PromptRelayCli.test.js"
   },
   "dependencies": {
     "gas-remote-debug": "git+https://github.com/nakfreeajer/gas-remote-debug.git#ac4359aa790af19cafe1a7e9a55ecd50f68e9169",
