@@ -28,6 +28,7 @@ Rony Finster is final Human authority. ChatGPT is the Architect-Curator for this
 - Accepted V0.1D implementation HEAD: `b14fda0db3b4d150064c91eab86dfdda19b6cd1f`.
 - Accepted V0.1I implementation HEAD: `348dfa6b9c81dbf55233bc87ce05f417973fb61d`.
 - Accepted RELAY.1A implementation HEAD: `163b0c008097eb24f1412be31e527f4697d0fc35`.
+- Accepted RELAY.1B implementation HEAD: `85310e450705e1671ef9e6af22eeae6d9dbcc519`.
 - `gas-remote-debug` dependency is pinned to `ac4359aa790af19cafe1a7e9a55ecd50f68e9169`.
 
 ## Accepted capability
@@ -74,9 +75,9 @@ Do not repeat these conclusions or approaches:
 ## RELAY.1A durable prompt artifact foundation
 RELAY.1A stores exact prompt bytes under ignored `.agent-work/prompts/<milestoneId>/<promptSha256>.md`, with immutable manifests/lifecycle evidence and a mutable current locator. Schema v1 identity is `(project, milestoneId, promptSha256, promptByteLength)`; no transactionId exists, and debugger runId is not workflow identity. Hash and byte length cover exact Buffer bytes without normalization.
 
-Staging is not authorization. Explicit approval references are required. Active authorization cannot be displaced through direct authorization; supersession is explicit, and revocation/supersession/corrupt state are verified fail-closed from durable evidence. The locator is a recovery pointer, not authority. No auto-execution or compact Executor dispatch is active.
+Staging is not authorization. Explicit approval references are required. Active authorization cannot be displaced through direct authorization; supersession is explicit, and revocation/supersession/corrupt state are verified fail-closed from durable evidence. The locator is a recovery pointer, not authority. No automatic dispatch or prompt execution is active; compact descriptor transport is the normal manual handoff after this closure.
 
-The full Architect -> Human -> Executor prompt relay remains the operating procedure. RELAY.1B compact transport is only a possible next separately authorized milestone.
+The compact Architect -> Executor flow is now the normal operating procedure: Architect creates the exact prompt file and canonical descriptor; Rony imports/authorizes the exact bytes; Rony sends Executor only the descriptor; Executor resolves and follows only the exact verified bytes. For future tasks, provide the exact prompt file, descriptor, short Human import instruction, and short `RELAY:EXECUTE` handoff token; do not place the complete prompt body in the Executor handoff message. Full-prompt chat transport is an explicit fallback only. Executor -> Architect report/evidence relay remains manual. Transport changed; the Human -> Architect-Curator -> bounded Executor authority model did not. No automated dispatch or prompt execution exists.
 
 ## Workflow note
 Local raw evidence belongs under ignored `.agent-work/`. Because relay is manual, the Human Owner transports bounded Executor reports/evidence to the Architect-Curator. Do not require an automated bridge, watcher, doorbell, or orchestrator state.
@@ -91,6 +92,6 @@ Local raw evidence belongs under ignored `.agent-work/`. Because relay is manual
 - Do not redesign the accepted V0.1C timeline or V0.1D run identity without direct regression evidence.
 
 ## Next boundaries (not authorization)
-No implementation is authorized by this documentation closure. The previously identified non-relay debugger integration remains a privacy-limited V1 evidence producer with CDP observer/session scoping and Timeline lifecycle integration; automatic CLI/network ingestion does not exist. If relay work is separately authorized, the next relay milestone is RELAY.1B compact transport integration: exact prompt staging, compact descriptor transport, and independent identity/hash/length/lifecycle verification before use. It must not regenerate equivalent prompt bytes. The full manual relay remains active until RELAY.1B is reviewed and accepted; no auto-execution exists.
+No new implementation is authorized by this documentation closure. The previously identified non-relay debugger integration remains a privacy-limited V1 evidence producer with CDP observer/session scoping and Timeline lifecycle integration; automatic CLI/network ingestion does not exist. RELAY.1B is accepted and its compact transport procedure is now active after this closure. It does not authorize automatic dispatch or execution.
 
 Do not jump directly to GUI work, breakpoints, destructive browser controls, broad automation, or unbounded server instrumentation.

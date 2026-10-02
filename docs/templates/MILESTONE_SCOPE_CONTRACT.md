@@ -31,4 +31,4 @@ Status: `FROZEN`
 Human approval: `<name + timestamp>`
 Architect publication: `<timestamp / conversation reference>`
 
-> Manual-relay adaptation: no Orchestrator or Drive instruction ID is required. The Human Owner relays the exact frozen contract to the Executor and returns the Executor evidence to the Architect-Curator.
+> Relay adaptation: no Orchestrator or Drive instruction ID is required. The Architect authors the complete contract as exact prompt-file bytes and supplies its canonical descriptor. The Human imports/authorizes those bytes, then relays only the descriptor to Executor; Executor resolves the verified bytes locally. The Human returns Executor evidence manually to the Architect-Curator. A full-prompt copy is an explicit fallback only. Transport changes do not remove any contract sections above.

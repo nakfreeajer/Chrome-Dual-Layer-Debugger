@@ -87,13 +87,11 @@ If resumed, evaluate a privacy-limited V1 evidence producer, CDP observer/sessio
 - Published implementation HEAD: `163b0c008097eb24f1412be31e527f4697d0fc35`.
 - Added exact-byte, content-addressed local prompt artifacts under ignored `.agent-work/`, immutable manifests and lifecycle records, explicit authorization, revocation, supersession and fail-closed verified loading/recovery.
 - Validation: `npm run check`; `npm test` 102/102; `git diff --check`.
-- Full-prompt manual relay remains the operating procedure. RELAY.1A does not change Executor dispatch or execute prompts.
+- At RELAY.1A publication, full-prompt manual relay remained the procedure; RELAY.1A did not change transport or execute prompts. RELAY.1B later activated compact descriptor transport through a separate documentation closure.
 
-## RELAY.1B - Compact Executor Relay - NOT YET AUTHORIZED
-Potential bounded intent, subject to a separate reviewed authorization:
-- Architect prompt is staged exactly once as exact bytes.
-- A compact descriptor is transported.
-- Executor independently verifies artifact, hash, byte length, project/milestone identity and lifecycle.
-- Only exact verified bytes are used; no equivalent prompt is regenerated.
-
-Listing this candidate does not authorize implementation. Do not begin RELAY.1B without a separate bounded instruction.
+## RELAY.1B - Compact Executor Relay - ACCEPTED / CLOSED
+- Published implementation HEAD: `85310e450705e1671ef9e6af22eeae6d9dbcc519`.
+- Added strict V1 compact identity descriptor and import/supersede/revoke/resolve CLI over RELAY.1A.
+- The Architect-provided exact prompt file is verified against descriptor SHA-256 and byte length before store mutation; Executor resolution independently checks verified authorization/lifecycle and emits exact prompt bytes only.
+- Validation: `npm run check` PASS; `npm test` 148/148 PASS; `git diff --check` PASS; process-level exact-byte import/resolve and zero-stdout mismatch proof passed.
+- Compact descriptor transport becomes the normal Architect -> Executor workflow after this documentation closure. Full-prompt chat copy is fallback only. Human transport/approval and Executor -> Architect evidence return remain manual. There is no automatic dispatch or execution.

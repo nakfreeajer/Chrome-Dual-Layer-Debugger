@@ -96,11 +96,12 @@ The project uses an AMO-inspired Human -> Architect-Curator -> Executor authorit
 This local workflow persistence layer is separate from browser/CDP runtime architecture:
 
 ```text
-Architect decision
-    -> exact prompt bytes
-    -> content-addressed artifact
-    -> immutable manifest and lifecycle evidence
-    -> verified authorized loader
+Architect authors exact prompt bytes and descriptor
+    -> Human verifies and imports/authorizes exact bytes
+    -> content-addressed artifact and immutable manifest/lifecycle
+    -> descriptor-only manual transport to Executor
+    -> verified resolve returns exact prompt bytes
+    -> bounded Executor follows those bytes
 ```
 
 RELAY.1A stores artifacts only under ignored `.agent-work/`. Schema v1 identity is `(project, milestoneId, promptSha256, promptByteLength)`; the frozen milestoneId is workflow identity. No transactionId is used, and runtime trace runId is not repurposed.
@@ -109,4 +110,4 @@ Prompt bytes are Buffer-exact: line endings, Unicode, whitespace and trailing ne
 
 Staging is not authorization. Authorization requires an explicit approval reference and does not cryptographically authenticate the approval. Direct authorization cannot silently replace an active current prompt. Changed decisions use explicit supersession; revocation and supersession are checked against immutable lifecycle evidence. Invalid or corrupt durable state fails closed.
 
-Compact Executor dispatch is not active. The full manual prompt relay remains authoritative until any separately reviewed and accepted RELAY.1B.
+RELAY.1B is accepted and published at `85310e450705e1671ef9e6af22eeae6d9dbcc519`. After documentation closure, descriptor-only Architect -> Executor transport is the normal workflow; a full-prompt copy is an explicit fallback only. The exact prompt file comes from Architect transport: local hashing proves byte identity, not authorship. The descriptor is identity, not authorization; verified RELAY.1A lifecycle state plus exact identity and bytes are required. Resolve is a byte-delivery operation, not execution. No automatic dispatcher, network service, or auto-execution exists. Human transport/approval and Executor -> Architect evidence relay remain manual.

@@ -85,3 +85,12 @@ The next bounded integration, if separately authorized, should evaluate a privac
 - Publication hash verification stopped when the reviewed patch representation differed in a synthetic Unicode fixture. Byte-level diagnosis found a content difference, not a line-ending difference; the current intended Unicode fixture was independently reviewed and accepted. Process/tool attribution was not established.
 - Published implementation: `163b0c008097eb24f1412be31e527f4697d0fc35`. Exact accepted hashes: PromptArtifactStore.ts `9f727dc352e5691b2a15e98e5242acd57137e8af5fdc6bd6b051a7d98e458d4e`; PromptArtifactStore.test.ts `dbabddb3530c0d177b8d1a02ab6db43922e2653e65f8985a7831654ddd3b7430`.
 - No real prompt artifact was created or committed. Normal Executor dispatch remains unchanged; RELAY.1B was not started.
+
+## 2026-10-02 - RELAY.1B Compact Executor Relay - ACCEPTED
+- Designed as compact transport over accepted RELAY.1A exact-byte artifact storage and lifecycle verification.
+- Added strict canonical V1 descriptor parsing/formatting, Architect-file pre-mutation verification, and import/supersede/revoke/resolve CLI commands.
+- Fixed descriptor conformance vector and parser rejection coverage were added. Exact LF, CRLF, Unicode, BOM and no-added-newline behavior were validated.
+- Separate-process import/resolve proved exact bytes; negative mismatch proof returned nonzero, wrote zero prompt stdout bytes, and created no authorization mutation.
+- Accepted validation: `npm run check` PASS; `npm test` 148/148 PASS; `git diff --check` PASS.
+- Implementation published at `85310e450705e1671ef9e6af22eeae6d9dbcc519`.
+- Compact relay became the normal Architect -> Executor transport only with this documentation closure. Human transport/approval and Executor -> Architect evidence relay remain manual; no auto-dispatch or auto-execution was added.

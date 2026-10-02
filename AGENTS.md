@@ -4,7 +4,7 @@
 
 Human Owner -> Architect-Curator -> bounded Executor -> evidence back to Architect-Curator.
 
-Rony Finster is the final Human authority. ChatGPT is the current Architect-Curator for this project. There is no automated Orchestrator. Relay/transport between Executor and Architect-Curator is performed manually by the Human Owner.
+Rony Finster is the final Human authority. ChatGPT is the current Architect-Curator for this project. There is no automated Orchestrator, watcher, doorbell, background dispatcher, network relay service, automatic Executor start, or automatic prompt execution. Human relay remains manual.
 
 ## Roles
 
@@ -25,11 +25,22 @@ Rony Finster is the final Human authority. ChatGPT is the current Architect-Cura
 
 No automated dispatch, watcher, doorbell, or relay is authoritative.
 
-For each milestone the Human Owner manually carries:
-1. Architect bounded instruction -> Executor.
-2. Executor terminal report/evidence -> Architect-Curator.
-3. Architect decision or correction -> Executor when needed.
+For normal Architect -> Executor transport, the Architect provides exact prompt-file bytes and a canonical CDLD-PROMPT-V1 descriptor. The Human imports/authorizes those bytes locally through PromptRelayCli, then sends Executor only:
+
+    RELAY:EXECUTE
+    <CDLD-PROMPT-V1...>
+
+The Executor resolves the exact descriptor from verified authorized local state and follows only those bytes. Resolution failure means stop. The descriptor is transport identity, not authorization. Human approval and RELAY.1A lifecycle verification remain required.
+
+When the Human supplies RELAY:EXECUTE followed by a CDLD-PROMPT-V1 token, treat it as a transport instruction, not the substantive task. Resolve that exact token through PromptRelayCli and require verified authorized local state. Read and execute only the exact resolved prompt bytes. If resolution fails, stop and report failure. Never choose by recency, filename/path similarity, or directory search; never regenerate equivalent instructions; never bypass Human approval or lifecycle evidence.
+
+The Human still manually carries:
+1. Architect prompt file and descriptor to the local importer, then the descriptor handoff to Executor.
+2. Executor terminal report/evidence back to Architect-Curator.
+3. Architect decision or correction when needed.
 4. Documentation synchronization instruction/closure when required.
+
+A full prompt may be copied into Executor chat only as an explicit fallback when compact relay is unavailable or under repair; do not mix the fallback text with a descriptor-authorized execution.
 
 The Human transport role does not change authority: transported content keeps the authority of its author.
 

@@ -1,7 +1,7 @@
 # Current State
 
 ## Status
-V0.1I passive V1 correlation recognizer and RELAY.1A durable prompt artifact foundation are accepted and published. RELAY.1A implementation HEAD: `163b0c008097eb24f1412be31e527f4697d0fc35`. The accepted V0.1E-V0.1I chain established an explicit cooperative correlation contract and a run-scoped fail-closed recognizer. Automatic CLI/network evidence ingestion is not implemented. RELAY.1A adds ignored local prompt artifact persistence; the normal full-prompt manual relay remains active. RELAY.1B is not yet authorized.
+V0.1I passive V1 correlation recognizer, RELAY.1A durable prompt artifact foundation, and RELAY.1B compact Executor relay are accepted and published. RELAY.1B implementation HEAD: `85310e450705e1671ef9e6af22eeae6d9dbcc519`; accepted validation: `npm run check` PASS, `npm test` 148/148 PASS, `git diff --check` PASS. After this documentation closure, compact descriptor transport is the normal Architect -> Executor procedure; full-prompt copy is an explicit fallback only. Executor -> Architect evidence relay remains manual. No automatic dispatch or prompt execution exists. The accepted V0.1E-V0.1I correlation chain remains unchanged; automatic CLI/network evidence ingestion is not implemented.
 
 ## Repository
 - Repository: `nakfreeajer/Chrome-Dual-Layer-Debugger`
@@ -17,7 +17,7 @@ V0.1I passive V1 correlation recognizer and RELAY.1A durable prompt artifact fou
 ## Local workspace
 - Local root: `C:\Users\nitro\Projects\Chrome-Dual-Remote-Debugger`
 - Ignored `.agent-work/` hierarchy remains the local raw-evidence workspace.
-- Relay between Executor and Architect-Curator is manual and performed by Rony.
+- Architect -> Executor uses manually transported compact descriptors after local Human import/authorization; Executor -> Architect evidence relay remains manual and is performed by Rony.
 
 ## Architect-Curator verification status
 ### V0.1A — Browser attachment & read-only discovery
@@ -73,8 +73,8 @@ Accepted V0.1D validation:
 - Human Owner: Rony Finster.
 - Architect-Curator: ChatGPT Architect for this project.
 - Executor: bounded Codex execution role.
-- There is no automated Orchestrator.
-- Relay is manual.
+- There is no automated Orchestrator, watcher, dispatcher, network relay, automatic Executor start, or auto-execution.
+- Compact Architect -> Executor transport is active after RELAY.1B documentation closure; Human transport and approval remain manual. Executor -> Architect evidence relay remains manual.
 
 ## Accepted correlation chain - V0.1E through V0.1I
 - V0.1E established that native browser/CDP identities do not deterministically link a frontend `google.script.run` invocation to GAS execution and its callback; timing, ordering, function name and URL similarity are not correlation authority.
@@ -103,4 +103,11 @@ When resumed, the next non-relay debugger integration should be a bounded privac
 - Staging does not authorize execution. Authorization requires an explicit caller-supplied approval reference. Current authorization cannot be displaced by direct authorization; changed decisions require explicit supersession. Revocation and supersession are checked against durable lifecycle evidence and fail closed.
 - Verified loading checks locator, manifest, lifecycle, path containment, exact bytes, SHA-256 and byte length. Fresh-store and second-process recovery passed.
 - Validation: `npm run check` passed; `npm test` passed 102/102; `git diff --check` passed. The 102 tests include 50 RELAY.1A-focused tests.
-- The normal Architect -> Human -> Executor full-prompt relay remains in force. No compact dispatch or auto-execution exists; RELAY.1B is not yet authorized.
+- At RELAY.1A publication, the full-prompt relay remained active. After RELAY.1B documentation closure, compact descriptor transport is normal. No automatic dispatch or auto-execution exists.
+
+## Accepted compact prompt transport - RELAY.1B
+- RELAY.1B was accepted and published at `85310e450705e1671ef9e6af22eeae6d9dbcc519`; validation passed with 148/148 tests and process-level exact-byte import/resolve proof.
+- The canonical descriptor is `CDLD-PROMPT-V1.<base64url>` and binds schema, project, repository, milestone, prompt SHA-256 and byte length only. It is identity evidence, not authorization.
+- The Architect provides the exact prompt file and descriptor. Rony imports/authorizes the exact bytes locally; Executor receives only the descriptor and resolves exact bytes from verified RELAY.1A state.
+- This compact Architect -> Executor flow becomes the normal process after this closure. Full-prompt copying remains an explicit fallback. Executor -> Architect report/evidence transport remains manual.
+- No automatic dispatch, watcher, Orchestrator, service, start or execution exists. Resolve supplies bytes; Executor still follows the bounded instruction under the existing authority model.

@@ -22,15 +22,14 @@ Before implementation, the Architect should be able to explain:
 - evidence that will prove the milestone complete.
 
 ## Execution loop
-1. Architect defines one bounded milestone.
-2. Human manually relays the exact instruction to Executor.
-3. Executor captures baseline and works only within the authorized mutation envelope.
-4. Executor validates and writes a structured terminal report/evidence locally under `.agent-work/`.
-5. Human manually relays the bounded report/evidence to Architect-Curator.
-6. Architect independently verifies against GitHub and evidence.
-7. Architect classifies `ACCEPTED`, `BLOCKED`, `INCONCLUSIVE`, or `NO_NEW_REPORT`.
-8. If accepted work changes institutional memory, Architect-Curator updates all and only relevant official docs.
-9. Commit/push/tag/deploy remain separate authorizations when applicable.
+1. Architect freezes one complete bounded milestone as exact prompt bytes and supplies the prompt file plus canonical descriptor.
+2. Human imports and authorizes those exact bytes locally using PromptRelayCli and the explicit approval reference.
+3. Human transports only the unchanged descriptor to Executor using RELAY:EXECUTE followed by the CDLD-PROMPT-V1 token.
+4. Executor resolves the descriptor against fully verified RELAY.1A authorized state; resolution failure means stop. Executor performs only the exact resolved bounded prompt.
+5. Executor validates and writes structured terminal report/evidence locally under `.agent-work/`.
+6. Human manually returns the report/evidence to Architect-Curator.
+7. Architect independently verifies against GitHub and evidence and classifies `ACCEPTED`, `BLOCKED`, `INCONCLUSIVE`, or `NO_NEW_REPORT`.
+8. Documentation/publication remain separate authorizations when applicable.
 
 ## Accepted bootstrap checkpoint
 The initial local workspace bootstrap is closed and accepted:
@@ -90,7 +89,7 @@ Created locally by `tools/setup-agent-work.ps1` and ignored by Git:
 └── private/
 ```
 
-The `bridge/` folder is only a manual staging/redaction boundary here; no automated synchronization is assumed.
+The `prompts/` store may be created lazily by relay tooling; workspace bootstrap does not need to be rerun. Prompt bytes live at `.agent-work/prompts/<milestoneId>/<promptSha256>.md`, with immutable manifests and lifecycle records alongside them; `.agent-work/current/executor-prompt.json` is only a mutable recovery locator, not authority. The `bridge/` folder remains only a manual staging/redaction boundary, not authority; no automated synchronization is assumed.
 
 ## Documentation closure
 There is no automated documentation doorbell. When accepted work materially changes current state, decisions, history, architecture, workflow, validation, lessons, roadmap or handover state, the Architect-Curator performs the bounded documentation synchronization directly after acceptance.

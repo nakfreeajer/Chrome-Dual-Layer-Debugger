@@ -56,5 +56,17 @@ An active authorized prompt cannot be displaced by direct authorization. A chang
 ## D-018 - Local evidence and no historical reconstruction
 Prompt artifacts remain under ignored local `.agent-work/`; they are not committed project source. Do not reconstruct historical prompt bytes from chat or migrate old prompts without separate authority.
 
-## D-019 - Manual relay remains active
-RELAY.1A supplies durable local prompt storage and verified loading only. It does not change the full-prompt Architect -> Human -> Executor procedure, authorize compact dispatch, or execute prompts. Any compact relay requires separate RELAY.1B review and authorization.
+## D-019 - RELAY.1A did not change transport
+At RELAY.1A publication, durable local prompt storage and verified loading did not change the full-prompt Architect -> Human -> Executor procedure. Compact transport required separate RELAY.1B review and authorization; the later accepted RELAY.1B decision below supersedes the transport status. Neither milestone authorizes automatic dispatch or prompt execution.
+
+## D-020 - Canonical compact prompt transport identity
+After RELAY.1B documentation closure, Architect -> Executor transport uses the canonical `CDLD-PROMPT-V1.<base64url>` descriptor. V1 has the exact ordered schema `schemaVersion, project, repository, milestoneId, promptSha256, promptByteLength`. The descriptor contains identity only and never local paths, approval data, prompt body, username, runId, transactionId, commands, or secrets.
+
+## D-021 - Architect bytes must be verified before store mutation
+The local importer accepts an Architect-transported prompt file plus descriptor and verifies exact SHA-256 and byte length before staging or authorization. A local formatter/hash of an arbitrary file does not create Architect authority. RELAY.1B prompt text must be nonempty valid UTF-8 without NUL; original bytes, including optional BOM, remain unchanged.
+
+## D-022 - Resolve is exact-byte delivery, not execution
+Executor resolves a descriptor only against fully verified RELAY.1A authorized state. It receives exact stored bytes only after all checks pass. Resolve success writes prompt bytes alone with no added newline; failure writes zero prompt bytes to stdout. The Executor decides and acts only under the bounded instruction and existing authority model.
+
+## D-023 - Explicit correction, withdrawal, and manual control
+Same-milestone correction uses explicit supersede; different-milestone transition requires revocation before import. No auto-supersession, auto-revocation, auto-dispatch, or auto-execution exists. Human transport and approval remain manual, as does Executor -> Architect evidence relay.

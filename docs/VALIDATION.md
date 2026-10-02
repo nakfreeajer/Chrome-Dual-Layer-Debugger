@@ -173,4 +173,26 @@ Accepted persistence invariants:
 - Never bypass verified revocation or supersession lifecycle.
 - Preserve Human approval authority; integrity hashes are not permission.
 - Do not reconstruct or bulk-migrate historical prompts.
-- Full-prompt manual relay remains active until RELAY.1B is separately reviewed and accepted.
+- After RELAY.1B documentation closure, compact descriptor relay is the normal Architect -> Executor process; full-prompt copy is explicit fallback only. Executor -> Architect evidence return remains manual.
+
+## Accepted RELAY.1B compact Executor relay validation
+RELAY.1B was accepted and published at `85310e450705e1671ef9e6af22eeae6d9dbcc519`. The compact Architect -> Executor operating procedure activates with this documentation closure.
+
+Accepted evidence:
+- `npm run check` passed;
+- `npm test` passed 148/148;
+- `git diff --check` passed;
+- fixed synthetic descriptor vector was verified for canonical JSON, 245-byte UTF-8 payload, base64url and full token;
+- strict parser rejects noncanonical encodings, malformed fields/UTF-8/JSON, invalid identity and invalid byte length;
+- import preserves exact LF, CRLF, Unicode and BOM bytes and rejects UTF-8/NUL/empty or descriptor-file mismatch before staging;
+- separate Node processes imported and resolved exact prompt bytes; resolve stdout was the exact prompt Buffer with no newline;
+- failed resolve and import mismatch emitted zero prompt stdout; mismatch caused no store authorization mutation;
+- revoked and stale descriptors were rejected; cross-milestone supersede and stale revoke were rejected.
+
+## RELAY.1B regression contracts
+- Never act on a descriptor without verified resolve against authorized RELAY.1A lifecycle state.
+- Never emit prompt bytes before all validation succeeds; failures emit zero prompt stdout.
+- Never derive Architect authorship from hashing an arbitrary local file.
+- Never normalize exact prompt bytes.
+- Never bypass Human approval or RELAY.1A authorization/lifecycle.
+- Never auto-supersede, auto-revoke, dispatch, or execute.
