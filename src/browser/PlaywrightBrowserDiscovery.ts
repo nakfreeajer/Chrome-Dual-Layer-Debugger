@@ -2,6 +2,8 @@ import { chromium, type Browser, type BrowserContext, type CDPSession, type Page
 import { detectLayer } from '../core/LayerDetector.js';
 import { SessionIds } from '../core/SessionIds.js';
 import { connectOverCDPOptions } from './ConnectOptions.js';
+import { V1CorrelationObserver, V1ObserverScopeIds } from './V1CorrelationObserver.js';
+import type { Timeline } from '../trace/Timeline.js';
 import type { BrowserDiscovery, DiscoveryResult, DiscoveredFrame, DiscoveredPage, PageDiscoveryInput } from './BrowserDiscovery.js';
 
 interface ProtocolFrame {
@@ -83,6 +85,21 @@ export class PlaywrightBrowserDiscovery implements BrowserDiscovery {
     const browser = this.browser;
     this.browser = undefined;
     if (browser?.isConnected()) await browser.close();
+  }
+
+  getPageById(pageId: string): Page | undefined {
+    for (const context of this.browser?.contexts() ?? []) {
+      for (const page of context.pages()) {
+        if (this.ids.forPage(page) === pageId) return page;
+      }
+    }
+    return undefined;
+  }
+
+  createV1Observer(pageId: string, timeline: Timeline, ids: V1ObserverScopeIds): V1CorrelationObserver {
+    const page = this.getPageById(pageId);
+    if (!page) throw new Error(`Discovered page ${pageId} is no longer available`);
+    return new V1CorrelationObserver(page, timeline, ids);
   }
 
   private async discoverPage(page: Page, context: BrowserContext): Promise<DiscoveredPage> {

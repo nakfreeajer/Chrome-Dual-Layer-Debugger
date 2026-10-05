@@ -5,30 +5,48 @@ import { mapCrossLayerIdentities } from '../core/CrossLayerMapper.js';
 import { Timeline } from '../trace/Timeline.js';
 import { FileJsonlTraceWriter } from '../trace/JsonlTraceWriter.js';
 import { emitBrowserDiscovery, emitGasDiscovery, emitMappingEvidence, emitSessionEvent } from '../trace/DiscoveryEvents.js';
+import { V1ObserverScopeIds } from '../browser/V1CorrelationObserver.js';
 
-function parseEndpoint(args: string[]): string {
-  const flagIndex = args.indexOf('--endpoint');
-  if (flagIndex === -1) return 'http://127.0.0.1:9222';
-  const endpoint = args[flagIndex + 1];
-  if (!endpoint || endpoint.startsWith('--')) throw new Error('--endpoint requires a URL');
-  return endpoint;
-}
+const MAX_V1_OBSERVATION_MS = 300_000;
 
-function parseTimelinePath(args: string[]): string {
-  const flagIndex = args.indexOf('--timeline');
-  if (flagIndex === -1) return '.agent-work/artifacts/timeline.jsonl';
-  const path = args[flagIndex + 1];
-  if (!path || path.startsWith('--')) throw new Error('--timeline requires a file path');
-  return path;
+interface CliOptions { endpoint: string; timelinePath: string; observeV1Ms?: number; }
+
+export function parseCliOptions(args: string[]): CliOptions {
+  const values = new Map<string, string>();
+  const allowed = new Set(['--endpoint', '--timeline', '--observe-v1-ms']);
+  for (let index = 0; index < args.length; index += 1) {
+    const flag = args[index];
+    if (!allowed.has(flag)) throw new Error(`Unknown or unexpected argument: ${flag}`);
+    if (values.has(flag)) throw new Error(`Duplicate argument: ${flag}`);
+    const value = args[index + 1];
+    if (!value || value.startsWith('--')) throw new Error(`${flag} requires a value`);
+    values.set(flag, value);
+    index += 1;
+  }
+  const observeText = values.get('--observe-v1-ms');
+  let observeV1Ms: number | undefined;
+  if (observeText !== undefined) {
+    if (!/^\d+$/.test(observeText)) throw new Error('--observe-v1-ms must be a positive integer');
+    observeV1Ms = Number(observeText);
+    if (!Number.isSafeInteger(observeV1Ms) || observeV1Ms <= 0 || observeV1Ms > MAX_V1_OBSERVATION_MS) {
+      throw new Error(`--observe-v1-ms must be between 1 and ${MAX_V1_OBSERVATION_MS}`);
+    }
+  }
+  return {
+    endpoint: values.get('--endpoint') ?? 'http://127.0.0.1:9222',
+    timelinePath: values.get('--timeline') ?? '.agent-work/artifacts/timeline.jsonl',
+    ...(observeV1Ms === undefined ? {} : { observeV1Ms })
+  };
 }
 
 export async function runCli(args: string[]): Promise<void> {
-  if (args[0] !== 'discover') throw new Error('Usage: node dist/src/cli/main.js discover [--endpoint URL]');
-  const endpoint = parseEndpoint(args);
-  const timelinePath = parseTimelinePath(args);
+  if (args[0] !== 'discover') throw new Error('Usage: node dist/src/cli/main.js discover [--endpoint URL] [--timeline PATH] [--observe-v1-ms N]');
+  const { endpoint, timelinePath, observeV1Ms } = parseCliOptions(args.slice(1));
   const discovery = new PlaywrightBrowserDiscovery(endpoint);
   const gasAdapter = new GasAdapter();
   const timeline = new Timeline();
+  const observers: ReturnType<PlaywrightBrowserDiscovery['createV1Observer']>[] = [];
+  const observerIds = new V1ObserverScopeIds();
   emitSessionEvent(timeline, 'SESSION_STARTED');
   console.log(`Run ID: ${timeline.runId}`);
   try {
@@ -56,21 +74,44 @@ export async function runCli(args: string[]): Promise<void> {
         }
       }
     }
+    if (observeV1Ms !== undefined) {
+      const eligiblePages = result.contexts.flatMap((context) => context.pages).filter((page) => page.mode === 'BROWSER_PLUS_GAS');
+      for (const page of eligiblePages) {
+        const observer = discovery.createV1Observer(page.pageId, timeline, observerIds);
+        await observer.start();
+        observers.push(observer);
+      }
+      if (observers.length) {
+        console.log(`V1 observation: ${observers.length} page observer(s), ${observeV1Ms} ms`);
+        await new Promise<void>((resolve) => setTimeout(resolve, observeV1Ms));
+      }
+    }
   } finally {
     try {
-      await gasAdapter.disconnect();
+      for (const observer of observers) {
+        try {
+          const { result } = await observer.stop();
+          console.log(`V1 observer ${observer.observerScopeId}: proven=${result.proven.length}, uncorrelated=${result.uncorrelated.filter((item) => item.emitTraceEvent).length}`);
+        } catch (error) {
+          console.error(`V1 observer ${observer.observerScopeId} cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
     } finally {
       try {
-        await discovery.disconnect();
+        await gasAdapter.disconnect();
       } finally {
-        emitSessionEvent(timeline, 'SESSION_ENDED');
-        const writer = new FileJsonlTraceWriter(timelinePath);
         try {
-          for (const event of timeline.snapshot()) await writer.write(event);
+          await discovery.disconnect();
         } finally {
-          await writer.close();
+          emitSessionEvent(timeline, 'SESSION_ENDED');
+          const writer = new FileJsonlTraceWriter(timelinePath);
+          try {
+            for (const event of timeline.snapshot()) await writer.write(event);
+          } finally {
+            await writer.close();
+          }
+          console.log(`Timeline appended: ${timelinePath} (${timeline.snapshot().length} events)`);
         }
-        console.log(`Timeline appended: ${timelinePath} (${timeline.snapshot().length} events)`);
       }
     }
   }

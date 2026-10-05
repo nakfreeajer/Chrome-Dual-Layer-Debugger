@@ -260,7 +260,11 @@ export class V1CorrelationRecognizer {
 }
 
 /** Emit only proven identity or bounded reason-code evidence into the shared Timeline. */
-export function emitV1CorrelationEvents(timeline: Timeline, result: V1CorrelationResult): TraceEvent[] {
+export function emitV1CorrelationEvents(
+  timeline: Timeline,
+  result: V1CorrelationResult,
+  options: { observerScopeId?: string } = {}
+): TraceEvent[] {
   if (timeline.runId !== result.runId) throw new Error('Correlation result runId must match Timeline');
   const emitted: TraceEvent[] = [];
   for (const proof of result.proven) {
@@ -271,6 +275,7 @@ export function emitV1CorrelationEvents(timeline: Timeline, result: V1Correlatio
       correlationId: proof.correlationId,
       data: {
         contractVersion: proof.contractVersion,
+        ...(options.observerScopeId ? { observerScopeId: options.observerScopeId } : {}),
         requestId: proof.requestId,
         serverExecutionId: proof.serverExecutionId,
         outcome: proof.outcome,
@@ -287,7 +292,12 @@ export function emitV1CorrelationEvents(timeline: Timeline, result: V1Correlatio
       source: 'TRACE',
       category: 'CORRELATION',
       type: 'CORRELATION_UNCORRELATED',
-      ...(candidate.requestId ? { data: { status: 'UNCORRELATED', reason: candidate.reason, requestId: candidate.requestId } } : { data: { status: 'UNCORRELATED', reason: candidate.reason } })
+      data: {
+        status: 'UNCORRELATED',
+        reason: candidate.reason,
+        ...(options.observerScopeId ? { observerScopeId: options.observerScopeId } : {}),
+        ...(candidate.requestId ? { requestId: candidate.requestId } : {})
+      }
     });
     timeline.append(event);
     emitted.push(event);
