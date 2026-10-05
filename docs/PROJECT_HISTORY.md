@@ -94,3 +94,13 @@ The next bounded integration, if separately authorized, should evaluate a privac
 - Accepted validation: `npm run check` PASS; `npm test` 148/148 PASS; `git diff --check` PASS.
 - Implementation published at `85310e450705e1671ef9e6af22eeae6d9dbcc519`.
 - Compact relay became the normal Architect -> Executor transport only with this documentation closure. Human transport/approval and Executor -> Architect evidence relay remain manual; no auto-dispatch or auto-execution was added.
+
+## 2026-10-06 - V0.1J Privacy-Limited V1 Evidence Producer and V0.1K Raw Child Marker Fusion - ACCEPTED
+- Combined implementation: `9e6998488b02e5493f4a4b34e6c0b60b8d193465` (`feat(correlation): add passive v1 evidence fusion`).
+- V0.1J added opt-in privacy-limited extraction of cooperative V1 evidence from the Playwright/page-scoped Network path. Wire discovery established the request/response evidence fields while excluding ordinary native calls from correlation candidates and body collection.
+- V0.1J live diagnosis found that Playwright Page console events alone did not reliably expose completion markers from the relevant child/OOPIF context.
+- V0.1K added raw child/OOPIF Runtime marker observation on the existing page-scoped CDP connection and fused those markers into the same V0.1I recognizer. Playwright Network remains the request/response/transport source; the recognizer remains the sole correlation proof authority.
+- Validation used an explicit disposable-fixture start gate. After the nominal delay elapsed, no call began until the separate harness opened the gate after early Playwright, late Playwright, raw child/OOPIF CDP and production CLI controls were ready.
+- Live evidence: early Playwright saw two markers, late Playwright saw zero, raw child/OOPIF saw two, and the production CLI emitted exactly two proofs (one success, one failure). Ordinary native traffic remained quiet. Exact token and native request identity, not timing or order, joined evidence.
+- The sanitized Timeline contained 47 valid events with one run identity, unique event IDs and contiguous sequence. Target identity remained stable. The disposable deployment/project and local fixture metadata were removed and cleanup was verified.
+- Accepted deterministic validation: `npm run check`; 178/178 tests; `git diff --check`.

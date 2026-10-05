@@ -1,7 +1,7 @@
 # Current State
 
 ## Status
-V0.1I passive V1 correlation recognizer, RELAY.1A durable prompt artifact foundation, and RELAY.1B compact Executor relay are accepted and published. RELAY.1B implementation HEAD: `85310e450705e1671ef9e6af22eeae6d9dbcc519`; accepted validation: `npm run check` PASS, `npm test` 148/148 PASS, `git diff --check` PASS. After this documentation closure, compact descriptor transport is the normal Architect -> Executor procedure; full-prompt copy is an explicit fallback only. Executor -> Architect evidence relay remains manual. No automatic dispatch or prompt execution exists. The accepted V0.1E-V0.1I correlation chain remains unchanged; automatic CLI/network evidence ingestion is not implemented.
+V0.1J privacy-limited V1 evidence production and V0.1K raw child/OOPIF marker fusion are accepted and published together at `9e6998488b02e5493f4a4b34e6c0b60b8d193465`. Validation passed: `npm run check`, `npm test` 178/178, and `git diff --check`. The producer is opt-in through the normal CLI using `--observe-v1-ms`. Compact descriptor transport remains the normal Architect -> Executor procedure; full-prompt copy is an explicit fallback. Executor -> Architect evidence relay remains manual. No automatic dispatch or prompt execution exists.
 
 ## Repository
 - Repository: `nakfreeajer/Chrome-Dual-Layer-Debugger`
@@ -11,6 +11,7 @@ V0.1I passive V1 correlation recognizer, RELAY.1A durable prompt artifact founda
 - Accepted V0.1C implementation HEAD: `21b5f9c30460c38e11c16f04b44fa8ac3a5210f5`
 - Accepted V0.1D implementation HEAD: `b14fda0db3b4d150064c91eab86dfdda19b6cd1f`
 - Accepted V0.1I implementation HEAD: `348dfa6b9c81dbf55233bc87ce05f417973fb61d`
+- Accepted combined V0.1J/V0.1K implementation HEAD: `9e6998488b02e5493f4a4b34e6c0b60b8d193465`
 - `gas-remote-debug` dependency baseline: `nakfreeajer/gas-remote-debug@ac4359aa790af19cafe1a7e9a55ecd50f68e9169`
 - Language/runtime: TypeScript + Node.js
 
@@ -85,16 +86,14 @@ Accepted V0.1D validation:
 - V0.1I was accepted and published at `348dfa6b9c81dbf55233bc87ce05f417973fb61d`; deterministic validation passed (`npm run check`, `npm test` 52/52, `git diff --check`). Accepted disposable live validation proved one success and one explicit application failure correlation alongside an untouched ordinary native call.
 
 ## Current integration boundary
-The recognizer exists, but no production CLI/page/network producer automatically feeds evidence into it. Inputs must already be privacy-reduced. CDP `requestId` is session-scoped; a future multi-session producer must add observer/session scope while preserving native request identity. V1 version authority comes from request `contractVersion === 1` and a validated V1 completion marker; response token equality is required, while response version is not independently parsed. `correlationId` remains absent unless finalization proves the complete evidence chain.
-
-When resumed, the next non-relay debugger integration should be a bounded privacy-limited V1 evidence producer with CDP observer/session scoping and Timeline lifecycle integration. This is a proposed boundary, not authorization to implement it.
+The opt-in V0.1J producer now feeds privacy-reduced Playwright/page-scoped Network evidence and raw child/OOPIF Runtime completion-marker evidence into the same V0.1I recognizer. The CLI enables observation only when `--observe-v1-ms` is supplied. Playwright Page console events are not production marker authority; late Playwright console observation may miss child/OOPIF markers. The recognizer remains the sole proof authority and assigns `correlationId` only after complete evidence finalization. CDP `requestId` remains session-scoped and separate from `observerScopeId` and application correlation identity.
 
 ## Unresolved items
 - Historical V0.1C JSONL lacks `runId`; it remains valid historical evidence and is not migrated by V0.1D.
 - Sibling GAS runtime contexts remain intentionally unmapped to Playwright frames when no shared protocol FrameId exists.
 - Playwright Page-to-raw-TargetId remains intentionally unmapped through the current public discovery surface.
 - `GasAdapter` currently proves one active GAS discovery connection at a time; multi-GAS-tab orchestration has not been established.
-- Automatic production CLI/page/network evidence ingestion into the accepted V1 recognizer remains unimplemented.
+- V1 evidence production is opt-in through the CLI; no browser diagnostic is pending.
 
 ## Accepted engineering-workflow persistence - RELAY.1A
 - RELAY.1A durable prompt artifact foundation was accepted and published at `163b0c008097eb24f1412be31e527f4697d0fc35`.
@@ -111,3 +110,10 @@ When resumed, the next non-relay debugger integration should be a bounded privac
 - The Architect provides the exact prompt file and descriptor. Rony imports/authorizes the exact bytes locally; Executor receives only the descriptor and resolves exact bytes from verified RELAY.1A state.
 - This compact Architect -> Executor flow becomes the normal process after this closure. Full-prompt copying remains an explicit fallback. Executor -> Architect report/evidence transport remains manual.
 - No automatic dispatch, watcher, Orchestrator, service, start or execution exists. Resolve supplies bytes; Executor still follows the bounded instruction under the existing authority model.
+
+## Accepted V0.1J and V0.1K correlation evidence production
+- Combined implementation published at `9e6998488b02e5493f4a4b34e6c0b60b8d193465`.
+- Playwright/page-scoped Network request, response and terminal evidence is fused with exact raw child/OOPIF Runtime completion-marker evidence and passed to the existing single V0.1I recognizer.
+- `--observe-v1-ms` is opt-in. Playwright Page console is diagnostic only and is not production marker authority.
+- Accepted tests: `npm run check` PASS; `npm test` 178/178 PASS; `git diff --check` PASS.
+- Live Brave validation passed with explicit fixture start gating, all four controls ready before the gate, exactly one success and one failure proof, ordinary native traffic quiet, stable target identity, and cleanup verified. No further browser diagnostic is pending.

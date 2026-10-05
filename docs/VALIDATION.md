@@ -142,7 +142,7 @@ Accepted disposable live evidence:
 - Preserve CDP requestId as a distinct transport identity.
 - Treat CDP requestId as session-scoped; add observer/session scope before sharing identities across multiple CDP sessions.
 - Do not claim native `ScriptError` equivalence for the cooperative V1 explicit-failure result.
-- The recognizer does not currently have automatic CLI/page/network evidence ingestion.
+- Production evidence collection is opt-in with CLI `--observe-v1-ms`; V0.1J/V0.1K acceptance does not enable automatic observation by default.
 
 ## Accepted RELAY.1A durable prompt artifact validation
 RELAY.1A was accepted and published at `163b0c008097eb24f1412be31e527f4697d0fc35`.
@@ -196,3 +196,33 @@ Accepted evidence:
 - Never normalize exact prompt bytes.
 - Never bypass Human approval or RELAY.1A authorization/lifecycle.
 - Never auto-supersede, auto-revoke, dispatch, or execute.
+
+## Accepted V0.1J/V0.1K privacy-limited evidence production and live fusion
+Combined implementation published at `9e6998488b02e5493f4a4b34e6c0b60b8d193465`.
+
+Accepted deterministic evidence:
+- `npm run check` passed;
+- `npm test` passed 178/178;
+- `git diff --check` passed;
+- tests cover privacy-limited Network extraction, raw child Runtime marker normalization, iframe-only target filtering, multi-child-session observation, listener/session cleanup, and use of the existing single recognizer.
+
+Accepted live evidence used the already-running Brave endpoint only:
+- the deployed fixture source matched the pushed fixture source;
+- the explicit start gate remained closed after 31 seconds, with no relevant RPC request or completed callbacks/markers;
+- early Playwright, late Playwright, raw child/OOPIF CDP and production CLI were all ready before the separate harness opened the gate;
+- early Playwright observed two markers, late Playwright observed zero, raw child/OOPIF observed two, and the production CLI emitted exactly two `CORRELATION_PROVEN` events: one success and one failure;
+- ordinary native traffic remained quiet, with no correlation rejection noise or ordinary-call response-body fetch;
+- tokens, native requestIds, observerScopeId and serverExecutionIds remained separate; exact token/request identity joined evidence despite differing marker/proof order;
+- 47 JSONL events parsed, with unique event IDs, contiguous increasing sequence, one runId and correct session boundaries;
+- browser target identities were unchanged and the Brave endpoint remained responsive;
+- the disposable web app was undeployed, the project deletion was verified, and the old endpoint returned 404.
+
+Do not include deployment URLs or deployment IDs in retained validation evidence.
+
+## V0.1J/V0.1K regression contracts
+- Network request/response/terminal evidence and raw child/OOPIF completion markers feed the same V0.1I recognizer.
+- Playwright Page console events are not production completion-marker proof.
+- Late observer absence is not evidence of no marker; decisive fixture calls require explicit gating after all intended controls are ready.
+- Child target/session identity routes observation only and never becomes correlation identity.
+- Preserve requestId and observerScopeId separately from correlationId; do not correlate by timing, order or frame proximity.
+- V1 evidence collection remains opt-in through `--observe-v1-ms`; no default automatic collection is enabled.

@@ -81,7 +81,9 @@ V1 request evidence + same-request response token + transport completion
 
 Recognition finalizes before assigning `correlationId`; incomplete, duplicate, conflicting, malformed or unknown-version evidence fails closed. Request `contractVersion === 1` and completion-marker `contractVersion === 1` are authoritative. Response token equality is required, but response version is not independently parsed. A token prefix never establishes contract version. Timing, ordering, function name and URL similarity are not evidence.
 
-This architecture describes the accepted recognizer only. No production CLI/page/network evidence producer currently feeds it automatically. Explicit application failure is represented by the cooperative V1 result contract and does not claim native Apps Script `ScriptError` equivalence.
+The accepted V0.1J/V0.1K producer is opt-in through CLI `--observe-v1-ms`. Playwright/page-scoped CDP Network supplies privacy-reduced request, response and transport-terminal evidence. A raw child/OOPIF observer on the same page-scoped CDP connection supplies only exact cooperative V1 completion markers. Both sources feed the same V0.1I recognizer; there is no competing proof state machine. The recognizer finalizes the exact evidence before setting `correlationId`.
+
+`requestId` remains the native transport identity and is session-scoped. `observerScopeId` scopes that request identity and remains separate from the token-derived `correlationId`. Target/session identity only routes child Runtime messages; it is not correlation identity. Playwright `Page.on('console')` is not production marker proof input because late page-level observation may miss markers emitted in a child/OOPIF context. Explicit application failure is represented by the cooperative V1 result contract and does not claim native Apps Script `ScriptError` equivalence. No browser diagnostic remains pending.
 
 ## Low-intrusion rule
 

@@ -36,7 +36,7 @@ The debugger recognizes privacy-reduced evidence and does not patch `google.scri
 CDP `requestId` remains a transport identity; the exact opaque application token may become `correlationId` only after proof. Request contract version 1 and completion-marker version 1 are authoritative; response token equality is required, but response version is not independently parsed. Token prefix, timing, ordering, function name and URL similarity never establish correlation.
 
 ## D-012 - Privacy-reduced recognizer input
-Only privacy-reduced evidence may enter the V1 recognizer. Raw arguments, request/response bodies, headers, cookies, credentials and sensitive URLs are not retained as normalized correlation evidence. Any future CDP producer must preserve observer/session scope because native request IDs are session-scoped.
+Only privacy-reduced evidence may enter the V1 recognizer. Raw arguments, request/response bodies, headers, cookies, credentials and sensitive URLs are not retained as normalized correlation evidence. Every CDP evidence producer must preserve observer/session scope because native request IDs are session-scoped.
 
 ## D-013 - Prompt workflow identity
 For RELAY schema v1, workflow prompt identity is `(project, milestoneId, promptSha256, promptByteLength)`. The canonical project/repository identity is Chrome-Dual-Layer-Debugger / nakfreeajer/Chrome-Dual-Layer-Debugger. No transactionId is introduced; debugger runId remains trace-runtime identity.
@@ -70,3 +70,6 @@ Executor resolves a descriptor only against fully verified RELAY.1A authorized s
 
 ## D-023 - Explicit correction, withdrawal, and manual control
 Same-milestone correction uses explicit supersede; different-milestone transition requires revocation before import. No auto-supersession, auto-revocation, auto-dispatch, or auto-execution exists. Human transport and approval remain manual, as does Executor -> Architect evidence relay.
+
+## D-024 - One V1 proof authority with split evidence ownership
+V0.1J/V0.1K use Playwright/page-scoped CDP Network observation for privacy-reduced request, response and transport-terminal evidence, and raw child/OOPIF Runtime observation only for exact cooperative completion markers. Both feed the existing V0.1I recognizer; competing recognizers are not introduced. The native CDP requestId remains separate from observerScopeId and the application correlationId. Playwright `Page.on('console')` is not production marker proof input. Timing, arrival order and frame proximity are not correlation authority.

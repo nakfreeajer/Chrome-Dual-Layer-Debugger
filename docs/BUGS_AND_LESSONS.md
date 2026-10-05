@@ -23,3 +23,6 @@ RELAY.1A review found that a mutable current locator could otherwise silently di
 
 ### L-006 - Byte identity requires hash gates
 A publication hash mismatch exposed mojibake in a reviewed patch representation for a synthetic Unicode fixture. Byte-level diagnosis distinguished content changes from line-ending changes; the accepted current fixture was independently reviewed. Exact SHA-256 gates remain authoritative whenever exact prompt bytes matter. The responsible tool or process was not determined, so no attribution is made.
+
+### L-007 - Child/OOPIF marker visibility requires an explicit observer gate
+V0.1J/V0.1K live fixture evidence showed that an early Playwright observer and raw child/OOPIF CDP observed cooperative completion markers while a late Playwright Page console observer did not. The validated production marker path is raw child/OOPIF Runtime evidence fused with Playwright Network evidence in the same V0.1I recognizer. For decisive observer comparisons, hold synthetic calls behind an explicit fixture start gate until all intended controls report ready. This lesson is bounded to the accepted Apps Script fixture behavior and does not make target/session identity correlation authority.

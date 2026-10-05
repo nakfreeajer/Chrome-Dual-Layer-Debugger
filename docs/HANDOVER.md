@@ -27,6 +27,7 @@ Rony Finster is final Human authority. ChatGPT is the Architect-Curator for this
 - Accepted V0.1C implementation HEAD: `21b5f9c30460c38e11c16f04b44fa8ac3a5210f5`.
 - Accepted V0.1D implementation HEAD: `b14fda0db3b4d150064c91eab86dfdda19b6cd1f`.
 - Accepted V0.1I implementation HEAD: `348dfa6b9c81dbf55233bc87ce05f417973fb61d`.
+- Accepted combined V0.1J/V0.1K implementation HEAD: `9e6998488b02e5493f4a4b34e6c0b60b8d193465`.
 - Accepted RELAY.1A implementation HEAD: `163b0c008097eb24f1412be31e527f4697d0fc35`.
 - Accepted RELAY.1B implementation HEAD: `85310e450705e1671ef9e6af22eeae6d9dbcc519`.
 - `gas-remote-debug` dependency is pinned to `ac4359aa790af19cafe1a7e9a55ecd50f68e9169`.
@@ -54,7 +55,7 @@ V0.1E found native browser/CDP identity insufficient for deterministic frontend-
 
 The recognizer fails closed and assigns `correlationId` only after exact requestId/token/response/transport/completion-marker evidence agrees. Request version 1 and completion-marker version 1 are authoritative; token prefixes do not establish version, and response token equality is required. Ordinary native calls remain untouched and uncorrelated. Explicit application failures are not native `ScriptError` equivalence.
 
-Automatic CLI/page/network evidence ingestion is not implemented. Recognizer inputs must be privacy-reduced, and CDP request IDs require an additional observer/session scope before multi-session integration.
+V0.1J/V0.1K now provide opt-in privacy-limited CLI evidence production: Playwright/page-scoped Network request/response/terminal evidence plus raw child/OOPIF Runtime completion markers feed the same V0.1I recognizer. The CLI option is `--observe-v1-ms`; default behavior remains non-observing. `requestId` and `observerScopeId` remain distinct. Playwright Page console is not production marker authority. No browser diagnostic remains pending.
 
 Do not repeat these conclusions or approaches:
 - Do not rediscover whether explicit token propagation works.
@@ -91,7 +92,15 @@ Local raw evidence belongs under ignored `.agent-work/`. Because relay is manual
 - Do not reopen intentionally unmapped sibling GAS contexts merely because they are unmapped.
 - Do not redesign the accepted V0.1C timeline or V0.1D run identity without direct regression evidence.
 
-## Next boundaries (not authorization)
-No new implementation is authorized by this documentation closure. The previously identified non-relay debugger integration remains a privacy-limited V1 evidence producer with CDP observer/session scoping and Timeline lifecycle integration; automatic CLI/network ingestion does not exist. RELAY.1B is accepted and its compact transport procedure is now active after this closure. It does not authorize automatic dispatch or execution.
+## Accepted V0.1J/V0.1K closure
+The combined producer and raw child/OOPIF marker fusion is accepted and published at `9e6998488b02e5493f4a4b34e6c0b60b8d193465`; validation passed at 178/178 tests. The live Brave diagnostic is complete, cleanup was verified, and no further browser diagnostic is pending. The next work, if any, must come from existing roadmap/governance and a separate bounded authorization; this closure does not invent another milestone.
+
+No automatic dispatch or execution is introduced. RELAY.1B compact prompt transport remains the active manual Architect -> Executor transport; Executor -> Architect evidence return remains manual.
 
 Do not jump directly to GUI work, breakpoints, destructive browser controls, broad automation, or unbounded server instrumentation.
+
+## V0.1J/V0.1K implementation boundary
+- Playwright/page-scoped Network owns privacy-limited request, response and transport-terminal evidence.
+- Raw child/OOPIF Runtime owns exact cooperative completion-marker observation only.
+- The existing V0.1I recognizer remains the only correlation proof authority; Page console is diagnostic, not proof.
+- Collection is opt-in with `--observe-v1-ms`. Do not correlate by timing, order or frame proximity.

@@ -71,11 +71,17 @@ Accepted implementation HEAD: `b14fda0db3b4d150064c91eab86dfdda19b6cd1f`.
 - Accepted implementation HEAD: `348dfa6b9c81dbf55233bc87ce05f417973fb61d`.
 - Accepted validation: typecheck passed; 52/52 tests passed; `git diff --check` passed; disposable live proof covered success, explicit failure and an ordinary uncorrelated call.
 
-## Next bounded integration - NOT AUTHORIZED
-If resumed, evaluate a privacy-limited V1 evidence producer, CDP observer/session scoping and Timeline lifecycle integration. The recognizer currently has no automatic CLI/page/network evidence ingestion. Selecting this boundary does not authorize implementation.
+## V0.1J - Privacy-Limited V1 Evidence Producer - ACCEPTED / CLOSED
+- Added opt-in CLI production of privacy-reduced V1 request/response/transport evidence and Timeline correlation events.
+- Accepted as part of the combined V0.1J/V0.1K implementation at `9e6998488b02e5493f4a4b34e6c0b60b8d193465`.
+
+## V0.1K - Raw Child/OOPIF Marker Fusion - ACCEPTED / CLOSED
+- Added exact raw child/OOPIF Runtime completion-marker observation and fused it with Playwright Network evidence through the same V0.1I recognizer.
+- Live validation passed with explicit fixture gating, four ready controls, two exact proofs, quiet ordinary native traffic, stable target identity and verified cleanup.
+- Combined validation: `npm run check` PASS; `npm test` 178/178 PASS; `git diff --check` PASS.
+- No browser diagnostic remains pending. Further work must follow existing roadmap governance and receive separate bounded authorization.
 
 ## Later, not yet authorized for implementation
-- Automatic evidence production and session-scoped integration for the accepted V1 recognizer.
 - GAS server-side tracing adapter details beyond the proven `gas-remote-debug` composition boundary.
 - Multi-GAS-tab orchestration beyond the single active GAS discovery proof.
 - Optional Playwright native trace integration if evidence shows value alongside JSONL.
