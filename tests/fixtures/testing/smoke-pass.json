@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "TEST1B-SYNTHETIC-PASS",
+  "target": {
+    "pageUrl": "http://127.0.0.1:4564/outer",
+    "scope": { "kind": "FRAME", "url": "http://localhost:4558/child" }
+  },
+  "steps": [
+    { "stepId": "ready", "kind": "action", "operation": "ready", "timeoutMs": 5000 },
+    { "stepId": "label", "kind": "assert", "operation": "readText", "selector": "#label", "predicate": "equals", "expected": "Synthetic smoke label" },
+    { "stepId": "click", "kind": "action", "operation": "click", "selector": "#button" },
+    { "stepId": "click-count", "kind": "assert", "operation": "readText", "selector": "#count", "predicate": "equals", "expected": "1" },
+    { "stepId": "fill", "kind": "action", "operation": "fill", "selector": "#input", "value": "synthetic-smoke" },
+    { "stepId": "filled-value", "kind": "assert", "operation": "readValue", "selector": "#input", "predicate": "equals", "expected": "synthetic-smoke" },
+    { "stepId": "select", "kind": "action", "operation": "select", "selector": "#choice", "value": "b" },
+    { "stepId": "selected-value", "kind": "assert", "operation": "readValue", "selector": "#choice", "predicate": "equals", "expected": "b" }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "TEST1B-SYNTHETIC-FAIL",
+  "target": {
+    "pageUrl": "http://127.0.0.1:4564/outer",
+    "scope": { "kind": "FRAME", "url": "http://localhost:4558/child" }
+  },
+  "steps": [
+    { "stepId": "ready", "kind": "action", "operation": "ready", "timeoutMs": 5000 },
+    { "stepId": "intentional-assertion-failure", "kind": "assert", "operation": "readText", "selector": "#label", "predicate": "equals", "expected": "deliberately-wrong" },
+    { "stepId": "must-not-run", "kind": "action", "operation": "click", "selector": "#button" }
+  ]
+}

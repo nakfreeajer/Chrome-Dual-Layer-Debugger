@@ -1,4 +1,4 @@
-import { chromium, type Browser, type BrowserContext, type CDPSession, type Page } from 'playwright';
+import { chromium, type Browser, type BrowserContext, type CDPSession, type Frame, type Page } from 'playwright';
 import { detectLayer } from '../core/LayerDetector.js';
 import { SessionIds } from '../core/SessionIds.js';
 import { connectOverCDPOptions } from './ConnectOptions.js';
@@ -15,6 +15,19 @@ interface ProtocolFrame {
 export interface ProtocolFrameTree {
   frame: ProtocolFrame;
   childFrames?: ProtocolFrameTree[];
+}
+
+export interface RunnerPageTestIntent {
+  mode: 'TEST';
+  fixtureId: string;
+  approvalReference: string;
+}
+
+function validateRunnerPageTestIntent(intent: RunnerPageTestIntent | undefined): asserts intent is RunnerPageTestIntent {
+  if (!intent || intent.mode !== 'TEST' || !intent.fixtureId.trim() || !intent.approvalReference.trim()
+    || intent.fixtureId.includes('\0') || intent.approvalReference.includes('\0') || intent.approvalReference.length > 512) {
+    throw new Error('A valid TEST authorization intent is required before creating a runner-owned page');
+  }
 }
 
 export function normalizeFrameTree(tree: ProtocolFrameTree, ids = new SessionIds()): DiscoveredFrame[] {
@@ -50,6 +63,9 @@ export class PlaywrightBrowserDiscovery implements BrowserDiscovery {
   private readonly ids = new SessionIds();
   private readonly sessions = new Map<Page, CDPSession>();
   private readonly executionContextIds = new Map<Page, Set<number>>();
+  private readonly runnerOwnedPages = new Set<Page>();
+  private playwrightFrameIds = new WeakMap<Frame, string>();
+  private nextPlaywrightFrameId = 0;
 
   constructor(private readonly endpoint = 'http://127.0.0.1:9222') {}
 
@@ -82,6 +98,9 @@ export class PlaywrightBrowserDiscovery implements BrowserDiscovery {
     this.sessions.clear();
     this.executionContextIds.clear();
     this.ids.clear();
+    this.runnerOwnedPages.clear();
+    this.playwrightFrameIds = new WeakMap<Frame, string>();
+    this.nextPlaywrightFrameId = 0;
     const browser = this.browser;
     this.browser = undefined;
     if (browser?.isConnected()) await browser.close();
@@ -94,6 +113,62 @@ export class PlaywrightBrowserDiscovery implements BrowserDiscovery {
       }
     }
     return undefined;
+  }
+
+  /** Creates and navigates one page owned by an explicitly authorized TEST runner. */
+  async createRunnerOwnedPage(url: string, intent: RunnerPageTestIntent): Promise<{ page: Page; pageId: string; discovered: DiscoveredPage }> {
+    validateRunnerPageTestIntent(intent);
+    await this.connect();
+    const browser = this.browser;
+    const context = browser?.contexts()[0];
+    if (!context) throw new Error('No connected browser context is available for a runner-owned page');
+    const page = await context.newPage();
+    this.runnerOwnedPages.add(page);
+    try {
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15_000 });
+      const discovered = await this.discoverPage(page, context);
+      return { page, pageId: discovered.pageId, discovered };
+    } catch (error) {
+      await this.closeRunnerOwnedPage(page);
+      throw error;
+    }
+  }
+
+  /** Waits for and selects one exact-URL child/main Frame inside a page created by this runner. */
+  async selectRunnerOwnedFrame(page: Page, url: string, discovered: DiscoveredPage, timeoutMs = 5000): Promise<{ frame: Frame; frameId: string }> {
+    if (!this.runnerOwnedPages.has(page)) throw new Error('Page is not owned by this TEST runner');
+    if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 10_000) throw new Error('Frame selection timeout is invalid');
+    const normalized: DiscoveredFrame[] = [];
+    const visit = (items: readonly DiscoveredFrame[]) => { for (const item of items) { if (item.url === url) normalized.push(item); visit(item.children); } };
+    visit(discovered.frames);
+    const deadline = Date.now() + timeoutMs;
+    let frames: import('playwright').Frame[] = [];
+    do {
+      frames = page.frames().filter((frame) => frame.url() === url);
+      if (frames.length > 1) throw new Error('Exact frame URL is ambiguous inside runner-owned page');
+      if (frames.length === 1) break;
+      await page.waitForTimeout(Math.min(50, Math.max(1, deadline - Date.now())));
+    } while (Date.now() < deadline);
+    if (frames.length !== 1) throw new Error('Exact frame URL was not found inside runner-owned page');
+    // The raw target/context backend also needs the remote document's runtime
+    // context, which may not exist yet at frame attachment or DOMContentLoaded.
+    await frames[0].waitForLoadState('load', { timeout: Math.max(1, deadline - Date.now()) });
+    // Playwright exposes OOPIF frames semantically even when the page CDPSession's
+    // Page.getFrameTree omits their remote frame node. Preserve that public Frame
+    // selection without inventing a protocol FrameId or mapping.
+    if (normalized.length === 1) return { frame: frames[0], frameId: normalized[0].frameId };
+    const knownLocalId = this.playwrightFrameIds.get(frames[0]);
+    if (knownLocalId) return { frame: frames[0], frameId: knownLocalId };
+    this.nextPlaywrightFrameId += 1;
+    const localFrameId = `PLAYWRIGHT-FRAME-${String(this.nextPlaywrightFrameId).padStart(4, '0')}`;
+    this.playwrightFrameIds.set(frames[0], localFrameId);
+    return { frame: frames[0], frameId: localFrameId };
+  }
+
+  async closeRunnerOwnedPage(page: Page): Promise<void> {
+    if (!this.runnerOwnedPages.has(page)) throw new Error('Refusing to close a page not owned by this TEST runner');
+    this.runnerOwnedPages.delete(page);
+    if (!page.isClosed()) await page.close();
   }
 
   createV1Observer(pageId: string, timeline: Timeline, ids: V1ObserverScopeIds): V1CorrelationObserver {

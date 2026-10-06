@@ -6,6 +6,12 @@ import { Timeline } from '../trace/Timeline.js';
 import { FileJsonlTraceWriter } from '../trace/JsonlTraceWriter.js';
 import { emitBrowserDiscovery, emitGasDiscovery, emitMappingEvidence, emitSessionEvent } from '../trace/DiscoveryEvents.js';
 import { V1ObserverScopeIds } from '../browser/V1CorrelationObserver.js';
+import { readFile } from 'node:fs/promises';
+import { runSmokeScenario } from '../testing/SmokeRunner.js';
+import { parseSmokeScenario } from '../testing/SmokeScenarioParser.js';
+import type { SmokeScenario, SmokeScenarioResult } from '../testing/SmokeScenario.js';
+import type { TestingBackendId } from '../testing/ActionContract.js';
+import { TestPageSession } from '../testing/TestPageSession.js';
 
 const MAX_V1_OBSERVATION_MS = 300_000;
 
@@ -39,8 +45,11 @@ export function parseCliOptions(args: string[]): CliOptions {
   };
 }
 
-export async function runCli(args: string[]): Promise<void> {
-  if (args[0] !== 'discover') throw new Error('Usage: node dist/src/cli/main.js discover [--endpoint URL] [--timeline PATH] [--observe-v1-ms N]');
+export async function runCli(args: string[]): Promise<number> {
+  if (args[0] === 'smoke') {
+    return runSmokeCli(args.slice(1));
+  }
+  if (args[0] !== 'discover') throw new Error('Usage: node dist/src/cli/main.js discover [--endpoint URL] [--timeline PATH] [--observe-v1-ms N] | smoke --scenario FILE --backend PLAYWRIGHT|GAS_OOPIF --endpoint URL --approval-reference TEXT [--timeline PATH]');
   const { endpoint, timelinePath, observeV1Ms } = parseCliOptions(args.slice(1));
   const discovery = new PlaywrightBrowserDiscovery(endpoint);
   const gasAdapter = new GasAdapter();
@@ -115,6 +124,99 @@ export async function runCli(args: string[]): Promise<void> {
       }
     }
   }
+  return 0;
+}
+
+export interface SmokeCliOptions {
+  scenarioPath: string;
+  backend: TestingBackendId;
+  endpoint: string;
+  approvalReference: string;
+  timelinePath: string;
+}
+
+export function parseSmokeCliOptions(args: string[]): SmokeCliOptions {
+  const values = new Map<string, string>();
+  const allowed = new Set(['--scenario', '--backend', '--endpoint', '--approval-reference', '--timeline']);
+  for (let index = 0; index < args.length; index += 1) {
+    const flag = args[index];
+    if (!allowed.has(flag)) throw new Error(`Unknown or unexpected smoke argument: ${flag}`);
+    if (values.has(flag)) throw new Error(`Duplicate smoke argument: ${flag}`);
+    const value = args[index + 1];
+    if (typeof value !== 'string' || value.length === 0 || value.startsWith('--')) throw new Error(`${flag} requires a value`);
+    values.set(flag, value);
+    index += 1;
+  }
+  for (const required of ['--scenario', '--backend', '--endpoint', '--approval-reference']) {
+    if (!values.has(required)) throw new Error(`${required} is required for smoke`);
+  }
+  const backend = values.get('--backend');
+  if (backend !== 'PLAYWRIGHT' && backend !== 'GAS_OOPIF') throw new Error('--backend must be PLAYWRIGHT or GAS_OOPIF');
+  const endpoint = values.get('--endpoint')!;
+  let parsedEndpoint: URL;
+  try { parsedEndpoint = new URL(endpoint); } catch { throw new Error('--endpoint must be an absolute HTTP(S) URL'); }
+  if (!['http:', 'https:'].includes(parsedEndpoint.protocol) || parsedEndpoint.username || parsedEndpoint.password) throw new Error('--endpoint must be an HTTP(S) URL without credentials');
+  const approvalReference = values.get('--approval-reference')!;
+  if (!approvalReference.trim() || approvalReference.length > 512 || approvalReference.includes('\0')) throw new Error('--approval-reference must be non-empty and bounded');
+  return {
+    scenarioPath: values.get('--scenario')!,
+    backend,
+    endpoint,
+    approvalReference,
+    timelinePath: values.get('--timeline') ?? '.agent-work/artifacts/smoke-timeline.jsonl'
+  };
+}
+
+export interface SmokeCliDependencies {
+  readScenarioFile(path: string): Promise<unknown>;
+  openSession(options: { endpoint: string; backend: TestingBackendId; approvalReference: string; scenario: SmokeScenario }): Promise<Pick<TestPageSession, 'backend' | 'authorization' | 'close'>>;
+  writeTimeline(path: string, timeline: Timeline): Promise<void>;
+  writeOutput(line: string): void;
+  createTimeline(): Timeline;
+}
+
+const defaultSmokeCliDependencies: SmokeCliDependencies = {
+  async readScenarioFile(path) { return JSON.parse(await readFile(path, 'utf8')) as unknown; },
+  openSession: (options) => TestPageSession.open(options),
+  writeOutput(line) { console.log(line); },
+  createTimeline() { return new Timeline(); },
+  async writeTimeline(path, timeline) {
+    const writer = new FileJsonlTraceWriter(path);
+    try { for (const event of timeline.snapshot()) await writer.write(event); }
+    finally { await writer.close(); }
+  }
+};
+
+/** Returns 0 for PASS and 2 for a completed scenario FAIL; configuration/runtime errors throw. */
+export async function runSmokeCli(args: string[], dependencies: SmokeCliDependencies = defaultSmokeCliDependencies): Promise<number> {
+  const options = parseSmokeCliOptions(args);
+  const scenario = parseSmokeScenario(await dependencies.readScenarioFile(options.scenarioPath));
+  const timeline = dependencies.createTimeline();
+  const session = await dependencies.openSession({
+    endpoint: options.endpoint, backend: options.backend, approvalReference: options.approvalReference, scenario
+  });
+  let result: SmokeScenarioResult | undefined;
+  let executionError: unknown;
+  try {
+    result = await runSmokeScenario({ backend: session.backend, scenario, timeline, authorization: session.authorization });
+  } catch (error) {
+    executionError = error;
+  } finally {
+    await session.close();
+  }
+  if (executionError) throw executionError;
+  if (!result) throw new Error('Smoke runner produced no result');
+  await dependencies.writeTimeline(options.timelinePath, timeline);
+  const output = {
+    scenarioId: result.scenarioId,
+    backend: result.backend,
+    status: result.status,
+    runId: result.runId,
+    stepResults: result.stepResults.map((step) => ({ stepId: step.stepId, kind: step.kind, operation: step.operation, ok: step.ok, ...(step.errorCode ? { errorCode: step.errorCode } : {}) })),
+    ...(result.failedStepId ? { failedStepId: result.failedStepId } : {})
+  };
+  dependencies.writeOutput(JSON.stringify(output));
+  return result.status === 'PASS' ? 0 : 2;
 }
 
 function printGasEvidence(gas: GasDiscoveryResult, pages: Parameters<typeof mapCrossLayerIdentities>[0]): void {
@@ -149,7 +251,7 @@ function printFrames(frames: Awaited<ReturnType<PlaywrightBrowserDiscovery['disc
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  runCli(process.argv.slice(2)).catch((error: unknown) => {
+  runCli(process.argv.slice(2)).then((code) => { process.exitCode = code; }).catch((error: unknown) => {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
   });
