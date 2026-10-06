@@ -4,6 +4,32 @@
 
 Playwright owns ordinary semantic browser interaction. For normal pages, low-level CDP observation should prefer Playwright public `CDPSession` access. The GAS layer is enabled only when the current page URL starts with `https://script.google.com/macros/`.
 
+## Playwright reuse rule
+
+CDLD must prefer composition over reimplementation for browser-testing behavior already provided by Playwright.
+
+Reuse Playwright for:
+- resilient semantic locators such as role, label, text and test-id locators;
+- actionability and auto-wait behavior;
+- click, fill/type, check/uncheck, select, hover, drag/drop, keyboard, file upload and scrolling;
+- frame-aware locator interaction;
+- web-first assertions and retry semantics when Playwright Test facilities are adopted;
+- fixtures/projects/retries/reporting/trace facilities where they fit the CDLD attach-to-existing-browser model;
+- code generation/locator generation as an optional scenario-authoring aid.
+
+CDLD should add capabilities that Playwright does not provide as the CDLD product contract:
+- explicit OBSERVE versus TEST safety modes and target authorization;
+- GAS/OOPIF runtime discovery through `gas-remote-debug`;
+- privacy-reduced Network + raw child/OOPIF evidence fusion;
+- deterministic V1 browser-to-GAS callback correlation through the existing single recognizer;
+- unified run/action/assertion/correlation chronology in the CDLD Timeline;
+- reproducible bounded monkey action generation and seed replay;
+- project-independent scenario representation;
+- fixture/reset/cleanup governance;
+- cross-layer failure diagnosis and evidence retention.
+
+Do not create a second home-grown click/fill/scroll/assertion engine when the equivalent Playwright primitive satisfies the required semantics. CDLD wrappers may add policy, identity, Timeline evidence and normalized error handling, but should delegate the browser action itself to Playwright.
+
 ## Runtime architecture
 
 ```text
