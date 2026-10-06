@@ -31,16 +31,16 @@ No heuristic GAS detection is authorized for v0.1 unless real evidence demonstra
 - Deterministic evidence.
 - Low intrusion.
 - Cross-layer correlation.
-- Controlled Playwright actions and assertions under explicit TEST mode.
+- One common action/assertion contract with equal Playwright and GAS/OOPIF backend capability under explicit TEST mode.
 - Reproducible smoke/monkey/regression evidence.
-- CDLD adds cross-layer GAS correlation, Timeline evidence, safety/authorization, replay and diagnosis around Playwright rather than replacing Playwright's mature browser interaction features.
+- Playwright and GAS/OOPIF are equal execution backends under the CDLD contract; stronger capabilities on either side should be reused and weaker capabilities improved until declared common operations pass conformance.
 - Extensible backend adapters later, but not in v0.1.
 
 ## Initial technology direction
 - TypeScript on Node.js.
-- Playwright as the reusable browser-testing foundation: locators, auto-wait/actionability, input actions, frame-aware interaction, assertions and compatible test-runner facilities should be composed rather than reimplemented.
-- Playwright-backed CDP sessions for ordinary page/frame observation where sufficient.
-- `gas-remote-debug` composed behind `GasAdapter` for GAS-specific browser-root recursive/OOPIF discovery.
+- Playwright adapter as one full browser-control/debugging backend, reusing Playwright primitives where they satisfy the common contract.
+- GAS/OOPIF adapter as an equal full browser-control/debugging backend, using raw CDP plus `gas-remote-debug` for exact target/session/context ownership.
+- Playwright-backed CDP and raw CDP may be combined within either adapter when needed to satisfy the shared capability contract.
 - JSONL as the initial unified timeline format.
 
 ## Human authority
