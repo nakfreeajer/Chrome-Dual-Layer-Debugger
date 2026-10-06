@@ -87,57 +87,65 @@ CDLD is intended to become a cross-layer debugger and active browser/GAS testing
 
 The active-testing track must build on the accepted V0.1 evidence architecture rather than bypass it. Playwright performs semantic actions; existing Network/RAW-CDP/GAS evidence remains responsible for explaining what each action caused.
 
-## TEST.1A - Controlled GAS Smoke Test Runner - AUTHORIZED / NEXT
+## TEST.1A - Dual-Backend Capability Contract and Parity Foundation - AUTHORIZED / NEXT
 
-Goal: prove a minimal deterministic active-test loop against a disposable or explicitly designated GAS web application.
+Goal: establish one reusable CDLD action/assertion contract implemented by both the Playwright backend and the GAS/OOPIF raw-CDP backend.
 
-Required capability:
-- explicit TEST mode, separate from normal observation mode;
-- attach to an already-running authorized Chromium-family browser;
-- navigate only to the explicitly supplied disposable/test GAS target;
-- reuse Playwright locator/actionability semantics rather than implement a second selector/wait/click engine;
-- delegate supported browser actions to Playwright primitives, including fill/type, click, select/check, hover, keyboard and scrolling as required by the scenario;
-- use Playwright web-first assertion/retry behavior where practical rather than create ad-hoc polling;
-- preserve a thin CDLD action/assertion wrapper only for safety policy, stable step identity, Timeline evidence and normalized reporting;
-- keep the scenario representation project-independent so AFFOTECH and other projects provide small scenario files rather than browser-control implementations;
-- evaluate Playwright codegen/locator generation as an optional authoring aid, not as runtime proof authority;
-- run the existing V1 observer concurrently when cooperative evidence is available;
-- preserve native requestId, observerScopeId and correlationId separation;
-- emit action-start/action-result/assertion-result evidence into the same run Timeline without turning action identity into correlation authority;
-- produce a structured scenario PASS/FAIL result;
-- on failure, retain privacy-reduced diagnostic evidence sufficient to identify the failed step;
-- ordinary native GAS traffic may be tested at the UI level but remains uncorrelated unless the cooperative V1 contract supplies proof;
-- no monkey/random action generation in TEST.1A;
-- no production/business target testing;
-- no silent use of an existing user tab;
-- no browser-process shutdown.
+Required work:
+- define a project-independent scenario/action model with stable step identity;
+- define normalized result/error shapes independent of backend;
+- introduce explicit backend selection: `PLAYWRIGHT`, `GAS_OOPIF`, and later policy-controlled `AUTO`;
+- implement or adapt common primitives on both backends: element targeting, click, fill/type/clear, keyboard, scroll/scroll-to, hover/focus, check/uncheck, select, waits/readiness, DOM/value/text/visibility/state queries and bounded assertions;
+- include drag/drop, file input and screenshots if they can be supported with deterministic semantics in the same milestone; otherwise record them as explicit parity gaps, not silently unsupported behavior;
+- use Playwright primitives on the Playwright side where they meet the contract;
+- use raw CDP DOM/Input/Runtime capabilities plus exact GAS target/session/context ownership on the GAS/OOPIF side;
+- improve either backend when the common contract exposes a gap;
+- allow Playwright adapter/raw-CDP extension, and only a pinned Playwright patch/fork when a reproduced limitation proves it necessary;
+- preserve OBSERVE as the default and require explicit TEST authorization before mutating actions;
+- preserve existing V0.1 correlation identities and recognizer unchanged;
+- emit normalized ACTION_STARTED/ACTION_COMPLETED/ACTION_FAILED and ASSERTION result evidence to the existing Timeline without treating action identity as correlation identity.
 
-TEST.1A live validation must use a disposable fixture or another Human-authorized test application and must prove both a passing scenario and at least one deterministic assertion failure without weakening the accepted V0.1 recognizer.
+Conformance requirement:
+- build one deterministic disposable test surface reachable by both backends;
+- execute the same common scenario semantics through PLAYWRIGHT and GAS_OOPIF;
+- prove equivalent normalized outcomes for each declared common capability;
+- maintain an explicit capability matrix with PASS / GAP / BACKEND_SPECIFIC states;
+- no capability may be advertised as parity-complete without deterministic conformance evidence.
 
-## TEST.1B - Bounded Monkey / Exploratory Action Engine - PLANNED
+TEST.1A is a foundation milestone. It does not yet require a full smoke-suite CLI, monkey generation, production/business testing, or generalized fixture management.
 
-- Generate actions only inside an explicit allowlisted interaction surface.
-- Support bounded random seeds for exact replay.
+## TEST.1B - Controlled Smoke Scenario Runner - PLANNED
+
+- Run small project-owned scenario files against either parity backend without embedding browser-control implementation.
+- Support explicit target authorization and bounded navigation to a disposable/Human-approved test URL.
+- Run existing V1 observation concurrently when cooperative correlation evidence is available.
+- Produce per-step and scenario PASS/FAIL with unified Timeline evidence.
+- Prove both a passing scenario and deterministic assertion failure.
+
+## TEST.1C - Bounded Monkey / Exploratory Action Engine - PLANNED
+
+- Generate only capabilities declared common/parity-complete unless a backend-specific test explicitly opts in.
+- Use deterministic seeds for exact replay.
 - Record every generated action before execution.
 - Enforce action/time/count limits and forbidden-target rules.
-- Capture the reproducible seed and failure evidence.
-- Never use timing/order as cross-layer correlation authority.
+- Capture seed, backend, action sequence and cross-layer failure evidence.
 
-## TEST.1C - Assertions and Failure Artifacts - PLANNED
+## TEST.1D - Assertions and Failure Artifacts - PLANNED
 
-- Expand assertion vocabulary and structured failure reporting.
-- Capture bounded screenshots/DOM facts only where privacy policy permits.
-- Link failed assertion evidence to the action step and proven correlation events without conflating their identities.
+- Expand common assertion vocabulary and structured failure reporting.
+- Capture bounded screenshots/DOM/runtime facts where privacy policy permits.
+- Link failed assertion evidence to action steps and proven correlation events without conflating identities.
 
-## TEST.1D - Test Fixture / Reset / Cleanup Governance - PLANNED
+## TEST.1E - Test Fixture / Reset / Cleanup Governance - PLANNED
 
 - Define disposable data setup, reset and teardown contracts.
 - Distinguish synthetic fixtures from real application/business data.
 - Require cleanup verification for mutating test runs.
 
-## TEST.1E - Replayable Regression Suites - PLANNED
+## TEST.1F - Replayable Regression Suites - PLANNED
 
 - Persist deterministic smoke/monkey reproductions as reusable suites.
+- Run the same suite through either eligible backend where parity is declared.
 - Compare expected UI/backend outcomes while tolerating only explicitly defined nondeterministic fields.
 - Produce suite-level and step-level PASS/FAIL evidence.
 
