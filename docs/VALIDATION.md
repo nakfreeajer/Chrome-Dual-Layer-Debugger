@@ -226,3 +226,20 @@ Do not include deployment URLs or deployment IDs in retained validation evidence
 - Child target/session identity routes observation only and never becomes correlation identity.
 - Preserve requestId and observerScopeId separately from correlationId; do not correlate by timing, order or frame proximity.
 - V1 evidence collection remains opt-in through `--observe-v1-ms`; no default automatic collection is enabled.
+
+## TEST.1A dual-backend parity qualification
+
+Accepted live qualification ran against the already-running Brave CDP endpoint on port 9444, using a disposable local-only fixture. Browser targets outside the newly created test tab remained unchanged. The fixture provided a real distinct `iframe` target controlled through a child CDP session and execution context; no backend fell back to the outer page.
+
+The same canonical 31-step scenario ran first via `GAS_OOPIF`, then via `PLAYWRIGHT` after deterministic fixture reset. All 31 step outcomes matched; expected fixture values/state matched. Four assertions passed on each backend and one intentional assertion failed on each, with `ASSERTION_FAILED` timeline evidence. The 19 common declared operations are `PASS` in the capability matrix; double-click, right-click, drag/drop and file input remain `GAP`; screenshot is Playwright `BACKEND_SPECIFIC` and GAS_OOPIF `GAP`.
+
+The privacy-reviewed JSONL timeline contained 136 independently parseable events in one run: 1 session start, 62 action starts, 62 action completions, 8 passing assertions, 2 expected assertion failures and 1 session end. It retained no fixture URL, selector, synthetic input value or approval reference. Browser endpoint remained responsive after the disposable tab was closed. Local fixture ports no longer listened and the fixture directory was removed.
+
+Post-live validation passed: `npm run check`; `npm test` 184/184; `git diff --check`. A live-discovered structural state assertion issue was fixed by using deep structural equality rather than object identity; the focused regression test passes.
+
+TEST.1A regression contracts:
+- Do not mark common operations `PASS` until both backends produce equivalent normalized results and expected fixture effects on the same scenario.
+- Keep backend-specific and unsupported capability states explicit.
+- Bind mutating actions to explicit target- and backend-specific TEST authorization and bounded action timeouts.
+- Compare read-state structurally; object identity is not a cross-backend state contract.
+- Keep live fixture targets disposable and verify target stability and cleanup.

@@ -37,7 +37,7 @@ Planned first-class testing capabilities are:
 - **Failure evidence** — retain the exact last action plus privacy-reduced browser/network/GAS timeline evidence needed to diagnose the failure.
 - **Safe test mode** — mutation is allowed only under an explicit active-test authorization; ordinary debugger observation remains read-only-first.
 
-The published V0.1J/V0.1K implementation provides the deterministic cross-layer evidence layer. Active smoke/monkey/regression execution is the next product track and must not be confused with capabilities already shipped.
+The published V0.1J/V0.1K implementation provides the deterministic cross-layer evidence layer. TEST.1A has now established and live-qualified the first common active-testing capability set. Active smoke/monkey/regression execution remains future work and must use only evidence-backed capabilities.
 
 ## Equal Playwright and GAS/OOPIF capability strategy
 
@@ -51,6 +51,8 @@ The goal is capability parity for common scenario operations such as click, fill
 When one backend lacks a required capability, CDLD improves that backend. If Playwright itself becomes the limiting side, the Playwright integration may be extended with raw CDP or, when justified by reproduced evidence, a pinned modification. The same rule applies to the GAS/OOPIF side.
 
 CDLD then adds what neither backend alone provides: explicit OBSERVE/TEST authorization, deterministic cross-layer correlation, unified Timeline evidence, reproducible monkey/replay control, fixture cleanup governance and failure diagnosis.
+
+TEST.1A live parity qualification proved 19 common operations through both backends on the same disposable local OOPIF fixture, with equivalent normalized results and fixture state. Four operations remain explicit gaps; screenshot remains backend-specific. See `src/testing/CapabilityMatrix.ts` and the TEST.1A validation record.
 
 
 ## Modes

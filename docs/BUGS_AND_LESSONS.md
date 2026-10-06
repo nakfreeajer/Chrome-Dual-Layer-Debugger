@@ -26,3 +26,6 @@ A publication hash mismatch exposed mojibake in a reviewed patch representation 
 
 ### L-007 - Child/OOPIF marker visibility requires an explicit observer gate
 V0.1J/V0.1K live fixture evidence showed that an early Playwright observer and raw child/OOPIF CDP observed cooperative completion markers while a late Playwright Page console observer did not. The validated production marker path is raw child/OOPIF Runtime evidence fused with Playwright Network evidence in the same V0.1I recognizer. For decisive observer comparisons, hold synthetic calls behind an explicit fixture start gate until all intended controls report ready. This lesson is bounded to the accepted Apps Script fixture behavior and does not make target/session identity correlation authority.
+
+### L-008 - Compare normalized state structurally across backends
+TEST.1A live parity exposed an assertion helper comparing independently read object-valued state by reference identity. Equivalent state snapshots from Playwright and GAS/OOPIF are distinct objects, so identity comparison falsely failed. Cross-backend assertions must compare the declared structural values; a focused regression test now covers this contract.

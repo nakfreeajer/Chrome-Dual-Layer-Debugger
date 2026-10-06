@@ -87,32 +87,11 @@ CDLD is intended to become a cross-layer debugger and active browser/GAS testing
 
 The active-testing track must build on the accepted V0.1 evidence architecture rather than bypass it. Playwright performs semantic actions; existing Network/RAW-CDP/GAS evidence remains responsible for explaining what each action caused.
 
-## TEST.1A - Dual-Backend Capability Contract and Parity Foundation - AUTHORIZED / NEXT
+## TEST.1A - Dual-Backend Capability Contract and Parity Foundation - ACCEPTED / CLOSED
 
-Goal: establish one reusable CDLD action/assertion contract implemented by both the Playwright backend and the GAS/OOPIF raw-CDP backend.
+TEST.1A implemented one reusable CDLD action/assertion contract across Playwright and GAS/OOPIF. On a disposable local OOPIF in Brave 9444, the same 31-step scenario was run through both backends with equivalent normalized outcomes, expected fixture effects and passing/failing assertion behavior.
 
-Required work:
-- define a project-independent scenario/action model with stable step identity;
-- define normalized result/error shapes independent of backend;
-- introduce explicit backend selection: `PLAYWRIGHT`, `GAS_OOPIF`, and later policy-controlled `AUTO`;
-- implement or adapt common primitives on both backends: element targeting, click, fill/type/clear, keyboard, scroll/scroll-to, hover/focus, check/uncheck, select, waits/readiness, DOM/value/text/visibility/state queries and bounded assertions;
-- include drag/drop, file input and screenshots if they can be supported with deterministic semantics in the same milestone; otherwise record them as explicit parity gaps, not silently unsupported behavior;
-- use Playwright primitives on the Playwright side where they meet the contract;
-- use raw CDP DOM/Input/Runtime capabilities plus exact GAS target/session/context ownership on the GAS/OOPIF side;
-- improve either backend when the common contract exposes a gap;
-- allow Playwright adapter/raw-CDP extension, and only a pinned Playwright patch/fork when a reproduced limitation proves it necessary;
-- preserve OBSERVE as the default and require explicit TEST authorization before mutating actions;
-- preserve existing V0.1 correlation identities and recognizer unchanged;
-- emit normalized ACTION_STARTED/ACTION_COMPLETED/ACTION_FAILED and ASSERTION result evidence to the existing Timeline without treating action identity as correlation identity.
-
-Conformance requirement:
-- build one deterministic disposable test surface reachable by both backends;
-- execute the same common scenario semantics through PLAYWRIGHT and GAS_OOPIF;
-- prove equivalent normalized outcomes for each declared common capability;
-- maintain an explicit capability matrix with PASS / GAP / BACKEND_SPECIFIC states;
-- no capability may be advertised as parity-complete without deterministic conformance evidence.
-
-TEST.1A is a foundation milestone. It does not yet require a full smoke-suite CLI, monkey generation, production/business testing, or generalized fixture management.
+Capability matrix: 19 common operations `PASS`; four `GAP` (double-click, right-click, drag/drop, file input); screenshot `BACKEND_SPECIFIC` for Playwright and `GAP` for GAS_OOPIF. TEST.1A does not deliver a general smoke-suite CLI, monkey generation, production/business testing, or generalized fixture management.
 
 ## TEST.1B - Controlled Smoke Scenario Runner - PLANNED
 

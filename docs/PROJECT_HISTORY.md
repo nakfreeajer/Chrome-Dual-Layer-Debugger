@@ -104,3 +104,11 @@ The next bounded integration, if separately authorized, should evaluate a privac
 - Live evidence: early Playwright saw two markers, late Playwright saw zero, raw child/OOPIF saw two, and the production CLI emitted exactly two proofs (one success, one failure). Ordinary native traffic remained quiet. Exact token and native request identity, not timing or order, joined evidence.
 - The sanitized Timeline contained 47 valid events with one run identity, unique event IDs and contiguous sequence. Target identity remained stable. The disposable deployment/project and local fixture metadata were removed and cleanup was verified.
 - Accepted deterministic validation: `npm run check`; 178/178 tests; `git diff --check`.
+
+## 2026-10-06 - TEST.1A Dual-Backend Capability Parity - ACCEPTED
+- Added a project-independent action/assertion contract, explicit target/backend-bound TEST authorization, Playwright and GAS/OOPIF adapters, shared scenario support, and an evidence-backed capability matrix.
+- Live validation used a disposable local fixture that produced a real distinct iframe/OOPIF target in the already-running Brave 9444 browser. The same 31-step scenario ran through GAS_OOPIF and Playwright, resetting fixture state between runs.
+- All 19 common operations had equivalent normalized outcomes and expected fixture side effects. Both backends also produced four passing assertions and one expected deterministic assertion failure. Capability status: 19 PASS, 4 GAP, 0 UNQUALIFIED, 1 BACKEND_SPECIFIC.
+- A live assertion exposed structural-state comparison using object identity. The implementation was corrected to compare structural read state, with a regression test; both backends then passed the live scenario.
+- The 136-event privacy-limited JSONL timeline parsed with correct session boundaries. Existing Brave targets remained unchanged and its endpoint remained responsive. Fixture servers and local fixture files were cleaned up; Brave remained running.
+- Final deterministic validation: `npm run check` PASS; `npm test` 184/184 PASS; `git diff --check` PASS.

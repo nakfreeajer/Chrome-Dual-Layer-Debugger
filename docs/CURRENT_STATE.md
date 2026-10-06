@@ -1,7 +1,7 @@
 # Current State
 
 ## Status
-V0.1J privacy-limited V1 evidence production and V0.1K raw child/OOPIF marker fusion are accepted and published together at `9e6998488b02e5493f4a4b34e6c0b60b8d193465`. Validation passed: `npm run check`, `npm test` 178/178, and `git diff --check`. The producer is opt-in through the normal CLI using `--observe-v1-ms`. The product objective is now explicitly debugger + active testing; `TEST.1A - Dual-Backend Capability Contract and Parity Foundation` is the next authorized bounded milestone. Passive observation remains the default outside explicit TEST mode. Compact descriptor transport remains the normal Architect -> Executor procedure; full-prompt copy is an explicit fallback. Executor -> Architect evidence relay remains manual. No automatic dispatch or prompt execution exists.
+V0.1J privacy-limited V1 evidence production and V0.1K raw child/OOPIF marker fusion are accepted and published together at `9e6998488b02e5493f4a4b34e6c0b60b8d193465`. TEST.1A dual-backend capability parity is implemented locally and live-qualified on a disposable Brave OOPIF fixture; its capability matrix records 19 common operations as PASS, four as GAP, and screenshot as backend-specific. The same 31-step scenario passed with equivalent normalized results and fixture effects through both backends. Validation passed: `npm run check`, `npm test` 184/184, and `git diff --check`. Passive observation remains the default outside explicit TEST mode. Compact descriptor transport remains the normal Architect -> Executor procedure; full-prompt copy is an explicit fallback. Executor -> Architect evidence relay remains manual. No automatic dispatch or prompt execution exists.
 
 ## Repository
 - Repository: `nakfreeajer/Chrome-Dual-Layer-Debugger`
@@ -89,11 +89,11 @@ Accepted V0.1D validation:
 ## Current integration boundary
 The opt-in V0.1J producer now feeds privacy-reduced Playwright/page-scoped Network evidence and raw child/OOPIF Runtime completion-marker evidence into the same V0.1I recognizer. The CLI enables observation only when `--observe-v1-ms` is supplied. Playwright Page console events are not production marker authority; late Playwright console observation may miss child/OOPIF markers. The recognizer remains the sole proof authority and assigns `correlationId` only after complete evidence finalization. CDP `requestId` remains session-scoped and separate from `observerScopeId` and application correlation identity.
 
-## Next authorized product milestone - TEST.1A
+## TEST.1A - Dual-Backend Capability Contract and Parity Foundation - ACCEPTED / CLOSED
 
-`TEST.1A - Dual-Backend Capability Contract and Parity Foundation` is authorized as the next product milestone. It must define one project-independent action/assertion contract and prove equivalent normalized behavior through both `PLAYWRIGHT` and `GAS_OOPIF` implementations on a disposable/Human-approved test surface. Initial common operations include element targeting, click, fill/type/clear, keyboard, scrolling, hover/focus, check/uncheck, select, waits/readiness, queries and bounded assertions. Any remaining gap must be explicit in the capability matrix rather than hidden behind backend-specific behavior.
+The TEST.1A parity implementation is validated on a real distinct local OOPIF target in the already-running Brave 9444 session. A single 31-step scenario ran first through GAS_OOPIF and then Playwright after fixture reset. All 19 declared common operations produced matching normalized outcomes and expected fixture state. Both backends also passed four assertions and returned the expected deterministic assertion failure without crashing. The capability matrix records 19 PASS, 4 GAP, 0 UNQUALIFIED and 1 BACKEND_SPECIFIC (screenshot). Detailed local evidence is under ignored `.agent-work/artifacts/`.
 
-Smoke scenario execution moves to TEST.1B after this parity foundation. Monkey generation remains deferred to TEST.1C. Existing user/business tabs remain protected unless separately authorized.
+TEST.1A closes only the evidence-backed capability contract and parity foundation. TEST.1B, the controlled smoke scenario runner, remains the next planned milestone; TEST.1C monkey generation remains planned after it. Existing user/business tabs remain protected unless separately authorized.
 
 ## Unresolved items
 - Historical V0.1C JSONL lacks `runId`; it remains valid historical evidence and is not migrated by V0.1D.

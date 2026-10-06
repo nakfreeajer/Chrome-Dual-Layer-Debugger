@@ -37,6 +37,12 @@ If a required capability is stronger on one backend, improve the weaker backend.
 
 Capabilities unique to one runtime may remain backend-specific extensions, but the common smoke/monkey/regression scenario language must not silently change meaning between backends.
 
+### TEST.1A evidence-backed parity
+
+The TEST.1A common action/assertion contract is implemented by both `PLAYWRIGHT` and `GAS_OOPIF`. A disposable local OOPIF live run executed the same 31-step scenario through each backend, compared normalized outcomes and fixture state, and exercised deterministic passing and failing assertions. Nineteen common operations are qualified `PASS` in the capability matrix. Double-click, right-click, drag/drop and file input remain `GAP`; screenshot remains `BACKEND_SPECIFIC` for Playwright and `GAP` for GAS_OOPIF. These statuses describe only the tested contract and do not imply broader application coverage.
+
+Mutating operations require explicit target- and backend-bound TEST authorization and have bounded action timeouts. The parity foundation is not yet a general scenario runner. TEST.1B remains planned and separately governed.
+
 CDLD additionally owns:
 - explicit OBSERVE versus TEST safety modes and target authorization;
 - deterministic V1 browser-to-GAS callback correlation through the existing single recognizer;
