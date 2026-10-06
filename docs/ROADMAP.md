@@ -95,9 +95,12 @@ Required capability:
 - explicit TEST mode, separate from normal observation mode;
 - attach to an already-running authorized Chromium-family browser;
 - navigate only to the explicitly supplied disposable/test GAS target;
-- perform a bounded scripted sequence using Playwright semantic actions;
-- initial action set: fill/type, click, select/check where the existing page semantics support them;
-- perform deterministic UI assertions such as visibility, text/value/state;
+- reuse Playwright locator/actionability semantics rather than implement a second selector/wait/click engine;
+- delegate supported browser actions to Playwright primitives, including fill/type, click, select/check, hover, keyboard and scrolling as required by the scenario;
+- use Playwright web-first assertion/retry behavior where practical rather than create ad-hoc polling;
+- preserve a thin CDLD action/assertion wrapper only for safety policy, stable step identity, Timeline evidence and normalized reporting;
+- keep the scenario representation project-independent so AFFOTECH and other projects provide small scenario files rather than browser-control implementations;
+- evaluate Playwright codegen/locator generation as an optional authoring aid, not as runtime proof authority;
 - run the existing V1 observer concurrently when cooperative evidence is available;
 - preserve native requestId, observerScopeId and correlationId separation;
 - emit action-start/action-result/assertion-result evidence into the same run Timeline without turning action identity into correlation authority;
