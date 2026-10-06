@@ -93,7 +93,7 @@ TEST.1A implemented one reusable CDLD action/assertion contract across Playwrigh
 
 Capability matrix: 19 common operations `PASS`; four `GAP` (double-click, right-click, drag/drop, file input); screenshot `BACKEND_SPECIFIC` for Playwright and `GAP` for GAS_OOPIF. TEST.1A does not deliver a general smoke-suite CLI, monkey generation, production/business testing, or generalized fixture management.
 
-## TEST.1B - Controlled Smoke Scenario Runner - PLANNED
+## TEST.1B - Controlled Smoke Scenario Runner - AUTHORIZED / NEXT
 
 - Run small project-owned scenario files against either parity backend without embedding browser-control implementation.
 - Support explicit target authorization and bounded navigation to a disposable/Human-approved test URL.
