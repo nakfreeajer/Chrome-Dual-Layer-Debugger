@@ -1,6 +1,6 @@
 # Chrome Dual Layer Debugger
 
-Unified read-only-first debugging for Chrome/Chromium applications.
+Unified cross-layer debugging and controlled testing for Chrome/Chromium applications, with first-class Google Apps Script support.
 
 ## Why this project exists
 
@@ -21,6 +21,23 @@ Instead, CDLD aims to provide one low-intrusion evidence pipeline that can:
 - emit a privacy-reduced normalized timeline that can be reviewed after the run.
 
 The result is intended to answer a practical debugging question: **“What exactly happened across the browser and backend for this one action, and what evidence proves that these events belong together?”**
+
+## Product objective
+
+CDLD is not intended to stop at passive observation. Its target is a combined **debugger + active test system**.
+
+The completed V0.1 correlation work is the evidence foundation. The active-testing track builds on that foundation so CDLD can deliberately interact with a designated test application and explain the full result of each action.
+
+Planned first-class testing capabilities are:
+
+- **Smoke testing** — replay bounded workflows such as fill → click → verify UI → verify correlated backend activity → PASS/FAIL.
+- **Monkey testing** — generate bounded exploratory actions and edge-case input sequences against explicitly authorized test targets.
+- **Regression testing** — replay known scenarios and compare expected UI/backend outcomes and trace evidence.
+- **Assertions** — verify DOM state, visibility, browser/network outcomes, cooperative GAS correlation, callbacks, and errors.
+- **Failure evidence** — retain the exact last action plus privacy-reduced browser/network/GAS timeline evidence needed to diagnose the failure.
+- **Safe test mode** — mutation is allowed only under an explicit active-test authorization; ordinary debugger observation remains read-only-first.
+
+The published V0.1J/V0.1K implementation provides the deterministic cross-layer evidence layer. Active smoke/monkey/regression execution is the next product track and must not be confused with capabilities already shipped.
 
 ## Modes
 
@@ -43,7 +60,7 @@ For the accepted V1 correlation path:
 - Exact token and native request identity are used for proof rather than timing or event order.
 - GAS-specific runtime discovery remains adapter-based and reuses the existing `gas-remote-debug` project rather than duplicating its recursive OOPIF/context discovery engine.
 
-The design remains read-only-first: observation and deterministic evidence come before automation or mutation.
+The design remains read-only-first by default: observation and deterministic evidence come before automation or mutation. Explicit TEST-mode milestones may authorize controlled Playwright actions against designated test targets.
 
 ## Design principles
 
@@ -56,5 +73,7 @@ The design remains read-only-first: observation and deterministic evidence come 
 - Cross-layer correlation.
 - Privacy-reduced retained evidence.
 - Fail closed rather than guess.
+- Controlled mutation only under explicit test authorization.
+- Testing should produce evidence, not only a green/red result.
 
-See `docs/ARCHITECTURE.md`, `docs/TRACE_MODEL.md`, `docs/RESEARCH.md`, and `docs/PROJECT_HISTORY.md`.
+See `docs/ARCHITECTURE.md`, `docs/TRACE_MODEL.md`, `docs/RESEARCH.md`, `docs/ROADMAP.md`, and `docs/PROJECT_HISTORY.md`.
