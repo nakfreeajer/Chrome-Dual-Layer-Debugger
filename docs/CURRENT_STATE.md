@@ -1,7 +1,7 @@
 # Current State
 
 ## Status
-V0.1J privacy-limited V1 evidence production and V0.1K raw child/OOPIF marker fusion are accepted and published together at `9e6998488b02e5493f4a4b34e6c0b60b8d193465`. TEST.1A dual-backend capability parity is implemented locally and live-qualified on a disposable Brave OOPIF fixture; its capability matrix records 19 common operations as PASS, four as GAP, and screenshot as backend-specific. The same 31-step scenario passed with equivalent normalized results and fixture effects through both backends. Validation passed: `npm run check`, `npm test` 184/184, and `git diff --check`. Passive observation remains the default outside explicit TEST mode. Compact descriptor transport remains the normal Architect -> Executor procedure; full-prompt copy is an explicit fallback. Executor -> Architect evidence relay remains manual. No automatic dispatch or prompt execution exists.
+V0.1J privacy-limited V1 evidence production and V0.1K raw child/OOPIF marker fusion are accepted and published together at `9e6998488b02e5493f4a4b34e6c0b60b8d193465`. TEST.1A dual-backend capability parity is accepted, live-qualified and published at implementation commit `65f82b3fe9bc48f1d8a0c1f02429713d9c6d4878` with documentation closure `c6d0d09d41eae9417b4edc5df4a6a1568a2bc468`; its capability matrix records 19 common operations as PASS, four as GAP, and screenshot as backend-specific. The same 31-step scenario passed with equivalent normalized results and fixture effects through both backends. Validation passed: `npm run check`, `npm test` 184/184, and `git diff --check`. TEST.1B Controlled Smoke Scenario Runner is the next authorized milestone. Passive observation remains the default outside explicit TEST mode. Compact descriptor transport remains the normal Architect -> Executor procedure; full-prompt copy is an explicit fallback. Executor -> Architect evidence relay remains manual. No automatic dispatch or prompt execution exists.
 
 ## Repository
 - Repository: `nakfreeajer/Chrome-Dual-Layer-Debugger`
@@ -12,7 +12,9 @@ V0.1J privacy-limited V1 evidence production and V0.1K raw child/OOPIF marker fu
 - Accepted V0.1D implementation HEAD: `b14fda0db3b4d150064c91eab86dfdda19b6cd1f`
 - Accepted V0.1I implementation HEAD: `348dfa6b9c81dbf55233bc87ce05f417973fb61d`
 - Accepted combined V0.1J/V0.1K implementation HEAD: `9e6998488b02e5493f4a4b34e6c0b60b8d193465`
-- `gas-remote-debug` dependency baseline: `nakfreeajer/gas-remote-debug@ac4359aa790af19cafe1a7e9a55ecd50f68e9169`
+- Accepted TEST.1A implementation HEAD: `65f82b3fe9bc48f1d8a0c1f02429713d9c6d4878`
+- TEST.1A documentation closure HEAD: `c6d0d09d41eae9417b4edc5df4a6a1568a2bc468`
+- `gas-remote-debug` dependency baseline: `nakfreeajer/gas-remote-debug@75462b81c55c6c113e552dcd5544949bd765e90a`
 - Language/runtime: TypeScript + Node.js
 
 ## Local workspace
@@ -93,7 +95,7 @@ The opt-in V0.1J producer now feeds privacy-reduced Playwright/page-scoped Netwo
 
 The TEST.1A parity implementation is validated on a real distinct local OOPIF target in the already-running Brave 9444 session. A single 31-step scenario ran first through GAS_OOPIF and then Playwright after fixture reset. All 19 declared common operations produced matching normalized outcomes and expected fixture state. Both backends also passed four assertions and returned the expected deterministic assertion failure without crashing. The capability matrix records 19 PASS, 4 GAP, 0 UNQUALIFIED and 1 BACKEND_SPECIFIC (screenshot). Detailed local evidence is under ignored `.agent-work/artifacts/`.
 
-TEST.1A closes only the evidence-backed capability contract and parity foundation. TEST.1B, the controlled smoke scenario runner, remains the next planned milestone; TEST.1C monkey generation remains planned after it. Existing user/business tabs remain protected unless separately authorized.
+TEST.1A closes only the evidence-backed capability contract and parity foundation. TEST.1B, the Controlled Smoke Scenario Runner, is now the next authorized milestone; TEST.1C monkey generation remains planned after it. Existing user/business tabs remain protected unless separately authorized.
 
 ## Unresolved items
 - Historical V0.1C JSONL lacks `runId`; it remains valid historical evidence and is not migrated by V0.1D.
