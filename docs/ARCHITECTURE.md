@@ -2,33 +2,50 @@
 
 ## Core principle
 
-Playwright owns ordinary semantic browser interaction. For normal pages, low-level CDP observation should prefer Playwright public `CDPSession` access. The GAS layer is enabled only when the current page URL starts with `https://script.google.com/macros/`.
+CDLD has two equal browser-control/debugging backends:
+- `PLAYWRIGHT` — semantic browser interaction through Playwright.
+- `GAS_OOPIF` — direct control and inspection of the real GAS/OOPIF runtime through raw CDP and `gas-remote-debug`.
 
-## Playwright reuse rule
+Neither backend is the privileged product surface. CDLD exposes one project-independent capability contract and both backends must satisfy that contract for capabilities declared as supported.
 
-CDLD must prefer composition over reimplementation for browser-testing behavior already provided by Playwright.
+## Dual-backend capability parity rule
 
-Reuse Playwright for:
-- resilient semantic locators such as role, label, text and test-id locators;
-- actionability and auto-wait behavior;
-- click, fill/type, check/uncheck, select, hover, drag/drop, keyboard, file upload and scrolling;
-- frame-aware locator interaction;
-- web-first assertions and retry semantics when Playwright Test facilities are adopted;
-- fixtures/projects/retries/reporting/trace facilities where they fit the CDLD attach-to-existing-browser model;
-- code generation/locator generation as an optional scenario-authoring aid.
+The reusable CDLD capability contract should cover, where technically applicable:
+- target/page/frame/context selection;
+- semantic or equivalent element targeting;
+- click/double-click/right-click;
+- fill/type/clear;
+- keyboard input;
+- scroll/scroll-to-element;
+- hover/focus;
+- check/uncheck;
+- select options;
+- drag/drop;
+- file input;
+- wait/actionability readiness;
+- DOM/value/text/visibility/state queries;
+- assertions with bounded retry;
+- screenshots or bounded visual evidence where policy permits;
+- navigation/reload only under explicit TEST authorization;
+- normalized action and assertion results.
 
-CDLD should add capabilities that Playwright does not provide as the CDLD product contract:
+Playwright implementations should reuse mature Playwright primitives. GAS/OOPIF implementations should use the most faithful raw-CDP mechanisms available, including DOM, Runtime and Input domains, while preserving exact target/session/execution-context ownership.
+
+Parity means the same CDLD scenario operation has equivalent externally observable semantics and normalized result shape on both backends. Internal implementation does not need to be identical.
+
+If a required capability is stronger on one backend, improve the weaker backend. If a demonstrated Playwright limitation blocks the common CDLD contract, CDLD may extend the Playwright adapter, add raw-CDP support alongside Playwright, or maintain a pinned patch/fork when justified by evidence. Upstream Playwright code must not be modified merely for convenience; any modification requires a reproduced capability gap and conformance coverage.
+
+Capabilities unique to one runtime may remain backend-specific extensions, but the common smoke/monkey/regression scenario language must not silently change meaning between backends.
+
+CDLD additionally owns:
 - explicit OBSERVE versus TEST safety modes and target authorization;
-- GAS/OOPIF runtime discovery through `gas-remote-debug`;
-- privacy-reduced Network + raw child/OOPIF evidence fusion;
 - deterministic V1 browser-to-GAS callback correlation through the existing single recognizer;
-- unified run/action/assertion/correlation chronology in the CDLD Timeline;
-- reproducible bounded monkey action generation and seed replay;
+- unified run/action/assertion/correlation chronology in the Timeline;
+- reproducible bounded monkey generation and seed replay;
 - project-independent scenario representation;
 - fixture/reset/cleanup governance;
 - cross-layer failure diagnosis and evidence retention.
 
-Do not create a second home-grown click/fill/scroll/assertion engine when the equivalent Playwright primitive satisfies the required semantics. CDLD wrappers may add policy, identity, Timeline evidence and normalized error handling, but should delegate the browser action itself to Playwright.
 
 ## Runtime architecture
 
