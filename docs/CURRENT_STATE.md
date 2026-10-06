@@ -1,7 +1,7 @@
 # Current State
 
 ## Status
-V0.1J privacy-limited V1 evidence production and V0.1K raw child/OOPIF marker fusion are accepted and published together at `9e6998488b02e5493f4a4b34e6c0b60b8d193465`. TEST.1A dual-backend capability parity is accepted, live-qualified and published at implementation commit `65f82b3fe9bc48f1d8a0c1f02429713d9c6d4878` with documentation closure `c6d0d09d41eae9417b4edc5df4a6a1568a2bc468`; its capability matrix records 19 common operations as PASS, four as GAP, and screenshot as backend-specific. The same 31-step scenario passed with equivalent normalized results and fixture effects through both backends. Validation passed: `npm run check`, `npm test` 184/184, and `git diff --check`. TEST.1B Controlled Smoke Scenario Runner is the next authorized milestone. Passive observation remains the default outside explicit TEST mode. Compact descriptor transport remains the normal Architect -> Executor procedure; full-prompt copy is an explicit fallback. Executor -> Architect evidence relay remains manual. No automatic dispatch or prompt execution exists.
+V0.1J privacy-limited V1 evidence production and V0.1K raw child/OOPIF marker fusion are accepted and published together at `9e6998488b02e5493f4a4b34e6c0b60b8d193465`. TEST.1A dual-backend capability parity is accepted, live-qualified and published at implementation commit `65f82b3fe9bc48f1d8a0c1f02429713d9c6d4878` with documentation closure `c6d0d09d41eae9417b4edc5df4a6a1568a2bc468`; its capability matrix records 19 common operations as PASS, four as GAP, and screenshot as backend-specific. TEST.1B Controlled Smoke Scenario Runner is accepted and source-published at `9f54b116f20fa56246546602b26d47eb519ac77a`; its four bounded Brave scenarios and 214/214 regression suite passed. With this documentation closure, TEST.1B is closed and there is no active source milestone. TEST.1C remains PLANNED / NOT AUTHORIZED pending Rony/Architect decision. Passive observation remains the default outside explicit TEST authorization. Executor -> Architect evidence relay remains manual; no Orchestrator, watcher, dispatcher, or automatic execution exists.
 
 ## Repository
 - Repository: `nakfreeajer/Chrome-Dual-Layer-Debugger`
@@ -20,7 +20,7 @@ V0.1J privacy-limited V1 evidence production and V0.1K raw child/OOPIF marker fu
 ## Local workspace
 - Local root: `C:\Users\nitro\Projects\Chrome-Dual-Remote-Debugger`
 - Ignored `.agent-work/` hierarchy remains the local raw-evidence workspace.
-- Architect -> Executor uses manually transported compact descriptors after local Human import/authorization; Executor -> Architect evidence relay remains manual and is performed by Rony.
+- Substantial tasks normally live in a dedicated Google Drive prompt document/folder; chat carries a short launcher. Rony manually relays Executor evidence to the Architect. RELAY.1A/1B descriptor transport remains optional historical tooling for specific use, not the normal project-management workflow.
 
 ## Architect-Curator verification status
 ### V0.1A — Browser attachment & read-only discovery
@@ -78,7 +78,7 @@ Accepted V0.1D validation:
 - Architect-Curator: ChatGPT Architect for this project.
 - Executor: bounded Codex execution role.
 - There is no automated Orchestrator, watcher, dispatcher, network relay, automatic Executor start, or auto-execution.
-- Compact Architect -> Executor transport is active after RELAY.1B documentation closure; Human transport and approval remain manual. Executor -> Architect evidence relay remains manual.
+- Current governance is Rony -> Architect -> Executor -> Architect independent verification, followed by documentation synchronization when required and a Rony/Architect decision on next work. Substantial task bodies are stored in Google Drive and launched from chat with a short instruction. RELAY.1A/1B remains optional technical tooling only. There is no automated dispatch. Executor -> Architect evidence relay remains manual.
 
 ## Accepted correlation chain - V0.1E through V0.1I
 - V0.1E established that native browser/CDP identities do not deterministically link a frontend `google.script.run` invocation to GAS execution and its callback; timing, ordering, function name and URL similarity are not correlation authority.
@@ -95,7 +95,15 @@ The opt-in V0.1J producer now feeds privacy-reduced Playwright/page-scoped Netwo
 
 The TEST.1A parity implementation is validated on a real distinct local OOPIF target in the already-running Brave 9444 session. A single 31-step scenario ran first through GAS_OOPIF and then Playwright after fixture reset. All 19 declared common operations produced matching normalized outcomes and expected fixture state. Both backends also passed four assertions and returned the expected deterministic assertion failure without crashing. The capability matrix records 19 PASS, 4 GAP, 0 UNQUALIFIED and 1 BACKEND_SPECIFIC (screenshot). Detailed local evidence is under ignored `.agent-work/artifacts/`.
 
-TEST.1A closes only the evidence-backed capability contract and parity foundation. TEST.1B, the Controlled Smoke Scenario Runner, is now the next authorized milestone; TEST.1C monkey generation remains planned after it. Existing user/business tabs remain protected unless separately authorized.
+TEST.1A closed the evidence-backed capability contract and parity foundation. TEST.1B Controlled Smoke Scenario Runner is accepted and closed below. TEST.1C is PLANNED / NOT AUTHORIZED pending Rony/Architect decision. Existing user/business tabs remain protected unless separately authorized.
+
+## TEST.1B - Controlled Smoke Scenario Runner - ACCEPTED / CLOSED
+- Implementation HEAD: `9f54b116f20fa56246546602b26d47eb519ac77a`; parent: `37fba3c5dcc1f904c7333d72ea989b85853b3374`.
+- Added a strict declarative `schemaVersion: 1` smoke scenario parser and CLI, two equal peer backends (`PLAYWRIGHT`, `GAS_OOPIF`), a runner-owned page/session, ordered action/assertion Timeline results, stop-on-first-failure behavior, and owned-page cleanup.
+- Authorization intent and approval are validated before runner page creation/navigation. Target-bound authorization is retained after selection. PAGE scope uses `PAGE-*`; FRAME scope binds to the exact public Playwright Frame and preserves a unique normalized frame ID or assigns a stable debugger-local `PLAYWRIGHT-FRAME-*` identity without claiming protocol `FrameId`. GAS_OOPIF retains exact dependency-native target/session/context binding.
+- Accepted publication validation: `npm run check` PASS; `npm test` 214/214 PASS; `git diff --check` PASS.
+- Accepted live Brave 9444 matrix: PLAYWRIGHT and GAS_OOPIF pass scenarios exited 0 after 8 ordered steps; each deterministic assertion failure exited 2 before its later click. The pre-existing tab remained unchanged, runner-owned pages closed, the fixture server stopped, ports 4558 and 4564 were closed, and the temporary fixture directory was removed. Timeline privacy checks passed.
+- No AFFOTECH/business target, external GAS deployment, browser launch/restart/termination, tag, or release was involved.
 
 ## Unresolved items
 - Historical V0.1C JSONL lacks `runId`; it remains valid historical evidence and is not migrated by V0.1D.
@@ -111,13 +119,13 @@ TEST.1A closes only the evidence-backed capability contract and parity foundatio
 - Staging does not authorize execution. Authorization requires an explicit caller-supplied approval reference. Current authorization cannot be displaced by direct authorization; changed decisions require explicit supersession. Revocation and supersession are checked against durable lifecycle evidence and fail closed.
 - Verified loading checks locator, manifest, lifecycle, path containment, exact bytes, SHA-256 and byte length. Fresh-store and second-process recovery passed.
 - Validation: `npm run check` passed; `npm test` passed 102/102; `git diff --check` passed. The 102 tests include 50 RELAY.1A-focused tests.
-- At RELAY.1A publication, the full-prompt relay remained active. After RELAY.1B documentation closure, compact descriptor transport is normal. No automatic dispatch or auto-execution exists.
+- At RELAY.1A publication, the full-prompt relay remained active. RELAY.1B later activated compact descriptor transport; the subsequent governance simplification retired it as the normal operating workflow while preserving its accepted technical implementation. No automatic dispatch or auto-execution exists.
 
-## Accepted compact prompt transport - RELAY.1B
+## Historical optional prompt transport tooling - RELAY.1B
 - RELAY.1B was accepted and published at `85310e450705e1671ef9e6af22eeae6d9dbcc519`; validation passed with 148/148 tests and process-level exact-byte import/resolve proof.
 - The canonical descriptor is `CDLD-PROMPT-V1.<base64url>` and binds schema, project, repository, milestone, prompt SHA-256 and byte length only. It is identity evidence, not authorization.
 - The Architect provides the exact prompt file and descriptor. Rony imports/authorizes the exact bytes locally; Executor receives only the descriptor and resolves exact bytes from verified RELAY.1A state.
-- This compact Architect -> Executor flow becomes the normal process after this closure. Full-prompt copying remains an explicit fallback. Executor -> Architect report/evidence transport remains manual.
+- RELAY.1B descriptor/import/revoke/supersede/resolve tooling remains valid historical technical work and may be used when specifically needed. The later governance simplification supersedes compact descriptor transport only as the default operating procedure. Current substantial task transport uses Google Drive and a short chat launcher; Executor -> Architect report/evidence transport remains manual.
 - No automatic dispatch, watcher, Orchestrator, service, start or execution exists. Resolve supplies bytes; Executor still follows the bounded instruction under the existing authority model.
 
 ## Accepted V0.1J and V0.1K correlation evidence production

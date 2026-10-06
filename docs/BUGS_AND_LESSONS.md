@@ -29,3 +29,9 @@ V0.1J/V0.1K live fixture evidence showed that an early Playwright observer and r
 
 ### L-008 - Compare normalized state structurally across backends
 TEST.1A live parity exposed an assertion helper comparing independently read object-valued state by reference identity. Equivalent state snapshots from Playwright and GAS/OOPIF are distinct objects, so identity comparison falsely failed. Cross-backend assertions must compare the declared structural values; a focused regression test now covers this contract.
+
+### L-009 - Authorize TEST work before the first browser mutation
+TEST.1B review found that validating authorization only when an action executes is too late if the public session API can create or navigate a runner-owned page first. Validate explicit TEST intent and approval preconditions before page creation/navigation, then retain target-bound authorization after exact target selection.
+
+### L-010 - Public Playwright OOPIF Frames may lack a unique page-tree identity
+An OOPIF may appear as a public Playwright `Frame` while the page CDP `Page.getFrameTree` result has no unique corresponding node. Preserve an accepted normalized frame identity when deterministically available; otherwise assign a stable debugger-local identity to the exact selected Frame and do not claim it is a protocol `FrameId`.

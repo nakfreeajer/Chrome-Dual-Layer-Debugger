@@ -41,7 +41,7 @@ Capabilities unique to one runtime may remain backend-specific extensions, but t
 
 The TEST.1A common action/assertion contract is implemented by both `PLAYWRIGHT` and `GAS_OOPIF`. A disposable local OOPIF live run executed the same 31-step scenario through each backend, compared normalized outcomes and fixture state, and exercised deterministic passing and failing assertions. Nineteen common operations are qualified `PASS` in the capability matrix. Double-click, right-click, drag/drop and file input remain `GAP`; screenshot remains `BACKEND_SPECIFIC` for Playwright and `GAP` for GAS_OOPIF. These statuses describe only the tested contract and do not imply broader application coverage.
 
-Mutating operations require explicit target- and backend-bound TEST authorization and have bounded action timeouts. The parity foundation is not yet a general scenario runner. TEST.1B remains planned and separately governed.
+Mutating operations require explicit target- and backend-bound TEST authorization and have bounded action timeouts. TEST.1B adds the bounded controlled smoke runner described below; this does not authorize production/business testing or capabilities outside the matrix.
 
 CDLD additionally owns:
 - explicit OBSERVE versus TEST safety modes and target authorization;
@@ -138,21 +138,46 @@ The accepted V0.1J/V0.1K producer is opt-in through CLI `--observe-v1-ms`. Playw
 
 Observation is the default. Do not navigate, close, click, type, mutate DOM/runtime state, or close the browser unless the active bounded milestone explicitly authorizes it.
 
+## Controlled smoke runner - TEST.1B
+
+TEST.1B accepts strict project-owned JSON scenarios at `schemaVersion: 1`. Scenarios are declarative: arbitrary JavaScript, evaluation, expressions, and unrecognized fields are rejected. Operations use backend-neutral semantics and CSS selectors; only common capabilities marked `PASS` in the capability matrix are available to the shared contract. The runner validates the complete scenario before browser mutation.
+
+The execution flow is:
+
+```text
+strict scenario parser
+    -> explicit smoke CLI (backend, endpoint, approval reference)
+    -> pre-navigation TEST intent/approval validation
+    -> runner-owned page and session
+    -> exact PAGE or FRAME selection
+    -> PLAYWRIGHT or GAS_OOPIF backend
+    -> ordered action/assertion Timeline
+    -> PASS/FAIL result and owned-page cleanup
+```
+
+The two backends are equal peers for declared common operations, but parity is claimed only for capabilities in the matrix and the accepted qualification. The runner stops on the first failed step. PASS exits 0, scenario action/assertion failure exits 2, and setup/infrastructure errors exit 1.
+
+TEST authorization preconditions, including a non-empty explicit approval reference and valid TEST intent, are checked before `createRunnerOwnedPage()` can connect, create a page, or navigate. After target selection, authorization remains bound to the selected backend and target. The runner creates and closes only its own page; it does not select or close pre-existing user pages.
+
+PAGE scope uses the runner-owned `PAGE-*` identity. FRAME scope binds to the exact selected public Playwright `Frame`. If exactly one accepted normalized frame identity is available, it is preserved. If the public Frame exists but the page CDP frame tree lacks a unique accepted mapping, the session assigns a stable debugger-local `PLAYWRIGHT-FRAME-####` identity. This local identity is not a protocol `FrameId`. GAS_OOPIF scope continues to bind to the exact dependency-native target, session, and execution context.
+
+Scenario lifecycle events are combined with existing action/assertion events. Timeline evidence omits selectors, raw input/expected values, approval references, credentials, cookies, authorization headers, and private DOM dumps. Optional cooperative V1 observation remains separate from action-target identity and continues to use the accepted V0.1I proof rules.
+
 ## Engineering workflow architecture
 
 The project uses an AMO-inspired Human -> Architect-Curator -> Executor authority model, but **no automated Orchestrator is part of this project**. Relay is performed manually by the Human Owner. Repository governance and the software runtime architecture are independent concerns.
 
 ## Engineering-workflow prompt persistence layer
 
-This local workflow persistence layer is separate from browser/CDP runtime architecture:
+This local workflow persistence layer is separate from browser/CDP runtime architecture. RELAY.1A/1B remains implemented historical tooling, but compact descriptor transport is no longer the normal project-management workflow. It is optional and used only when specifically needed. Current substantial task transport uses a full task document in Google Drive and a short chat launcher; authority remains Rony -> Architect -> Executor -> Architect verification.
+
+The accepted artifact tooling still provides:
 
 ```text
-Architect authors exact prompt bytes and descriptor
-    -> Human verifies and imports/authorizes exact bytes
+optional Architect-authored exact prompt bytes and descriptor
+    -> Human verifies and imports/authorizes exact bytes when needed
     -> content-addressed artifact and immutable manifest/lifecycle
-    -> descriptor-only manual transport to Executor
-    -> verified resolve returns exact prompt bytes
-    -> bounded Executor follows those bytes
+    -> verified resolve returns exact prompt bytes when explicitly used
 ```
 
 RELAY.1A stores artifacts only under ignored `.agent-work/`. Schema v1 identity is `(project, milestoneId, promptSha256, promptByteLength)`; the frozen milestoneId is workflow identity. No transactionId is used, and runtime trace runId is not repurposed.
@@ -161,4 +186,4 @@ Prompt bytes are Buffer-exact: line endings, Unicode, whitespace and trailing ne
 
 Staging is not authorization. Authorization requires an explicit approval reference and does not cryptographically authenticate the approval. Direct authorization cannot silently replace an active current prompt. Changed decisions use explicit supersession; revocation and supersession are checked against immutable lifecycle evidence. Invalid or corrupt durable state fails closed.
 
-RELAY.1B is accepted and published at `85310e450705e1671ef9e6af22eeae6d9dbcc519`. After documentation closure, descriptor-only Architect -> Executor transport is the normal workflow; a full-prompt copy is an explicit fallback only. The exact prompt file comes from Architect transport: local hashing proves byte identity, not authorship. The descriptor is identity, not authorization; verified RELAY.1A lifecycle state plus exact identity and bytes are required. Resolve is a byte-delivery operation, not execution. No automatic dispatcher, network service, or auto-execution exists. Human transport/approval and Executor -> Architect evidence relay remain manual.
+RELAY.1B is accepted and published at `85310e450705e1671ef9e6af22eeae6d9dbcc519`. Its descriptor/import/revoke/supersede/resolve tooling remains valid; governance simplification supersedes it only as the default operating workflow, not as technical implementation. When this optional tooling is used, local hashing proves byte identity, not authorship; a descriptor is identity, not authorization; verified RELAY.1A lifecycle state plus exact identity and bytes remain required. Resolve is byte delivery, not execution. There is no automatic dispatcher, network service, or auto-execution.

@@ -85,23 +85,24 @@ Accepted implementation HEAD: `b14fda0db3b4d150064c91eab86dfdda19b6cd1f`.
 
 CDLD is intended to become a cross-layer debugger and active browser/GAS testing system. Passive observation is the safety default, not the final product boundary. Active mutation must run only under an explicitly authorized test mode against a designated test target.
 
-The active-testing track must build on the accepted V0.1 evidence architecture rather than bypass it. Playwright performs semantic actions; existing Network/RAW-CDP/GAS evidence remains responsible for explaining what each action caused.
+The active-testing track builds on the accepted V0.1 evidence architecture rather than bypassing it. Playwright performs semantic actions; existing Network/RAW-CDP/GAS evidence remains responsible for explaining what each action caused.
 
 ## TEST.1A - Dual-Backend Capability Contract and Parity Foundation - ACCEPTED / CLOSED
 
 TEST.1A implemented one reusable CDLD action/assertion contract across Playwright and GAS/OOPIF. On a disposable local OOPIF in Brave 9444, the same 31-step scenario was run through both backends with equivalent normalized outcomes, expected fixture effects and passing/failing assertion behavior.
 
-Capability matrix: 19 common operations `PASS`; four `GAP` (double-click, right-click, drag/drop, file input); screenshot `BACKEND_SPECIFIC` for Playwright and `GAP` for GAS_OOPIF. TEST.1A does not deliver a general smoke-suite CLI, monkey generation, production/business testing, or generalized fixture management.
+Capability matrix: 19 common operations `PASS`; four `GAP` (double-click, right-click, drag/drop, file input); screenshot `BACKEND_SPECIFIC` for Playwright and `GAP` for GAS_OOPIF. TEST.1A did not deliver monkey generation, production/business testing, or generalized fixture management.
 
-## TEST.1B - Controlled Smoke Scenario Runner - AUTHORIZED / NEXT
+## TEST.1B - Controlled Smoke Scenario Runner - ACCEPTED / CLOSED
 
-- Run small project-owned scenario files against either parity backend without embedding browser-control implementation.
-- Support explicit target authorization and bounded navigation to a disposable/Human-approved test URL.
-- Run existing V1 observation concurrently when cooperative correlation evidence is available.
-- Produce per-step and scenario PASS/FAIL with unified Timeline evidence.
-- Prove both a passing scenario and deterministic assertion failure.
+- Published implementation: `9f54b116f20fa56246546602b26d47eb519ac77a` (parent `37fba3c5dcc1f904c7333d72ea989b85853b3374`), `feat(testing): add controlled smoke scenario runner`.
+- Adds strict declarative `schemaVersion: 1` scenarios, explicit CLI/backend/endpoint/approval, complete scenario validation before mutation, runner-owned page/session, exact PAGE or FRAME scope, ordered Timeline results, stop-on-first-failure, and cleanup.
+- Approval and TEST intent are validated before page creation/navigation; target-bound authorization remains enforced after exact selection. PAGE uses `PAGE-*`; FRAME uses the selected public Playwright Frame with a unique accepted normalized identity or stable debugger-local `PLAYWRIGHT-FRAME-*` (not a protocol FrameId). GAS_OOPIF remains bound to exact dependency-native target/session/context.
+- Validation: `npm run check` PASS; `npm test` 214/214 PASS; `git diff --check` PASS.
+- Accepted Brave 9444 live matrix: PLAYWRIGHT and GAS_OOPIF pass each completed 8 steps and exited 0; deterministic assertion failures exited 2 before the later click. Existing target stayed unchanged, runner pages closed, local fixture server stopped, ports 4558/4564 closed, temporary fixture removed, and Timeline privacy checks passed.
+- Only the capability matrix and this bounded fixture qualification support parity claims. No production/business target or external GAS deployment was used.
 
-## TEST.1C - Bounded Monkey / Exploratory Action Engine - PLANNED
+## TEST.1C - Bounded Monkey / Exploratory Action Engine - PLANNED / NOT AUTHORIZED
 
 - Generate only capabilities declared common/parity-complete unless a backend-specific test explicitly opts in.
 - Use deterministic seeds for exact replay.
@@ -140,11 +141,11 @@ Capability matrix: 19 common operations `PASS`; four `GAP` (double-click, right-
 - Published implementation HEAD: `163b0c008097eb24f1412be31e527f4697d0fc35`.
 - Added exact-byte, content-addressed local prompt artifacts under ignored `.agent-work/`, immutable manifests and lifecycle records, explicit authorization, revocation, supersession and fail-closed verified loading/recovery.
 - Validation: `npm run check`; `npm test` 102/102; `git diff --check`.
-- At RELAY.1A publication, full-prompt manual relay remained the procedure; RELAY.1A did not change transport or execute prompts. RELAY.1B later activated compact descriptor transport through a separate documentation closure.
+- At RELAY.1A publication, full-prompt manual relay remained the procedure; RELAY.1A did not change transport or execute prompts. RELAY.1B later activated compact descriptor transport through a separate documentation closure; the subsequent governance simplification retired it as the default operating workflow without invalidating its technical implementation.
 
 ## RELAY.1B - Compact Executor Relay - ACCEPTED / CLOSED
 - Published implementation HEAD: `85310e450705e1671ef9e6af22eeae6d9dbcc519`.
 - Added strict V1 compact identity descriptor and import/supersede/revoke/resolve CLI over RELAY.1A.
 - The Architect-provided exact prompt file is verified against descriptor SHA-256 and byte length before store mutation; Executor resolution independently checks verified authorization/lifecycle and emits exact prompt bytes only.
 - Validation: `npm run check` PASS; `npm test` 148/148 PASS; `git diff --check` PASS; process-level exact-byte import/resolve and zero-stdout mismatch proof passed.
-- Compact descriptor transport becomes the normal Architect -> Executor workflow after this documentation closure. Full-prompt chat copy is fallback only. Human transport/approval and Executor -> Architect evidence return remain manual. There is no automatic dispatch or execution.
+- At RELAY.1B acceptance, compact descriptor transport became the normal Architect -> Executor workflow. Current governance later superseded that default with full substantial task documents in Google Drive and short chat launchers. RELAY.1A/1B remains accepted optional tooling. Human relay and Executor -> Architect evidence return remain manual; there is no automatic dispatch or execution.

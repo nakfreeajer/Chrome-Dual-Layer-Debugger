@@ -173,10 +173,10 @@ Accepted persistence invariants:
 - Never bypass verified revocation or supersession lifecycle.
 - Preserve Human approval authority; integrity hashes are not permission.
 - Do not reconstruct or bulk-migrate historical prompts.
-- After RELAY.1B documentation closure, compact descriptor relay is the normal Architect -> Executor process; full-prompt copy is explicit fallback only. Executor -> Architect evidence return remains manual.
+- At RELAY.1B documentation closure, compact descriptor relay became the normal Architect -> Executor process. The later governance simplification superseded that default with full substantial task documents in Google Drive and short chat launchers, without invalidating RELAY.1A/1B implementation or acceptance. Executor -> Architect evidence return remains manual.
 
 ## Accepted RELAY.1B compact Executor relay validation
-RELAY.1B was accepted and published at `85310e450705e1671ef9e6af22eeae6d9dbcc519`. The compact Architect -> Executor operating procedure activates with this documentation closure.
+RELAY.1B was accepted and published at `85310e450705e1671ef9e6af22eeae6d9dbcc519`. Its compact Architect -> Executor procedure was activated by its documentation closure, then superseded as the default governance transport by the later governance simplification. Its technical acceptance remains valid.
 
 Accepted evidence:
 - `npm run check` passed;
@@ -243,3 +243,23 @@ TEST.1A regression contracts:
 - Bind mutating actions to explicit target- and backend-specific TEST authorization and bounded action timeouts.
 - Compare read-state structurally; object identity is not a cross-backend state contract.
 - Keep live fixture targets disposable and verify target stability and cleanup.
+
+## Accepted TEST.1B controlled smoke scenario runner
+TEST.1B implementation was published at `9f54b116f20fa56246546602b26d47eb519ac77a` (parent `37fba3c5dcc1f904c7333d72ea989b85853b3374`). It adds a strict declarative scenario parser and CLI, a runner-owned page/session, exact action-scope selection, equal peer PLAYWRIGHT and GAS_OOPIF backends for capability-matrix-qualified operations, ordered Timeline reporting, stop-on-first-failure and cleanup.
+
+Accepted deterministic validation:
+- `npm run check` passed;
+- `npm test` passed 214/214;
+- `git diff --check` passed.
+
+Accepted live validation used the already-running Brave endpoint `http://127.0.0.1:9444`; no browser was launched, restarted or terminated. PLAYWRIGHT PASS and GAS_OOPIF PASS each exited 0 after 8 ordered steps. PLAYWRIGHT and GAS_OOPIF deterministic assertion failures each exited 2 and did not execute the later click. The pre-existing Brave target was unchanged, runner-owned pages were closed, the local fixture server was stopped, ports 4558 and 4564 were closed, and the temporary fixture directory was removed. Timeline privacy checks passed. No AFFOTECH/business target or external GAS deployment was touched.
+
+Repair 1 added the following regression contracts:
+- Validate explicit TEST intent and approval reference before runner-owned page creation or navigation; invalid/missing preconditions cause zero page creation/navigation.
+- Preserve target/backend-bound authorization after exact selection.
+- Bind PAGE scope to the runner-owned `PAGE-*` identity and FRAME scope to the exact selected Playwright Frame identity.
+- Preserve one deterministically matched normalized frame identity; otherwise use a stable debugger-local `PLAYWRIGHT-FRAME-*` identity, never claiming it is a protocol FrameId.
+- Keep GAS_OOPIF authorization bound to exact dependency-native target/session/execution-context evidence.
+- Operate only on runner-owned pages; fail closed for missing or ambiguous exact targets.
+- Stop on first failure; do not claim parity outside the capability matrix and accepted live matrix.
+- Keep selectors, raw input/expected values, approval references, credentials, cookies, authorization headers and private DOM dumps out of Timeline evidence.

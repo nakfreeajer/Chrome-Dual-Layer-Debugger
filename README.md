@@ -28,7 +28,7 @@ CDLD is not intended to stop at passive observation. Its target is a combined **
 
 The completed V0.1 correlation work is the evidence foundation. The active-testing track builds on that foundation so CDLD can deliberately interact with a designated test application and explain the full result of each action.
 
-Planned first-class testing capabilities are:
+First-class testing capabilities include:
 
 - **Smoke testing** — replay bounded workflows such as fill → click → verify UI → verify correlated backend activity → PASS/FAIL.
 - **Monkey testing** — generate bounded exploratory actions and edge-case input sequences against explicitly authorized test targets.
@@ -37,7 +37,9 @@ Planned first-class testing capabilities are:
 - **Failure evidence** — retain the exact last action plus privacy-reduced browser/network/GAS timeline evidence needed to diagnose the failure.
 - **Safe test mode** — mutation is allowed only under an explicit active-test authorization; ordinary debugger observation remains read-only-first.
 
-The published V0.1J/V0.1K implementation provides the deterministic cross-layer evidence layer. TEST.1A has now established and live-qualified the first common active-testing capability set. Active smoke/monkey/regression execution remains future work and must use only evidence-backed capabilities.
+The published V0.1J/V0.1K implementation provides the deterministic cross-layer evidence layer. TEST.1A established and live-qualified the first common active-testing capability set, and TEST.1B adds a controlled declarative smoke scenario runner for explicitly authorized test targets. Monkey testing and broader regression execution remain future work and must use only evidence-backed capabilities.
+
+After `npm run build`, a smoke scenario is invoked with `node dist/src/cli/main.js smoke --scenario <FILE> --backend PLAYWRIGHT|GAS_OOPIF --endpoint <URL> --approval-reference <TEXT>`. Only capabilities qualified in the project matrix are shared across backends; TEST mode is limited to explicitly authorized targets.
 
 ## Equal Playwright and GAS/OOPIF capability strategy
 
