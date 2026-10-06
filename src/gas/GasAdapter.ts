@@ -62,7 +62,33 @@ interface DependencyState {
     targets: Map<string, Record<string, unknown>>;
     sessions: Map<string, Record<string, unknown>>;
     frames: Map<string, Record<string, unknown>>;
+    contexts: Map<string, Record<string, unknown>>;
   };
+}
+
+export interface GasScopedCommand {
+  targetId: string;
+  sessionId: string;
+  method: string;
+  params?: Record<string, unknown>;
+  executionContextId?: number;
+  timeoutMs?: number;
+  testAuthorization?: { mode: 'TEST'; targetId: string; fixtureId: string };
+}
+
+export interface GasTestTargetAuthorization {
+  mode: 'TEST';
+  targetId: string;
+  fixtureId: string;
+  approvalReference: string;
+}
+
+export interface GasTestTargetContext {
+  targetId: string;
+  sessionId: string;
+  executionContextId: number;
+  frameId: string;
+  defaultWorld: boolean;
 }
 
 export interface GasRemoteDebugApi {
@@ -72,6 +98,7 @@ export interface GasRemoteDebugApi {
   waitForDefaultContexts(state: DependencyState, options: { timeoutMs: number; pollMs: number }): Promise<unknown[]>;
   listRuntimeContexts(state: DependencyState, options?: { includeIgnoredContexts?: boolean }): Array<Record<string, unknown>>;
   findRuntimeContext(state: DependencyState, predicate: (probe: unknown, context: Record<string, unknown>) => boolean, options: { timeoutMs: number; pollMs: number; probeExpression: string }): Promise<Record<string, unknown> | null>;
+  sendScopedCdpCommand?(state: DependencyState, request: GasScopedCommand): Promise<unknown>;
   disconnect(state: DependencyState): Promise<void>;
   redactSecrets(value: string): string;
   genericGasProfile: {
@@ -226,9 +253,55 @@ export class GasAdapter {
     }
   }
 
+  /** Attach an already-existing explicitly authorized synthetic TEST target by native targetId. */
+  async connectTestTarget(endpoint: string, authorization: GasTestTargetAuthorization): Promise<GasTestTargetContext[]> {
+    if (authorization.mode !== 'TEST' || !authorization.targetId.trim() || !authorization.fixtureId.trim() || !authorization.approvalReference.trim()) {
+      throw new Error('A target-bound TEST authorization is required');
+    }
+    if (this.state) throw new Error('GasAdapter is already connected; disconnect before starting another discovery');
+    const state = await this.api.connectBrowserCdp(parseBrowserEndpoint(endpoint));
+    this.state = state;
+    try {
+      const targets = await this.api.discoverTargets(state);
+      const matches = targets.filter((target) => idField(target, 'targetId', 'id') === authorization.targetId
+        && (target.type === 'page' || target.type === 'iframe'));
+      if (matches.length !== 1) throw new Error('Authorized TEST target is missing or ambiguous');
+      const attached = await this.api.attachRecursive(state, {
+        targetSelector: (target) => idField(target, 'targetId', 'id') === authorization.targetId
+      });
+      if (!attached) throw new Error('gas-remote-debug did not attach the authorized existing TEST target');
+      await this.api.waitForDefaultContexts(state, { timeoutMs: 5000, pollMs: 100 });
+      const attachedSessionId = attached.sessionId;
+      const contexts = [...state.registries.contexts.values()]
+        .filter((context) => context.targetId === authorization.targetId
+          && context.sessionId === attachedSessionId
+          && context.alive === true
+          && context.defaultWorld === true
+          && typeof context.executionContextId === 'number')
+        .map((context) => ({
+          targetId: authorization.targetId,
+          sessionId: attachedSessionId,
+          executionContextId: context.executionContextId as number,
+          frameId: stringField(context.frameId),
+          defaultWorld: true
+        }));
+      if (contexts.length === 0) throw new Error('Authorized TEST target has no live default execution context');
+      return contexts;
+    } catch (error) {
+      await this.disconnect();
+      throw error;
+    }
+  }
+
   async disconnect(): Promise<void> {
     const state = this.state;
     this.state = undefined;
     if (state) await this.api.disconnect(state);
+  }
+
+  async sendScopedCommand(request: GasScopedCommand): Promise<unknown> {
+    if (!this.state) throw new Error('GasAdapter is not connected');
+    if (!this.api.sendScopedCdpCommand) throw new Error('gas-remote-debug scoped control API is unavailable');
+    return this.api.sendScopedCdpCommand(this.state, request);
   }
 }

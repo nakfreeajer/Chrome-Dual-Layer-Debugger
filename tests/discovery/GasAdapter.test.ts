@@ -4,7 +4,7 @@ import { GasAdapter, type GasRemoteDebugApi } from '../../src/gas/GasAdapter.js'
 import type { DiscoveredPage } from '../../src/browser/BrowserDiscovery.js';
 
 function makeFixture() {
-  const calls = { connect: 0, discover: 0, attach: 0, wait: 0, list: 0, disconnect: 0, pageClose: 0, browserClose: 0 };
+  const calls = { connect: 0, discover: 0, attach: 0, wait: 0, list: 0, disconnect: 0, pageClose: 0, browserClose: 0, expectedPort: 9222 };
   const url = 'https://script.google.com/macros/s/example/exec';
   const page = {
     pageId: 'PAGE-0001', contextId: 'CONTEXT-0001', url, mode: 'BROWSER_PLUS_GAS' as const,
@@ -22,7 +22,11 @@ function makeFixture() {
         ['session-native', { sessionId: 'session-native', targetId: 'target-native', parentSessionId: '', detached: false }],
         ['iframe-session-native', { sessionId: 'iframe-session-native', targetId: 'iframe-native', parentSessionId: 'session-native', detached: false }]
       ]),
-      frames: new Map([['frame-native', { frameId: 'frame-native', sessionId: 'session-native', parentFrameId: '', url }]])
+      frames: new Map([['frame-native', { frameId: 'frame-native', sessionId: 'session-native', parentFrameId: '', url }]]),
+      contexts: new Map([['session-native:77', {
+        targetId: 'target-native', sessionId: 'session-native', executionContextId: 77,
+        frameId: 'frame-native', defaultWorld: true, alive: true
+      }]])
     }
   };
   const contexts = [{
@@ -35,7 +39,7 @@ function makeFixture() {
     { targetId: 'iframe-native', type: 'iframe', url: 'https://sandbox.googleusercontent.test/userCodeAppPanel', title: 'userCodeAppPanel' }
   ];
   const api: GasRemoteDebugApi = {
-    async connectBrowserCdp(options) { calls.connect += 1; assert.deepEqual(options, { host: '127.0.0.1', port: 9222 }); return state as never; },
+    async connectBrowserCdp(options) { calls.connect += 1; assert.deepEqual(options, { host: '127.0.0.1', port: calls.expectedPort }); return state as never; },
     async discoverTargets() { calls.discover += 1; return targetInfos; },
     async attachRecursive(_state, options) {
       calls.attach += 1;
@@ -90,6 +94,26 @@ test('GasAdapter delegates recursive discovery and preserves dependency-native I
   assert.equal(calls.list, 1);
   await adapter.disconnect();
   assert.equal(calls.disconnect, 1);
+  assert.equal(calls.pageClose, 0);
+  assert.equal(calls.browserClose, 0);
+});
+
+test('TEST-only target attachment requires explicit target authorization and returns exact live contexts', async () => {
+  const { calls, api } = makeFixture();
+  const adapter = new GasAdapter(api);
+  await assert.rejects(adapter.connectTestTarget('http://127.0.0.1:9444', {
+    mode: 'TEST', targetId: '', fixtureId: 'fixture', approvalReference: 'approved'
+  }), /TEST authorization/);
+  assert.equal(calls.connect, 0);
+  calls.expectedPort = 9444;
+  const contexts = await adapter.connectTestTarget('http://127.0.0.1:9444', {
+    mode: 'TEST', targetId: 'target-native', fixtureId: 'synthetic-fixture', approvalReference: 'human-test-approval'
+  });
+  assert.deepEqual(contexts, [{ targetId: 'target-native', sessionId: 'session-native', executionContextId: 77, frameId: 'frame-native', defaultWorld: true }]);
+  assert.equal(calls.connect, 1);
+  assert.equal(calls.attach, 1);
+  assert.equal(calls.wait, 1);
+  await adapter.disconnect();
   assert.equal(calls.pageClose, 0);
   assert.equal(calls.browserClose, 0);
 });
