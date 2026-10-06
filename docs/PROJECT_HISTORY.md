@@ -120,3 +120,8 @@ The next bounded integration, if separately authorized, should evaluate a privac
 - Accepted deterministic validation: `npm run check` PASS; `npm test` 214/214 PASS; `git diff --check` PASS.
 - Accepted live Brave 9444 matrix: pass scenarios for both backends completed 8 ordered steps (exit 0); deterministic assertion failures stopped before the later click (exit 2). Existing target remained unchanged; runner pages closed; fixture server stopped; ports 4558/4564 and temporary fixture directory were cleaned up; Timeline privacy checks passed.
 - Governance simplification is a process decision, not a source milestone: Rony -> Architect -> Executor -> Architect independent verification. Substantial task content is stored in Google Drive and chat contains a short launcher. This supersedes RELAY.1B only as the default prompt transport; RELAY.1A/1B technical history remains valid optional tooling. No automatic roles or services were introduced.
+
+## 2026-10-06 - TEST.1C Bounded Monkey / Exploratory Action Engine - AUTHORIZED
+- Rony Finster authorized proceeding with TEST.1C. This is an authorization record only; source implementation, validation, acceptance, publication, and live qualification have not occurred.
+- Initial boundary: strict declarative project-owned target/profile; common PASS mutating operations only across PLAYWRIGHT and GAS_OOPIF; deterministic version + seed + profile generation; action-before-execution evidence; hard action/time bounds; exact runner-owned target safety; no arbitrary DOM-wide exploration or production/business targets.
+- V0.1I remains the sole correlation authority. TEST.1D, TEST.1E, and TEST.1F responsibilities remain separate and unauthorized.

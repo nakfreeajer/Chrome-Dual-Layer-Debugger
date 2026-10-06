@@ -102,27 +102,33 @@ Capability matrix: 19 common operations `PASS`; four `GAP` (double-click, right-
 - Accepted Brave 9444 live matrix: PLAYWRIGHT and GAS_OOPIF pass each completed 8 steps and exited 0; deterministic assertion failures exited 2 before the later click. Existing target stayed unchanged, runner pages closed, local fixture server stopped, ports 4558/4564 closed, temporary fixture removed, and Timeline privacy checks passed.
 - Only the capability matrix and this bounded fixture qualification support parity claims. No production/business target or external GAS deployment was used.
 
-## TEST.1C - Bounded Monkey / Exploratory Action Engine - PLANNED / NOT AUTHORIZED
+## TEST.1C - Bounded Monkey / Exploratory Action Engine - AUTHORIZED / NEXT
 
-- Generate only capabilities declared common/parity-complete unless a backend-specific test explicitly opts in.
-- Use deterministic seeds for exact replay.
-- Record every generated action before execution.
-- Enforce action/time/count limits and forbidden-target rules.
-- Capture seed, backend, action sequence and cross-layer failure evidence.
+Rony Finster authorized this bounded implementation milestone. Source implementation has not started and is not accepted by this authorization.
 
-## TEST.1D - Assertions and Failure Artifacts - PLANNED
+- Build a deterministic bounded action generator on the accepted TEST.1A ActionOperation contract and TEST.1B runner/session safety model; this is not an uncontrolled crawler and does not authorize production/business targets.
+- Use a strict project-owned declarative profile defining the exact authorized PAGE/FRAME target, bounded action templates/selectors, and any synthetic candidate values/keys/deltas. Reject unknown fields, arbitrary JavaScript, eval, expressions, functions, code strings, and executable callbacks. Validate the complete profile before creating or navigating a runner-owned page.
+- Initial generated actions may use only mutating operations in the accepted contract that are marked `PASS` for both PLAYWRIGHT and GAS_OOPIF. Do not use doubleClick, rightClick, dragDrop, fileInput, screenshot, or any GAP/BACKEND_SPECIFIC/UNQUALIFIED operation. No backend-specific exploratory opt-in in this slice.
+- Deterministic generation is defined by a versioned generator contract + explicit seed + validated profile. Identical inputs must yield the same ordered actions across backends; do not use `Math.random()` or ambient nondeterminism.
+- Record generator version, seed, profile identity/hash, backend, ordered generated steps and terminal result. Record each generated action before execution with stable identity/order. Keep Timeline privacy-reduced; exact replay material may exist only as bounded TEST artifacts for the explicitly authorized project-owned fixture, not as business/customer data collection.
+- Enforce hard bounds before execution: `maxActions` 1..100; `maxDurationMs` 1..60000; per-action timeout <=10000 ms; finite bounded value/key/delta shapes from accepted contracts. Stop on action failure, safety/target guard failure, a reached bound, or setup/infrastructure failure. No infinite generation or unbounded retries.
+- Preserve TEST.1B authorization-before-navigation and runner-owned page ownership. Affect only the exact runner-owned PAGE or selected FRAME. Fail closed if the page/frame exits its authorized target/origin envelope. Initial live qualification uses only a disposable local project-owned fixture through Rony's already-running Brave endpoint `http://127.0.0.1:9444`; do not launch/restart/terminate browsers, use port 9222, touch business/user targets, or deploy external GAS.
+- V0.1I remains the single correlation proof authority; V0.1J/V0.1K remain privacy-reduced producers. Keep requestId, observerScopeId, correlationId, action identity, generated-action identity, seed, timing/order and frame proximity distinct; none of the latter are correlation authority.
+- TEST.1D assertion/failure-artifact expansion, TEST.1E generalized fixture/reset/cleanup governance, and TEST.1F persisted replayable suites remain out of scope.
+
+## TEST.1D - Assertions and Failure Artifacts - PLANNED / NOT AUTHORIZED
 
 - Expand common assertion vocabulary and structured failure reporting.
 - Capture bounded screenshots/DOM/runtime facts where privacy policy permits.
 - Link failed assertion evidence to action steps and proven correlation events without conflating identities.
 
-## TEST.1E - Test Fixture / Reset / Cleanup Governance - PLANNED
+## TEST.1E - Test Fixture / Reset / Cleanup Governance - PLANNED / NOT AUTHORIZED
 
 - Define disposable data setup, reset and teardown contracts.
 - Distinguish synthetic fixtures from real application/business data.
 - Require cleanup verification for mutating test runs.
 
-## TEST.1F - Replayable Regression Suites - PLANNED
+## TEST.1F - Replayable Regression Suites - PLANNED / NOT AUTHORIZED
 
 - Persist deterministic smoke/monkey reproductions as reusable suites.
 - Run the same suite through either eligible backend where parity is declared.
