@@ -33,11 +33,12 @@ No heuristic GAS detection is authorized for v0.1 unless real evidence demonstra
 - Cross-layer correlation.
 - Controlled Playwright actions and assertions under explicit TEST mode.
 - Reproducible smoke/monkey/regression evidence.
+- CDLD adds cross-layer GAS correlation, Timeline evidence, safety/authorization, replay and diagnosis around Playwright rather than replacing Playwright's mature browser interaction features.
 - Extensible backend adapters later, but not in v0.1.
 
 ## Initial technology direction
 - TypeScript on Node.js.
-- Playwright as primary semantic browser interaction.
+- Playwright as the reusable browser-testing foundation: locators, auto-wait/actionability, input actions, frame-aware interaction, assertions and compatible test-runner facilities should be composed rather than reimplemented.
 - Playwright-backed CDP sessions for ordinary page/frame observation where sufficient.
 - `gas-remote-debug` composed behind `GasAdapter` for GAS-specific browser-root recursive/OOPIF discovery.
 - JSONL as the initial unified timeline format.
