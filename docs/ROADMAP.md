@@ -81,12 +81,69 @@ Accepted implementation HEAD: `b14fda0db3b4d150064c91eab86dfdda19b6cd1f`.
 - Combined validation: `npm run check` PASS; `npm test` 178/178 PASS; `git diff --check` PASS.
 - No browser diagnostic remains pending. Further work must follow existing roadmap governance and receive separate bounded authorization.
 
+## Product objective - Debugger + Active Test System
+
+CDLD is intended to become a cross-layer debugger and active browser/GAS testing system. Passive observation is the safety default, not the final product boundary. Active mutation must run only under an explicitly authorized test mode against a designated test target.
+
+The active-testing track must build on the accepted V0.1 evidence architecture rather than bypass it. Playwright performs semantic actions; existing Network/RAW-CDP/GAS evidence remains responsible for explaining what each action caused.
+
+## TEST.1A - Controlled GAS Smoke Test Runner - AUTHORIZED / NEXT
+
+Goal: prove a minimal deterministic active-test loop against a disposable or explicitly designated GAS web application.
+
+Required capability:
+- explicit TEST mode, separate from normal observation mode;
+- attach to an already-running authorized Chromium-family browser;
+- navigate only to the explicitly supplied disposable/test GAS target;
+- perform a bounded scripted sequence using Playwright semantic actions;
+- initial action set: fill/type, click, select/check where the existing page semantics support them;
+- perform deterministic UI assertions such as visibility, text/value/state;
+- run the existing V1 observer concurrently when cooperative evidence is available;
+- preserve native requestId, observerScopeId and correlationId separation;
+- emit action-start/action-result/assertion-result evidence into the same run Timeline without turning action identity into correlation authority;
+- produce a structured scenario PASS/FAIL result;
+- on failure, retain privacy-reduced diagnostic evidence sufficient to identify the failed step;
+- ordinary native GAS traffic may be tested at the UI level but remains uncorrelated unless the cooperative V1 contract supplies proof;
+- no monkey/random action generation in TEST.1A;
+- no production/business target testing;
+- no silent use of an existing user tab;
+- no browser-process shutdown.
+
+TEST.1A live validation must use a disposable fixture or another Human-authorized test application and must prove both a passing scenario and at least one deterministic assertion failure without weakening the accepted V0.1 recognizer.
+
+## TEST.1B - Bounded Monkey / Exploratory Action Engine - PLANNED
+
+- Generate actions only inside an explicit allowlisted interaction surface.
+- Support bounded random seeds for exact replay.
+- Record every generated action before execution.
+- Enforce action/time/count limits and forbidden-target rules.
+- Capture the reproducible seed and failure evidence.
+- Never use timing/order as cross-layer correlation authority.
+
+## TEST.1C - Assertions and Failure Artifacts - PLANNED
+
+- Expand assertion vocabulary and structured failure reporting.
+- Capture bounded screenshots/DOM facts only where privacy policy permits.
+- Link failed assertion evidence to the action step and proven correlation events without conflating their identities.
+
+## TEST.1D - Test Fixture / Reset / Cleanup Governance - PLANNED
+
+- Define disposable data setup, reset and teardown contracts.
+- Distinguish synthetic fixtures from real application/business data.
+- Require cleanup verification for mutating test runs.
+
+## TEST.1E - Replayable Regression Suites - PLANNED
+
+- Persist deterministic smoke/monkey reproductions as reusable suites.
+- Compare expected UI/backend outcomes while tolerating only explicitly defined nondeterministic fields.
+- Produce suite-level and step-level PASS/FAIL evidence.
+
 ## Later, not yet authorized for implementation
 - GAS server-side tracing adapter details beyond the proven `gas-remote-debug` composition boundary.
 - Multi-GAS-tab orchestration beyond the single active GAS discovery proof.
 - Optional Playwright native trace integration if evidence shows value alongside JSONL.
 - UI/visual timeline.
-- Breakpoints or powerful mutation/control features.
+- Breakpoints and other debugger-control features beyond the explicitly authorized active-testing track.
 - Additional backend adapters.
 
 ## RELAY.1A - Durable Prompt Artifact Foundation - ACCEPTED
