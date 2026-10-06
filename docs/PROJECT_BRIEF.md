@@ -4,10 +4,12 @@
 Chrome-Dual-Layer-Debugger
 
 ## Purpose
-Build a unified Chrome/Chromium debugging system with automatic selection between:
+Build a unified Chrome/Chromium cross-layer debugging and controlled testing system with automatic selection between:
 
 - `BROWSER_ONLY` — Playwright + page/frame CDP observation.
 - `BROWSER_PLUS_GAS` — browser layer plus Google Apps Script runtime discovery/tracing.
+
+The product objective includes active smoke, monkey/exploratory and replayable regression testing on explicitly authorized test targets. Passive observation remains the default safety posture; active mutation is enabled only by explicit TEST-mode scope.
 
 ## Detection rule
 
@@ -25,9 +27,12 @@ No heuristic GAS detection is authorized for v0.1 unless real evidence demonstra
 - Automatic discovery.
 - Modular adapters.
 - Observability before automation.
+- Active testing built on top of deterministic evidence, not instead of it.
 - Deterministic evidence.
 - Low intrusion.
 - Cross-layer correlation.
+- Controlled Playwright actions and assertions under explicit TEST mode.
+- Reproducible smoke/monkey/regression evidence.
 - Extensible backend adapters later, but not in v0.1.
 
 ## Initial technology direction
