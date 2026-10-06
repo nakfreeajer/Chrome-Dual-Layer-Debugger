@@ -39,6 +39,14 @@ Planned first-class testing capabilities are:
 
 The published V0.1J/V0.1K implementation provides the deterministic cross-layer evidence layer. Active smoke/monkey/regression execution is the next product track and must not be confused with capabilities already shipped.
 
+## Playwright-first testing strategy
+
+CDLD should reuse Playwright wherever Playwright already has mature browser-testing behavior: semantic locators, auto-wait/actionability, clicking, filling, selection, keyboard/mouse actions, scrolling, frame interaction, assertions, and compatible test-runner/code-generation facilities.
+
+CDLD adds the layers Playwright does not supply as this project's core contract: explicit OBSERVE/TEST safety modes, GAS/OOPIF runtime inspection, deterministic browser-to-GAS callback correlation, unified Timeline evidence, reproducible monkey/replay control, fixture cleanup governance, and cross-layer failure diagnosis.
+
+The rule is simple: **reuse Playwright for browser interaction; extend it with CDLD evidence and GAS intelligence.**
+
 ## Modes
 
 - `BROWSER_ONLY` — Playwright for semantic interaction plus CDP for low-level observation.
