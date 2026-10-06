@@ -1,7 +1,7 @@
 # Current State
 
 ## Status
-V0.1J privacy-limited V1 evidence production and V0.1K raw child/OOPIF marker fusion are accepted and published together at `9e6998488b02e5493f4a4b34e6c0b60b8d193465`. Validation passed: `npm run check`, `npm test` 178/178, and `git diff --check`. The producer is opt-in through the normal CLI using `--observe-v1-ms`. The product objective is now explicitly debugger + active testing; `TEST.1A - Controlled GAS Smoke Test Runner` is the next authorized bounded milestone. Passive observation remains the default outside explicit TEST mode. Compact descriptor transport remains the normal Architect -> Executor procedure; full-prompt copy is an explicit fallback. Executor -> Architect evidence relay remains manual. No automatic dispatch or prompt execution exists.
+V0.1J privacy-limited V1 evidence production and V0.1K raw child/OOPIF marker fusion are accepted and published together at `9e6998488b02e5493f4a4b34e6c0b60b8d193465`. Validation passed: `npm run check`, `npm test` 178/178, and `git diff --check`. The producer is opt-in through the normal CLI using `--observe-v1-ms`. The product objective is now explicitly debugger + active testing; `TEST.1A - Dual-Backend Capability Contract and Parity Foundation` is the next authorized bounded milestone. Passive observation remains the default outside explicit TEST mode. Compact descriptor transport remains the normal Architect -> Executor procedure; full-prompt copy is an explicit fallback. Executor -> Architect evidence relay remains manual. No automatic dispatch or prompt execution exists.
 
 ## Repository
 - Repository: `nakfreeajer/Chrome-Dual-Layer-Debugger`
@@ -61,9 +61,10 @@ Accepted V0.1D validation:
 - navigation, reload, click, typing, DOM/storage mutation, page close and browser-process close were all `NO`.
 
 ## Established architecture
-- Playwright owns ordinary semantic interaction and normal page/frame CDP observation.
-- `gas-remote-debug` owns browser-root recursive GAS/OOPIF target/session/context discovery.
-- Chrome-Dual-Layer-Debugger owns normalized chronology, run identity, debugger-local event identity/order, JSONL persistence and evidence-backed cross-layer mapping.
+- Playwright and GAS/OOPIF are now the intended equal control/debugging backends under one CDLD capability contract.
+- The Playwright backend should reuse Playwright semantics where they satisfy the contract and may combine raw CDP where required.
+- The GAS/OOPIF backend uses raw CDP plus `gas-remote-debug` exact target/session/context ownership and must be improved toward the same declared common interaction/assertion capabilities.
+- Chrome-Dual-Layer-Debugger owns normalized chronology, run identity, debugger-local event identity/order, JSONL persistence, action/assertion evidence and evidence-backed cross-layer mapping.
 - Correlation must be deterministic; timing or URL equality alone is insufficient.
 - Unknown relationships remain unknown rather than guessed.
 
@@ -90,7 +91,9 @@ The opt-in V0.1J producer now feeds privacy-reduced Playwright/page-scoped Netwo
 
 ## Next authorized product milestone - TEST.1A
 
-`TEST.1A - Controlled GAS Smoke Test Runner` is authorized as the next product milestone. It may add an explicit TEST mode that performs bounded Playwright semantic actions only against a disposable or Human-designated test target. Initial scope is deterministic smoke testing: navigation to the explicit test URL, fill/type, click, select/check where supported, UI assertions, structured step PASS/FAIL, and concurrent reuse of the accepted V1 evidence pipeline when cooperative correlation is available. Monkey/random generation is deferred to TEST.1B. Existing user/business tabs remain protected unless separately authorized.
+`TEST.1A - Dual-Backend Capability Contract and Parity Foundation` is authorized as the next product milestone. It must define one project-independent action/assertion contract and prove equivalent normalized behavior through both `PLAYWRIGHT` and `GAS_OOPIF` implementations on a disposable/Human-approved test surface. Initial common operations include element targeting, click, fill/type/clear, keyboard, scrolling, hover/focus, check/uncheck, select, waits/readiness, queries and bounded assertions. Any remaining gap must be explicit in the capability matrix rather than hidden behind backend-specific behavior.
+
+Smoke scenario execution moves to TEST.1B after this parity foundation. Monkey generation remains deferred to TEST.1C. Existing user/business tabs remain protected unless separately authorized.
 
 ## Unresolved items
 - Historical V0.1C JSONL lacks `runId`; it remains valid historical evidence and is not migrated by V0.1D.
