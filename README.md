@@ -39,13 +39,19 @@ Planned first-class testing capabilities are:
 
 The published V0.1J/V0.1K implementation provides the deterministic cross-layer evidence layer. Active smoke/monkey/regression execution is the next product track and must not be confused with capabilities already shipped.
 
-## Playwright-first testing strategy
+## Equal Playwright and GAS/OOPIF capability strategy
 
-CDLD should reuse Playwright wherever Playwright already has mature browser-testing behavior: semantic locators, auto-wait/actionability, clicking, filling, selection, keyboard/mouse actions, scrolling, frame interaction, assertions, and compatible test-runner/code-generation facilities.
+CDLD exposes one reusable testing/debugging contract with two equal execution backends:
 
-CDLD adds the layers Playwright does not supply as this project's core contract: explicit OBSERVE/TEST safety modes, GAS/OOPIF runtime inspection, deterministic browser-to-GAS callback correlation, unified Timeline evidence, reproducible monkey/replay control, fixture cleanup governance, and cross-layer failure diagnosis.
+- **Playwright backend** — uses Playwright's mature locators, actionability, input, scrolling, assertions and related test facilities.
+- **GAS/OOPIF backend** — uses raw CDP plus `gas-remote-debug` to operate directly in the real GAS target/session/execution context.
 
-The rule is simple: **reuse Playwright for browser interaction; extend it with CDLD evidence and GAS intelligence.**
+The goal is capability parity for common scenario operations such as click, fill/type, keyboard, scroll, hover, check/select, waits, queries and assertions. A project scenario should describe *what to do*, not contain backend-specific browser-control code.
+
+When one backend lacks a required capability, CDLD improves that backend. If Playwright itself becomes the limiting side, the Playwright integration may be extended with raw CDP or, when justified by reproduced evidence, a pinned modification. The same rule applies to the GAS/OOPIF side.
+
+CDLD then adds what neither backend alone provides: explicit OBSERVE/TEST authorization, deterministic cross-layer correlation, unified Timeline evidence, reproducible monkey/replay control, fixture cleanup governance and failure diagnosis.
+
 
 ## Modes
 
