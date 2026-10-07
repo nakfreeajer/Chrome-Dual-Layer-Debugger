@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { GasAdapter, type GasRemoteDebugApi } from '../../src/gas/GasAdapter.js';
+import { GasAdapter, redactGasSecrets, type GasRemoteDebugApi } from '../../src/gas/GasAdapter.js';
 import type { DiscoveredPage } from '../../src/browser/BrowserDiscovery.js';
 
 function makeFixture() {
@@ -75,6 +75,100 @@ test('GasAdapter stays inactive unless the exact URL prefix selects GAS', async 
   assert.deepEqual(ordinary, { active: false, reason: 'BROWSER_ONLY' });
   assert.equal(calls.connect, 0);
   assert.equal(calls.attach, 0);
+});
+
+test('GAS redaction handles known Apps Script URL layouts and URL privacy fields', () => {
+  const cases = [
+    ['https://script.google.com/macros/s/CDLD_PATH_A1/exec', 'CDLD_PATH_A1'],
+    ['https://SCRIPT.GOOGLE.COM/MACROS/S/CDLD_PATH_B2/EXEC', 'CDLD_PATH_B2'],
+    ['https://script.google.com/a/macros/CDLD_DOMAIN_C3/s/CDLD_PATH_C4/exec', 'CDLD_DOMAIN_C3'],
+    ['https://script.google.com/a/macros/CDLD_DOMAIN_C3/s/CDLD_PATH_C4/exec', 'CDLD_PATH_C4'],
+    ['https://script.google.com/macros/d/CDLD_PATH_D4/usercodeapp', 'CDLD_PATH_D4'],
+    ['/macros/s/CDLD_PATH_E5/exec?x=private#CDLD_TEST_FRAGMENT_E', 'CDLD_PATH_E5'],
+    ['prefix https://user:pass@script.google.com/macros/s/CDLD_PATH_F6/exec?x=private#CDLD_TEST_FRAGMENT_F suffix', 'CDLD_PATH_F6']
+  ] as const;
+
+  for (const [input, secret] of cases) {
+    const output = redactGasSecrets(input);
+    assert.equal(output.includes(secret), false, 'known route identifier is removed');
+  }
+  const absolute = redactGasSecrets('https://user:CDLD_CREDENTIAL_G@script.google.com/macros/s/id/exec?ordinary=CDLD_QUERY_G#CDLD_FRAGMENT_G');
+  for (const secret of ['CDLD_CREDENTIAL_G', 'CDLD_QUERY_G', 'CDLD_FRAGMENT_G', 'user']) {
+    assert.equal(absolute.includes(secret), false, 'URL credential, query and fragment data are removed');
+  }
+  assert.match(absolute, /script\.google\.com/);
+  const nonSecretFragment = redactGasSecrets('https://example.test/safe/path#section-name');
+  assert.equal(nonSecretFragment.includes('section-name'), false);
+  const wholeWss = redactGasSecrets('wss://user:pass@example.test/socket?ordinary=CDLD_Q1#CDLD_F1');
+  for (const sensitive of ['user', 'pass', 'CDLD_Q1', 'CDLD_F1']) {
+    assert.equal(wholeWss.includes(sensitive), false, 'whole-input wss URL privacy fields are removed');
+  }
+  assert.match(wholeWss, /^wss:\/\/example\.test\/socket\?ordinary=%5BREDACTED%5D#\[REDACTED\]$/);
+  const wholeHttps = redactGasSecrets('https://user:pass@example.test/socket?ordinary=CDLD_Q2#CDLD_F2');
+  for (const sensitive of ['user', 'pass', 'CDLD_Q2', 'CDLD_F2']) {
+    assert.equal(wholeHttps.includes(sensitive), false, 'whole-input https URL privacy fields are removed');
+  }
+});
+
+test('GAS redaction handles embedded and malformed URL-like strings without broad path masking', () => {
+  const embedded = redactGasSecrets('seen at https://script.google.com/macros/s/CDLD_PATH_I9/exec.');
+  assert.equal(embedded.includes('CDLD_PATH_I9'), false);
+  const malformed = redactGasSecrets('bad https://[invalid/macros/s/CDLD_PATH_K1/exec#CDLD_FRAGMENT_K1');
+  assert.equal(malformed.includes('CDLD_PATH_K1'), false);
+  assert.equal(malformed.includes('CDLD_FRAGMENT_K1'), false);
+  const unrelated = redactGasSecrets('https://example.test/macros/s/CDLD_PATH_U1/other');
+  assert.equal(unrelated.includes('CDLD_PATH_U1'), true);
+  const unrelatedPath = redactGasSecrets('https://example.test/safe/macros/value?token=private#section');
+  assert.match(unrelatedPath, /^https:\/\/example\.test\/safe\/macros\/value\?token=%5BREDACTED%5D#\[REDACTED\]$/);
+  assert.equal(redactGasSecrets('plain macros text /safe/s/value'), 'plain macros text /safe/s/value');
+  const alreadyRedacted = redactGasSecrets('https://script.google.com/macros/s/[REDACTED]/exec#%5BREDACTED%5D');
+  assert.equal(redactGasSecrets(alreadyRedacted), alreadyRedacted);
+  const ordinaryHash = redactGasSecrets('diagnostic item #123 remains visible');
+  assert.equal(ordinaryHash, 'diagnostic item #123 remains visible');
+  const relativeFragment = redactGasSecrets('/macros/s/relative-id/exec#CDLD_TEST_RELATIVE_FRAGMENT_I');
+  assert.equal(relativeFragment.includes('CDLD_TEST_RELATIVE_FRAGMENT_I'), false);
+});
+
+test('GAS redaction is idempotent and keeps structural URL shape', () => {
+  const once = redactGasSecrets('https://script.google.com/a/macros/tenant-x/s/deployment-y/exec?x=1#fragment');
+  assert.equal(redactGasSecrets(once), once);
+  assert.match(once, /\/a\/macros\/\[REDACTED\]\/s\/\[REDACTED\]\/exec/);
+  assert.match(once, /\?x=%5BREDACTED%5D/);
+  assert.match(once, /#\[REDACTED\]$/);
+});
+
+test('GasAdapter applies hardened redaction to returned target, frame and context evidence', async () => {
+  const { api, page, contexts } = makeFixture();
+  const originalConnect = api.connectBrowserCdp;
+  let capturedState: unknown;
+  api.connectBrowserCdp = async (options) => {
+    const state = await originalConnect(options);
+    capturedState = state;
+    return state;
+  };
+  api.discoverTargets = async () => [
+    { targetId: 'target-native', type: 'page', url: page.url },
+    { targetId: 'iframe-native', type: 'iframe', url: 'https://sandbox.googleusercontent.test/userCodeAppPanel' }
+  ];
+  const adapter = new GasAdapter(api);
+  const result = await adapter.discover(page, 'http://127.0.0.1:9222');
+  assert.equal(result.active, true);
+  if (!result.active || !capturedState) return;
+  const state = capturedState as { registries: { targets: Map<string, Record<string, unknown>>; frames: Map<string, Record<string, unknown>>; contexts: Map<string, Record<string, unknown>> } };
+  state.registries.targets.get('target-native')!.url = 'https://script.google.com/macros/s/CDLD_PATH_T1/exec';
+  state.registries.frames.get('frame-native')!.url = 'https://script.google.com/macros/d/CDLD_PATH_F1/usercodeapp';
+  contexts[0].origin = 'https://script.google.com/a/macros/CDLD_DOMAIN_J2/s/CDLD_ORIGIN_J3/exec';
+  api.listRuntimeContexts = () => contexts;
+  // Re-run with the fake dependency state populated with privacy-sensitive evidence.
+  await adapter.disconnect();
+  const populated = await adapter.discover(page, 'http://127.0.0.1:9222');
+  assert.equal(populated.active, true);
+  if (!populated.active) return;
+  const serialized = JSON.stringify({ targets: populated.targets, frames: populated.frames, contexts: populated.contexts });
+  for (const secret of ['CDLD_PATH_T1', 'CDLD_PATH_F1', 'CDLD_DOMAIN_J2', 'CDLD_ORIGIN_J3']) {
+    assert.equal(serialized.includes(secret), false, 'returned GAS evidence does not retain route identifiers');
+  }
+  await adapter.disconnect();
 });
 
 test('GasAdapter delegates recursive discovery and preserves dependency-native IDs, then disconnects only', async () => {

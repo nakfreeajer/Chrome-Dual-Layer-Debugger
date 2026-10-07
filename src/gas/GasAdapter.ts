@@ -116,17 +116,75 @@ export interface GasRemoteDebugApi {
 const dependency = require('gas-remote-debug') as GasRemoteDebugApi;
 
 export function redactGasSecrets(value: string): string {
-  const redacted = dependency.redactSecrets(value);
-  try {
-    const url = new URL(redacted);
-    url.pathname = url.pathname.replace(/(\/macros\/s\/)[^/]+/i, '$1[REDACTED]');
-    if (url.search) {
-      for (const key of url.searchParams.keys()) url.searchParams.set(key, '[REDACTED]');
+  const redactKnownPath = (path: string): string => path
+    // Match only the documented Apps Script layouts and their identifying
+    // segments. The expressions are anchored by the route's exact structure.
+    .replace(/(\/macros\/s\/)[^/?#\s"'<>]+(?=\/exec$)/i, '$1[REDACTED]')
+    .replace(/(\/a\/macros\/)[^/?#\s"'<>]+(\/s\/)[^/?#\s"'<>]+(?=\/exec$)/i, '$1[REDACTED]$2[REDACTED]')
+    .replace(/(\/macros\/d\/)[^/?#\s"'<>]+(?=\/usercodeapp$)/i, '$1[REDACTED]');
+
+  const redactAbsoluteUrl = (candidate: string): string => {
+    try {
+      const url = new URL(candidate);
+      url.pathname = dependency.redactSecrets(redactKnownPath(url.pathname));
+      url.username = '';
+      url.password = '';
+      if (url.search) {
+        for (const key of url.searchParams.keys()) url.searchParams.set(key, '[REDACTED]');
+      }
+      if (url.hash.length > 1) url.hash = '#[REDACTED]';
+      return url.toString();
+    } catch {
+      // Best effort for malformed URL-like strings: redact only the exact
+      // route layouts and their fragment, leaving unrelated text untouched.
+      const hashIndex = candidate.indexOf('#');
+      const beforeHash = hashIndex < 0 ? candidate : candidate.slice(0, hashIndex);
+      const fragment = hashIndex < 0 ? '' : candidate.slice(hashIndex + 1);
+      const routeMatch = beforeHash.match(/(\/macros\/s\/[^/?#\s"'<>]+\/exec|\/a\/macros\/[^/?#\s"'<>]+\/s\/[^/?#\s"'<>]+\/exec|\/macros\/d\/[^/?#\s"'<>]+\/usercodeapp)/i);
+      const pathSafe = routeMatch ? beforeHash.replace(routeMatch[0], redactKnownPath(routeMatch[0])) : beforeHash;
+      const safePath = dependency.redactSecrets(pathSafe);
+      return safePath + (fragment ? '#[REDACTED]' : (hashIndex >= 0 ? '#' : ''));
     }
-    return url.toString();
+  };
+
+  // Preserve the former whole-input URL behavior for every parseable absolute
+  // scheme (including ws/wss), not only the embedded http(s) span scanner.
+  try {
+    new URL(value);
+    return redactAbsoluteUrl(value);
   } catch {
-    return redacted;
+    // Relative paths and free text continue through the bounded span handling.
   }
+
+  const redactRelativeRoute = (candidate: string): string => {
+    const hashIndex = candidate.indexOf('#');
+    const beforeHash = hashIndex < 0 ? candidate : candidate.slice(0, hashIndex);
+    const queryIndex = beforeHash.indexOf('?');
+    const path = queryIndex < 0 ? beforeHash : beforeHash.slice(0, queryIndex);
+    const query = queryIndex < 0 ? '' : beforeHash.slice(queryIndex + 1);
+    const redactedPath = redactKnownPath(path);
+    const redactedQuery = queryIndex < 0 ? '' : `?${[...new URLSearchParams(query).keys()]
+      .map((key) => `${encodeURIComponent(key)}=%5BREDACTED%5D`).join('&')}`;
+    return redactedPath + redactedQuery + (hashIndex < 0 ? '' : candidate.slice(hashIndex + 1) ? '#[REDACTED]' : '#');
+  };
+
+  // URL-like spans are handled before the dependency's broad secret patterns;
+  // otherwise e.g. token=value#fragment could cause the fragment marker to be
+  // swallowed as part of the query value. Generic non-URL text still receives
+  // the dependency's established redaction.
+  const spans = /https?:\/\/[^\s"'<>]+|\/(?:a\/macros\/[^/?#\s"'<>]+\/s\/[^/?#\s"'<>]+\/exec|macros\/s\/[^/?#\s"'<>]+\/exec|macros\/d\/[^/?#\s"'<>]+\/usercodeapp)(?:\?[^\s"'<>#]*)?(?:#[^\s"'<>]*)?/gi;
+  let output = '';
+  let cursor = 0;
+  for (const match of value.matchAll(spans)) {
+    const full = match[0];
+    const suffix = full.match(/[),.;!?]+$/)?.[0] ?? '';
+    const candidate = suffix ? full.slice(0, -suffix.length) : full;
+    output += dependency.redactSecrets(value.slice(cursor, match.index));
+    output += (candidate.startsWith('/') ? redactRelativeRoute(candidate) : redactAbsoluteUrl(candidate)) + suffix;
+    cursor = (match.index ?? 0) + full.length;
+  }
+  output += dependency.redactSecrets(value.slice(cursor));
+  return output;
 }
 
 export function parseBrowserEndpoint(endpoint: string): { host: string; port: number } {
@@ -221,7 +279,7 @@ export class GasAdapter {
         targets: targets.map((target) => ({
           targetId: idField(target, 'targetId', 'id'),
           type: stringField(target.type),
-          url: this.api.redactSecrets(stringField(target.url))
+          url: redactGasSecrets(stringField(target.url))
         })),
         sessions: sessions.map((session) => ({
           sessionId: stringField(session.sessionId),
@@ -236,7 +294,7 @@ export class GasAdapter {
             sessionId,
             targetId: sessionTargetIds.get(sessionId) || '',
             parentFrameId: stringField(frame.parentFrameId),
-            ...(typeof frame.url === 'string' ? { url: this.api.redactSecrets(frame.url) } : {})
+            ...(typeof frame.url === 'string' ? { url: redactGasSecrets(frame.url) } : {})
           };
         }),
         contexts: contexts.map((context) => ({
@@ -244,7 +302,7 @@ export class GasAdapter {
           sessionId: stringField(context.sessionId),
           executionContextId: context.executionContextId as number,
           frameId: stringField(context.frameId),
-          origin: this.api.redactSecrets(stringField(context.origin)),
+          origin: redactGasSecrets(stringField(context.origin)),
           name: stringField(context.name),
           defaultWorld: context.defaultWorld === true,
           ignored: context.ignored === true,
