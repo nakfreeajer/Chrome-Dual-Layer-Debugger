@@ -37,6 +37,21 @@ test('parses action and assertion forms strictly', () => {
   assert.throws(() => parseSmokeScenario({ ...base, steps: [{ ...base.steps[0], predicate: 'truthy', expected: true }] }), /not used/);
 });
 
+test('accepts the six bounded predicates with strict expected-field rules', () => {
+  const { expected: _baseExpected, ...baseAssertion } = base.steps[0];
+  const valid = [
+    { predicate: 'truthy' }, { predicate: 'falsy' },
+    { predicate: 'equals', expected: { a: 1 } }, { predicate: 'notEquals', expected: null },
+    { predicate: 'contains', expected: 'bounded' }, { predicate: 'notContains', expected: '' }
+  ];
+  for (const assertion of valid) assert.equal(parseSmokeScenario({ ...base, steps: [{ ...baseAssertion, ...assertion }] }).steps[0].kind, 'assert');
+  for (const assertion of [
+    { predicate: 'truthy', expected: true }, { predicate: 'falsy', expected: false },
+    { predicate: 'equals' }, { predicate: 'notEquals' }, { predicate: 'contains' }, { predicate: 'notContains', expected: 3 },
+    { predicate: 'contains', expected: 'x'.repeat(4097) }, { predicate: 'regex', expected: 'x' }
+  ]) assert.throws(() => parseSmokeScenario({ ...base, steps: [{ ...baseAssertion, ...assertion }] }));
+});
+
 test('rejects unknown or unqualified operations before any runner can mutate a page', () => {
   for (const operation of ['eval', 'doubleClick', 'rightClick', 'dragDrop', 'fileInput', 'screenshot']) {
     assert.throws(() => parseSmokeScenario({ ...base, steps: [{ stepId: 'bad', kind: 'action', operation, selector: '#x' }] }), /unknown|qualified/i);

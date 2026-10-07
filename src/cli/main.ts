@@ -6,18 +6,21 @@ import { Timeline } from '../trace/Timeline.js';
 import { FileJsonlTraceWriter } from '../trace/JsonlTraceWriter.js';
 import { emitBrowserDiscovery, emitGasDiscovery, emitMappingEvidence, emitSessionEvent } from '../trace/DiscoveryEvents.js';
 import { V1ObserverScopeIds } from '../browser/V1CorrelationObserver.js';
-import { readFile } from 'node:fs/promises';
+import { access, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { runSmokeScenario } from '../testing/SmokeRunner.js';
 import { parseSmokeScenario } from '../testing/SmokeScenarioParser.js';
 import type { SmokeScenario, SmokeScenarioResult } from '../testing/SmokeScenario.js';
 import type { TestingBackendId } from '../testing/ActionContract.js';
 import { TestPageSession } from '../testing/TestPageSession.js';
-import { mkdir, stat, writeFile } from 'node:fs/promises';
-import { dirname, isAbsolute, relative, resolve } from 'node:path';
+import { basename, dirname, extname, isAbsolute, relative, resolve } from 'node:path';
 import { parseExploratoryProfile } from '../testing/ExploratoryProfileParser.js';
 import { generateExploratoryPlan, validateExploratorySeed } from '../testing/ExploratoryGenerator.js';
 import { runExploratoryProfile } from '../testing/ExploratoryRunner.js';
 import type { ExploratoryProfile, ExploratoryReplayArtifact, GeneratedExploratoryPlan, ExploratoryResult } from '../testing/ExploratoryProfile.js';
+import { buildFailureArtifact, resolveFailureArtifactPath, writeFailureArtifact, type TimelineEventRef } from '../testing/FailureArtifact.js';
+import { isLoopbackHttpUrl, type FailureDiagnosticResult } from '../testing/FailureDiagnostics.js';
+import { createHash } from 'node:crypto';
+import type { TraceEvent } from '../trace/TraceEvent.js';
 
 const MAX_V1_OBSERVATION_MS = 300_000;
 
@@ -142,13 +145,21 @@ export interface MonkeyCliOptions {
   approvalReference: string;
   timelinePath: string;
   replayArtifactPath: string;
+  failureArtifactPath?: string;
+  syntheticFailureDetails?: boolean;
 }
 
 export function parseMonkeyCliOptions(args: string[]): MonkeyCliOptions {
   const values = new Map<string, string>();
-  const allowed = new Set(['--profile', '--seed', '--backend', '--endpoint', '--approval-reference', '--timeline', '--replay-artifact']);
+  const allowed = new Set(['--profile', '--seed', '--backend', '--endpoint', '--approval-reference', '--timeline', '--replay-artifact', '--failure-artifact', '--synthetic-failure-details']);
+  let syntheticFailureDetails = false;
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index];
+    if (flag === '--synthetic-failure-details') {
+      if (syntheticFailureDetails) throw new Error('Duplicate monkey argument: --synthetic-failure-details');
+      syntheticFailureDetails = true;
+      continue;
+    }
     if (!allowed.has(flag)) throw new Error(`Unknown or unexpected monkey argument: ${flag}`);
     if (values.has(flag)) throw new Error(`Duplicate monkey argument: ${flag}`);
     const value = args[index + 1];
@@ -168,22 +179,24 @@ export function parseMonkeyCliOptions(args: string[]): MonkeyCliOptions {
   if (!['http:', 'https:'].includes(parsedEndpoint.protocol) || parsedEndpoint.username || parsedEndpoint.password) throw new Error('--endpoint must be an HTTP(S) URL without credentials');
   const approvalReference = values.get('--approval-reference')!;
   if (!approvalReference.trim() || approvalReference.length > 512 || approvalReference.includes('\0')) throw new Error('--approval-reference must be non-empty and bounded');
+  if (syntheticFailureDetails && !values.has('--failure-artifact')) throw new Error('--synthetic-failure-details requires --failure-artifact');
   return { profilePath: values.get('--profile')!, seed, backend, endpoint, approvalReference,
     timelinePath: values.get('--timeline') ?? '.agent-work/artifacts/monkey-timeline.jsonl',
-    replayArtifactPath: values.get('--replay-artifact') ?? '.agent-work/artifacts/monkey-replay.json' };
+    replayArtifactPath: values.get('--replay-artifact') ?? '.agent-work/artifacts/monkey-replay.json',
+    ...(values.has('--failure-artifact') ? { failureArtifactPath: values.get('--failure-artifact')! } : {}),
+    ...(syntheticFailureDetails ? { syntheticFailureDetails } : {}) };
 }
 
-const ARTIFACT_ROOT = resolve('.agent-work/artifacts');
 export function resolveMonkeyArtifactPath(path: string): string {
   const full = resolve(path);
-  const fromRoot = relative(ARTIFACT_ROOT, full);
+  const fromRoot = relative(resolve('.agent-work/artifacts'), full);
   if (!fromRoot || fromRoot === '..' || fromRoot.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) || isAbsolute(fromRoot)) throw new Error('Timeline and replay paths must be inside .agent-work/artifacts');
   return full;
 }
 
 export interface MonkeyCliDependencies {
   readProfileFile(path: string): Promise<unknown>;
-  openSession(options: { endpoint: string; backend: TestingBackendId; approvalReference: string; fixtureId: string; target: ExploratoryProfile['target'] }): Promise<Pick<TestPageSession, 'backend' | 'authorization' | 'close' | 'assertTargetEnvelope'>>;
+  openSession(options: { endpoint: string; backend: TestingBackendId; approvalReference: string; fixtureId: string; target: ExploratoryProfile['target'] }): Promise<Pick<TestPageSession, 'backend' | 'authorization' | 'close' | 'assertTargetEnvelope'> & Partial<Pick<TestPageSession, 'captureFailureDiagnostics'>>>;
   writeTimeline(path: string, timeline: Timeline): Promise<void>;
   writeReplay(path: string, artifact: ExploratoryReplayArtifact): Promise<void>;
   writeOutput(line: string): void;
@@ -220,17 +233,37 @@ export async function runMonkeyCli(args: string[], dependencies: MonkeyCliDepend
   resolveMonkeyArtifactPath(options.timelinePath);
   resolveMonkeyArtifactPath(options.replayArtifactPath);
   const profile = parseExploratoryProfile(await dependencies.readProfileFile(options.profilePath));
+  if (options.failureArtifactPath) await validateFailureArtifactDestination(options.failureArtifactPath, options.syntheticFailureDetails === true, profile.target);
   const plan: GeneratedExploratoryPlan = generateExploratoryPlan(profile, options.seed);
   const timeline = dependencies.createTimeline();
+  if (options.failureArtifactPath && options.syntheticFailureDetails) await validateScreenshotDestination(options.failureArtifactPath, timeline.runId);
   const replayArtifactPath = options.replayArtifactPath === '.agent-work/artifacts/monkey-replay.json'
     ? `.agent-work/artifacts/monkey-replay-${timeline.runId}.json` : options.replayArtifactPath;
   const session = await dependencies.openSession({ endpoint: options.endpoint, backend: options.backend,
     approvalReference: options.approvalReference, fixtureId: profile.profileId, target: profile.target });
   timeline.append(timeline.create({ source: 'CORE', category: 'SESSION', type: 'SESSION_STARTED', data: { profileId: profile.profileId, backend: options.backend } }));
   let result: ExploratoryResult;
+  let failureDiagnostic: FailureDiagnosticResult | undefined;
+  let failureArtifactStatus: string | undefined;
   try {
     result = await runExploratoryProfile({ backend: session.backend, profile, artifact: plan, timeline,
       authorization: session.authorization, assertTargetEnvelope: () => session.assertTargetEnvelope(), now: dependencies.now });
+    if (result.status === 'FAIL' && options.failureArtifactPath) {
+      const failed = result.actionResults.at(-1);
+      const refs = failureRefs(timeline, result.runId, failed?.stepId, result.stopReason === 'TARGET_ENVELOPE_VIOLATION');
+      try {
+        failureDiagnostic = session.captureFailureDiagnostics
+          ? await session.captureFailureDiagnostics(failed ? profile.candidates.find((item) => item.candidateId === failed.candidateId)?.selector : undefined, options.syntheticFailureDetails === true)
+          : emptyFailureDiagnostics(options.syntheticFailureDetails === true);
+      } catch { failureDiagnostic = { dom: { status: 'ERROR' }, runtime: { status: 'ERROR' }, screenshot: { status: options.syntheticFailureDetails ? 'ERROR' : 'NOT_REQUESTED' } }; }
+      const artifact = buildFailureArtifact({ timeline, backend: options.backend, runnerKind: 'MONKEY', profileId: profile.profileId,
+        stepId: failed?.stepId, operation: failed?.operation, errorCode: failed?.errorCode, stopReason: result.stopReason,
+        target: { scopeKind: profile.target.scope.kind, targetId: session.authorization.targetId, pageUrl: profile.target.pageUrl, ...(profile.target.scope.kind === 'FRAME' ? { scopeUrl: profile.target.scope.url } : {}) },
+        refs, selector: failed ? profile.candidates.find((item) => item.candidateId === failed.candidateId)?.selector : undefined,
+        syntheticDetails: options.syntheticFailureDetails, diagnostics: safeDiagnosticMetadata(failureDiagnostic) });
+      try { await persistFailureWithScreenshot(options.failureArtifactPath, artifact, failureDiagnostic, timeline.runId); failureArtifactStatus = 'WRITTEN'; }
+      catch { failureArtifactStatus = 'WRITE_ERROR'; }
+    }
   } finally {
     await session.close();
     timeline.append(timeline.create({ source: 'CORE', category: 'SESSION', type: 'SESSION_ENDED', data: { profileId: profile.profileId, backend: options.backend } }));
@@ -239,7 +272,7 @@ export async function runMonkeyCli(args: string[], dependencies: MonkeyCliDepend
     backend: options.backend, terminalStatus: result.status, stopReason: result.stopReason,
     generatedCount: result.generatedCount, executedCount: result.executedCount });
   await dependencies.writeTimeline(options.timelinePath, timeline);
-  dependencies.writeOutput(JSON.stringify(result));
+  dependencies.writeOutput(JSON.stringify({ ...result, ...(failureArtifactStatus ? { failureArtifactStatus } : {}) }));
   return result.status === 'FAIL' ? 2 : 0;
 }
 
@@ -249,13 +282,21 @@ export interface SmokeCliOptions {
   endpoint: string;
   approvalReference: string;
   timelinePath: string;
+  failureArtifactPath?: string;
+  syntheticFailureDetails?: boolean;
 }
 
 export function parseSmokeCliOptions(args: string[]): SmokeCliOptions {
   const values = new Map<string, string>();
-  const allowed = new Set(['--scenario', '--backend', '--endpoint', '--approval-reference', '--timeline']);
+  const allowed = new Set(['--scenario', '--backend', '--endpoint', '--approval-reference', '--timeline', '--failure-artifact', '--synthetic-failure-details']);
+  let syntheticFailureDetails = false;
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index];
+    if (flag === '--synthetic-failure-details') {
+      if (syntheticFailureDetails) throw new Error('Duplicate smoke argument: --synthetic-failure-details');
+      syntheticFailureDetails = true;
+      continue;
+    }
     if (!allowed.has(flag)) throw new Error(`Unknown or unexpected smoke argument: ${flag}`);
     if (values.has(flag)) throw new Error(`Duplicate smoke argument: ${flag}`);
     const value = args[index + 1];
@@ -274,18 +315,21 @@ export function parseSmokeCliOptions(args: string[]): SmokeCliOptions {
   if (!['http:', 'https:'].includes(parsedEndpoint.protocol) || parsedEndpoint.username || parsedEndpoint.password) throw new Error('--endpoint must be an HTTP(S) URL without credentials');
   const approvalReference = values.get('--approval-reference')!;
   if (!approvalReference.trim() || approvalReference.length > 512 || approvalReference.includes('\0')) throw new Error('--approval-reference must be non-empty and bounded');
+  if (syntheticFailureDetails && !values.has('--failure-artifact')) throw new Error('--synthetic-failure-details requires --failure-artifact');
   return {
     scenarioPath: values.get('--scenario')!,
     backend,
     endpoint,
     approvalReference,
-    timelinePath: values.get('--timeline') ?? '.agent-work/artifacts/smoke-timeline.jsonl'
+    timelinePath: values.get('--timeline') ?? '.agent-work/artifacts/smoke-timeline.jsonl',
+    ...(values.has('--failure-artifact') ? { failureArtifactPath: values.get('--failure-artifact')! } : {}),
+    ...(syntheticFailureDetails ? { syntheticFailureDetails } : {})
   };
 }
 
 export interface SmokeCliDependencies {
   readScenarioFile(path: string): Promise<unknown>;
-  openSession(options: { endpoint: string; backend: TestingBackendId; approvalReference: string; scenario: SmokeScenario }): Promise<Pick<TestPageSession, 'backend' | 'authorization' | 'close'>>;
+  openSession(options: { endpoint: string; backend: TestingBackendId; approvalReference: string; scenario: SmokeScenario }): Promise<Pick<TestPageSession, 'backend' | 'authorization' | 'close'> & Partial<Pick<TestPageSession, 'captureFailureDiagnostics'>>>;
   writeTimeline(path: string, timeline: Timeline): Promise<void>;
   writeOutput(line: string): void;
   createTimeline(): Timeline;
@@ -307,14 +351,36 @@ const defaultSmokeCliDependencies: SmokeCliDependencies = {
 export async function runSmokeCli(args: string[], dependencies: SmokeCliDependencies = defaultSmokeCliDependencies): Promise<number> {
   const options = parseSmokeCliOptions(args);
   const scenario = parseSmokeScenario(await dependencies.readScenarioFile(options.scenarioPath));
+  if (options.failureArtifactPath) await validateFailureArtifactDestination(options.failureArtifactPath, options.syntheticFailureDetails === true, scenario.target);
   const timeline = dependencies.createTimeline();
+  if (options.failureArtifactPath && options.syntheticFailureDetails) await validateScreenshotDestination(options.failureArtifactPath, timeline.runId);
   const session = await dependencies.openSession({
     endpoint: options.endpoint, backend: options.backend, approvalReference: options.approvalReference, scenario
   });
   let result: SmokeScenarioResult | undefined;
+  let failureDiagnostic: FailureDiagnosticResult | undefined;
+  let failureArtifactStatus: string | undefined;
   let executionError: unknown;
   try {
     result = await runSmokeScenario({ backend: session.backend, scenario, timeline, authorization: session.authorization });
+    if (result.status === 'FAIL' && options.failureArtifactPath) {
+      const failed = scenario.steps.find((step) => step.stepId === result!.failedStepId);
+      const stepResult = result.stepResults.find((entry) => entry.stepId === result!.failedStepId);
+      const refs = failureRefs(timeline, result.runId, result.failedStepId, false);
+      try { failureDiagnostic = session.captureFailureDiagnostics
+        ? await session.captureFailureDiagnostics(failed?.selector, options.syntheticFailureDetails === true)
+        : emptyFailureDiagnostics(options.syntheticFailureDetails === true); }
+      catch { failureDiagnostic = { dom: { status: 'ERROR' }, runtime: { status: 'ERROR' }, screenshot: { status: options.syntheticFailureDetails ? 'ERROR' : 'NOT_REQUESTED' } }; }
+      const artifact = buildFailureArtifact({ timeline, backend: options.backend, runnerKind: 'SMOKE', scenarioId: scenario.scenarioId,
+        stepId: result.failedStepId, operation: failed?.operation, predicate: failed?.kind === 'assert' ? failed.predicate : undefined,
+        errorCode: stepResult?.errorCode, target: { scopeKind: scenario.target.scope.kind, targetId: session.authorization.targetId,
+          pageUrl: scenario.target.pageUrl, ...(scenario.target.scope.kind === 'FRAME' ? { scopeUrl: scenario.target.scope.url } : {}) }, refs,
+        actual: failed?.kind === 'assert' ? stepResult?.value : undefined,
+        expected: failed?.kind === 'assert' ? failed.expected : undefined, selector: failed?.selector,
+        syntheticDetails: options.syntheticFailureDetails, diagnostics: safeDiagnosticMetadata(failureDiagnostic) });
+      try { await persistFailureWithScreenshot(options.failureArtifactPath, artifact, failureDiagnostic, timeline.runId); failureArtifactStatus = 'WRITTEN'; }
+      catch { failureArtifactStatus = 'WRITE_ERROR'; }
+    }
   } catch (error) {
     executionError = error;
   } finally {
@@ -329,7 +395,8 @@ export async function runSmokeCli(args: string[], dependencies: SmokeCliDependen
     status: result.status,
     runId: result.runId,
     stepResults: result.stepResults.map((step) => ({ stepId: step.stepId, kind: step.kind, operation: step.operation, ok: step.ok, ...(step.errorCode ? { errorCode: step.errorCode } : {}) })),
-    ...(result.failedStepId ? { failedStepId: result.failedStepId } : {})
+    ...(result.failedStepId ? { failedStepId: result.failedStepId } : {}),
+    ...(failureArtifactStatus ? { failureArtifactStatus } : {})
   };
   dependencies.writeOutput(JSON.stringify(output));
   return result.status === 'PASS' ? 0 : 2;
@@ -364,6 +431,74 @@ function printFrames(frames: Awaited<ReturnType<PlaywrightBrowserDiscovery['disc
     console.log(`${' '.repeat(depth)}${frame.frameId}: ${redactGasSecrets(frame.url)}${frame.name ? ` (${frame.name})` : ''}`);
     printFrames(frame.children, depth + 2);
   }
+}
+
+async function validateFailureArtifactDestination(path: string, syntheticDetails: boolean, target: SmokeScenario['target']): Promise<void> {
+  const full = resolveFailureArtifactPath(path);
+  if (syntheticDetails && (!isLoopbackHttpUrl(target.pageUrl) || (target.scope.kind === 'FRAME' && !isLoopbackHttpUrl(target.scope.url)))) {
+    throw new Error('Synthetic failure details require a loopback PAGE and, for FRAME scope, a loopback FRAME');
+  }
+  try { await access(full); throw new Error('Failure artifact path already exists'); }
+  catch (error) {
+    if (error instanceof Error && error.message === 'Failure artifact path already exists') throw error;
+    if (typeof error === 'object' && error !== null && 'code' in error && (error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+}
+
+function emptyFailureDiagnostics(syntheticDetails: boolean): FailureDiagnosticResult {
+  return { dom: { status: 'NOT_AVAILABLE' }, runtime: { status: 'NOT_AVAILABLE' }, screenshot: { status: syntheticDetails ? 'ERROR' : 'NOT_REQUESTED' } };
+}
+
+function failureScreenshotPath(path: string, runId: string): string {
+  const full = resolveFailureArtifactPath(path);
+  const safeRun = createHash('sha256').update(runId).digest('hex').slice(0, 16);
+  const extension = extname(full) || '.json';
+  return resolveFailureArtifactPath(`${full.slice(0, full.length - extension.length)}.${safeRun}.png`);
+}
+
+async function validateScreenshotDestination(path: string, runId: string): Promise<void> {
+  try { await access(failureScreenshotPath(path, runId)); throw new Error('Failure screenshot path already exists'); }
+  catch (error) {
+    if (error instanceof Error && error.message === 'Failure screenshot path already exists') throw error;
+    if (typeof error === 'object' && error !== null && 'code' in error && (error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+}
+
+function safeDiagnosticMetadata(result: FailureDiagnosticResult | undefined): Record<string, unknown> {
+  if (!result) return { status: 'ERROR' };
+  const screenshot = result.screenshot;
+  return {
+    dom: result.dom,
+    runtime: result.runtime,
+    screenshot: { status: screenshot.status, ...(screenshot.byteLength !== undefined ? { byteLength: screenshot.byteLength } : {}), ...(screenshot.sha256 ? { sha256: screenshot.sha256 } : {}) }
+  };
+}
+
+async function persistFailureWithScreenshot(path: string, artifact: Record<string, unknown>, diagnostics: FailureDiagnosticResult | undefined, runId: string): Promise<void> {
+  const full = resolveFailureArtifactPath(path);
+  const screenshot = diagnostics?.screenshot;
+  if (screenshot?.status === 'CAPTURED' && screenshot.bytes) {
+    const sidecarFull = failureScreenshotPath(path, runId);
+    await mkdir(dirname(sidecarFull), { recursive: true });
+    await writeFile(sidecarFull, screenshot.bytes, { flag: 'wx' });
+    const diagnosticsValue = artifact.diagnostics && typeof artifact.diagnostics === 'object' ? artifact.diagnostics as Record<string, unknown> : {};
+    diagnosticsValue.screenshot = { status: screenshot.status, byteLength: screenshot.byteLength, sha256: screenshot.sha256, sidecar: basename(sidecarFull) };
+    artifact.diagnostics = diagnosticsValue;
+  }
+  await writeFailureArtifact(full, artifact);
+}
+
+function failureRefs(timeline: Timeline, runId: string, stepId: string | undefined, includeExploratoryTerminal: boolean): TimelineEventRef[] {
+  const matching = timeline.snapshot().filter((event) => event.runId === runId);
+  const refs: TimelineEventRef[] = [];
+  const add = (event: TraceEvent | undefined) => { if (event && !refs.some((item) => item.eventId === event.eventId)) refs.push({ runId: event.runId, eventId: event.eventId }); };
+  if (stepId) {
+    for (const type of ['ASSERTION_FAILED', 'EXPLORATORY_ACTION_PLANNED', 'ACTION_STARTED', 'ACTION_COMPLETED', 'ACTION_FAILED']) {
+      add(matching.find((event) => event.type === type && (event.data as Record<string, unknown> | undefined)?.stepId === stepId));
+    }
+  }
+  if (includeExploratoryTerminal) add([...matching].reverse().find((event) => event.type === 'EXPLORATORY_RUN_FAILED'));
+  return refs;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

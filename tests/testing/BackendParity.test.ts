@@ -113,6 +113,31 @@ test('equals assertions compare freshly-read structural state rather than object
   assert.equal(result.ok, true);
 });
 
+test('all six assertions use identical shared semantics on Playwright and GAS/OOPIF', async () => {
+  const playwright = new PlaywrightActionBackend('target-fixture', makePage());
+  const { gas } = makeGas();
+  const raw = new GasOopifActionBackend('target-fixture', 'session-fixture', 31, gas);
+  const cases = [
+    ['truthy', 'fixture text', undefined, true], ['falsy', '', undefined, true],
+    ['equals', { checked: true }, { checked: true }, true], ['notEquals', { checked: true }, { checked: false }, true],
+    ['contains', 'fixture text', 'ture', true], ['notContains', 'fixture text', 'missing', true]
+  ] as const;
+  for (const [predicate, actual, expected, pass] of cases) {
+    const step: ActionStep = { stepId: `assert-${predicate}`, operation: typeof actual === 'object' ? 'readState' : 'readText', selector: '#label' };
+    const originalExecutePw = playwright.execute.bind(playwright);
+    const originalExecuteGas = raw.execute.bind(raw);
+    (playwright as unknown as { execute: typeof playwright.execute }).execute = async (s, auth) => ({ stepId: s.stepId, operation: s.operation, backend: 'PLAYWRIGHT', ok: true, value: actual });
+    (raw as unknown as { execute: typeof raw.execute }).execute = async (s, auth) => ({ stepId: s.stepId, operation: s.operation, backend: 'GAS_OOPIF', ok: true, value: actual });
+    const [pw, cdp] = await Promise.all([
+      playwright.assert(step, predicate, expected, { ...authorization, backend: 'PLAYWRIGHT' }),
+      raw.assert(step, predicate, expected, authorization)
+    ]);
+    assert.equal(pw.ok, pass); assert.equal(cdp.ok, pass); assert.equal(pw.errorCode, cdp.errorCode);
+    (playwright as unknown as { execute: typeof playwright.execute }).execute = originalExecutePw;
+    (raw as unknown as { execute: typeof raw.execute }).execute = originalExecuteGas;
+  }
+});
+
 test('capability matrix marks only live-qualified operations PASS and keeps unsupported gaps explicit', () => {
   const rows = CAPABILITY_MATRIX.filter((row) => !['doubleClick', 'rightClick', 'dragDrop', 'fileInput', 'screenshot'].includes(row.operation));
   assert.ok(rows.length > 0);

@@ -1,5 +1,6 @@
 import type { Timeline } from '../trace/Timeline.js';
 import { assertWithTimeline, executeWithTimeline, type ActionBackend, type TestTargetAuthorization } from './ActionContract.js';
+import { valueType } from './ActionContract.js';
 import type { SmokeScenario, SmokeScenarioResult } from './SmokeScenario.js';
 
 export interface SmokeObserverLifecycle {
@@ -27,15 +28,18 @@ export async function runSmokeScenario(options: SmokeRunnerOptions): Promise<Smo
   try {
     if (observer) await observer.start();
     for (const step of scenario.steps) {
+      const normalizedStep = { ...step, scenarioId: scenario.scenarioId };
       const result = step.kind === 'assert'
-        ? await assertWithTimeline(backend, step, step.predicate, step.expected, timeline, authorization)
-        : await executeWithTimeline(backend, step, timeline, authorization);
+        ? await assertWithTimeline(backend, normalizedStep, step.predicate, step.expected, timeline, authorization)
+        : await executeWithTimeline(backend, normalizedStep, timeline, authorization);
       stepResults.push({
         stepId: step.stepId,
         kind: step.kind,
         operation: step.operation,
+        ...(step.kind === 'assert' ? { predicate: step.predicate, actualType: valueType(result.value), ...(step.predicate === 'truthy' || step.predicate === 'falsy' ? {} : { expectedType: valueType(step.expected) }) } : {}),
         ok: result.ok,
-        ...(result.errorCode ? { errorCode: result.errorCode } : (!result.ok && step.kind === 'assert' ? { errorCode: 'ASSERTION_FAILED' } : {})),
+        ...(result.errorCode ? { errorCode: result.errorCode } : {}),
+        ...(result.assertionEvent ? { assertionEvent: result.assertionEvent } : {}),
         ...(!step.kind.includes('action') && result.value !== undefined ? { value: result.value } : {})
       });
       if (!result.ok) { failedStepId = step.stepId; break; }

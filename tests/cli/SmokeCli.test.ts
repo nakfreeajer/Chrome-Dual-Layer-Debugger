@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Timeline } from '../../src/trace/Timeline.js';
 import type { ActionBackend, ActionOutcome, ActionStep, TestTargetAuthorization } from '../../src/testing/ActionContract.js';
 import { runSmokeCli, parseSmokeCliOptions, parseCliOptions, type SmokeCliDependencies } from '../../src/cli/main.js';
@@ -38,6 +42,8 @@ const cliArgs = ['--scenario', 'scenario.json', '--backend', 'PLAYWRIGHT', '--en
 test('smoke CLI requires arguments and rejects unknown, duplicate, malformed and positional flags', () => {
   assert.deepEqual(parseSmokeCliOptions(cliArgs), { scenarioPath: 'scenario.json', backend: 'PLAYWRIGHT', endpoint: 'http://127.0.0.1:9444', approvalReference: 'approval-private', timelinePath: 'timeline.jsonl' });
   for (const args of [[], ['--scenario', 'x'], [...cliArgs, '--unknown', 'x'], [...cliArgs, '--backend', 'PLAYWRIGHT'], [...cliArgs, 'extra'], [...cliArgs, '--backend', 'AUTO']]) assert.throws(() => parseSmokeCliOptions(args));
+  assert.throws(() => parseSmokeCliOptions([...cliArgs, '--synthetic-failure-details']), /requires --failure-artifact/);
+  assert.throws(() => parseSmokeCliOptions([...cliArgs, '--failure-artifact', 'x', '--synthetic-failure-details', '--synthetic-failure-details']), /Duplicate/);
 });
 
 test('smoke CLI PASS returns 0, closes the runner page and writes sanitized Timeline', async () => {
@@ -71,6 +77,87 @@ test('the whole scenario is validated before opening a browser session', async (
   const invalid = { ...scenarioInput, steps: [{ stepId: 'gap', kind: 'action', operation: 'screenshot' }] };
   const dependencies = { ...deps(true, record), async readScenarioFile() { return invalid; } };
   await assert.rejects(runSmokeCli(cliArgs, dependencies), /unknown|qualified/i);
+  assert.equal(record.opened, 0);
+});
+
+test('failure artifact is written only on failure with exact Timeline reference and sanitized CLI output', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'cdld-smoke-failure-'));
+  const original = process.cwd();
+  try {
+    process.chdir(root);
+    const record = { opened: 0, closed: 0, output: [] as string[], timeline: undefined as Timeline | undefined };
+    const failingScenario = { ...scenarioInput, steps: [{ ...scenarioInput.steps[0], expected: 'PRIVATE_EXPECTED' }] };
+    const base = deps(true, record);
+    const dependencies = { ...base, async readScenarioFile() { return failingScenario; }, async openSession(options: Parameters<SmokeCliDependencies['openSession']>[0]) {
+      const session = await base.openSession(options);
+      const backend: ActionBackend = { ...session.backend, async execute(step: ActionStep): Promise<ActionOutcome> { return { stepId: step.stepId, operation: step.operation, backend: 'PLAYWRIGHT', ok: true, value: 'PRIVATE_ACTUAL' }; } };
+      return { ...session, backend, async captureFailureDiagnostics() { throw new Error('diagnostic synthetic failure'); } };
+    } };
+    const code = await runSmokeCli([...cliArgs, '--failure-artifact', '.agent-work/artifacts/smoke-failure.json'], dependencies);
+    assert.equal(code, 2);
+    const artifact = JSON.parse(await readFile('.agent-work/artifacts/smoke-failure.json', 'utf8')) as Record<string, unknown>;
+    assert.equal(artifact.kind, 'CDLD_TEST1D_FAILURE');
+    assert.equal(artifact.schemaVersion, 1);
+    assert.equal(artifact.correlationRelationship, 'UNKNOWN');
+    assert.equal((artifact.timelineRefs as Array<{ runId: string; eventId: string }>).length, 1);
+    assert.equal(JSON.stringify(artifact).includes('PRIVATE_ACTUAL'), false);
+    assert.equal(JSON.stringify(artifact).includes('PRIVATE_EXPECTED'), false);
+    assert.equal(((artifact.diagnostics as Record<string, unknown>).dom as Record<string, unknown>).status, 'ERROR');
+    assert.equal(record.output[0].includes('PRIVATE_ACTUAL'), false);
+    assert.equal(record.output[0].includes('PRIVATE_EXPECTED'), false);
+    assert.equal(JSON.parse(record.output[0]).failureArtifactStatus, 'WRITTEN');
+  } finally { process.chdir(original); await rm(root, { recursive: true, force: true }); }
+});
+
+test('synthetic detail mode stores bounded raw fixture evidence and screenshot sidecar but keeps stdout sanitized', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'cdld-smoke-synthetic-details-'));
+  const original = process.cwd();
+  try {
+    process.chdir(root);
+    const record = { opened: 0, closed: 0, output: [] as string[], timeline: undefined as Timeline | undefined };
+    const failingScenario = { ...scenarioInput, steps: [{ ...scenarioInput.steps[0], expected: 'PRIVATE_EXPECTED' }] };
+    const base = deps(true, record);
+    const screenshotBytes = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+    const dependencies = { ...base, async readScenarioFile() { return failingScenario; }, async openSession(options: Parameters<SmokeCliDependencies['openSession']>[0]) {
+      const session = await base.openSession(options);
+      const backend: ActionBackend = { ...session.backend, async execute(step: ActionStep): Promise<ActionOutcome> { return { stepId: step.stepId, operation: step.operation, backend: 'PLAYWRIGHT', ok: true, value: 'PRIVATE_ACTUAL' }; } };
+      return { ...session, backend, async captureFailureDiagnostics() {
+        return { dom: { status: 'CAPTURED', selector: '#label', textLength: 13 }, runtime: { status: 'CAPTURED', scopeKind: 'PAGE' },
+          screenshot: { status: 'CAPTURED' as const, byteLength: screenshotBytes.length, sha256: createHash('sha256').update(screenshotBytes).digest('hex'), bytes: screenshotBytes } };
+      } };
+    } };
+    const code = await runSmokeCli([...cliArgs, '--failure-artifact', '.agent-work/artifacts/synthetic.json', '--synthetic-failure-details'], dependencies);
+    assert.equal(code, 2);
+    const artifact = JSON.parse(await readFile('.agent-work/artifacts/synthetic.json', 'utf8')) as Record<string, unknown>;
+    const artifactText = JSON.stringify(artifact);
+    assert.equal(artifact.selector, '#label');
+    assert.equal(artifact.actualRaw, 'PRIVATE_ACTUAL');
+    assert.equal(artifact.expectedRaw, 'PRIVATE_EXPECTED');
+    assert.equal(record.output[0].includes('#label'), false);
+    assert.equal(record.output[0].includes('PRIVATE_ACTUAL'), false);
+    assert.equal(record.output[0].includes('PRIVATE_EXPECTED'), false);
+    const { readdir } = await import('node:fs/promises');
+    const files = await readdir('.agent-work/artifacts');
+    const sidecars = files.filter((name) => name.endsWith('.png'));
+    assert.equal(sidecars.length, 1);
+    const sidecarBytes = await readFile(join('.agent-work/artifacts', sidecars[0]));
+    assert.deepEqual(sidecarBytes, screenshotBytes);
+    const screenshotMetadata = ((artifact.diagnostics as Record<string, unknown>).screenshot as Record<string, unknown>);
+    assert.equal(screenshotMetadata.status, 'CAPTURED');
+    assert.equal(screenshotMetadata.byteLength, sidecarBytes.length);
+    assert.equal(screenshotMetadata.sha256, createHash('sha256').update(sidecarBytes).digest('hex'));
+    assert.ok(sidecarBytes.length <= 2 * 1024 * 1024);
+    assert.equal(artifactText.includes(screenshotBytes.toString('base64')), false, 'screenshot bytes must remain in the sidecar');
+    assert.equal(record.output[0].includes('#label'), false);
+    assert.equal(record.output[0].includes('PRIVATE_ACTUAL'), false);
+    assert.equal(record.output[0].includes('PRIVATE_EXPECTED'), false);
+  } finally { process.chdir(original); await rm(root, { recursive: true, force: true }); }
+});
+
+test('synthetic detail mode is rejected before session open for non-loopback targets', async () => {
+  const record = { opened: 0, closed: 0, output: [] as string[], timeline: undefined as Timeline | undefined };
+  const dependencies = { ...deps(true, record), async readScenarioFile() { return { ...scenarioInput, target: { pageUrl: 'https://example.test/app', scope: { kind: 'PAGE' } } }; } };
+  await assert.rejects(runSmokeCli([...cliArgs, '--failure-artifact', '.agent-work/artifacts/synthetic.json', '--synthetic-failure-details'], dependencies), /loopback/);
   assert.equal(record.opened, 0);
 });
 

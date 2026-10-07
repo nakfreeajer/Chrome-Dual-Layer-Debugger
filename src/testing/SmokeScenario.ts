@@ -1,4 +1,4 @@
-import type { ActionOperation, ActionScenario, ActionStep } from './ActionContract.js';
+import type { ActionOperation, ActionScenario, ActionStep, AssertionPredicate } from './ActionContract.js';
 import type { TestingBackendId } from './ActionContract.js';
 
 export interface SmokeTarget {
@@ -12,7 +12,7 @@ export interface SmokeActionStep extends ActionStep {
 
 export interface SmokeAssertionStep extends ActionStep {
   kind: 'assert';
-  predicate: 'truthy' | 'equals';
+  predicate: AssertionPredicate;
   expected?: unknown;
 }
 
@@ -33,9 +33,13 @@ export interface SmokeScenarioResult {
     stepId: string;
     kind: SmokeStep['kind'];
     operation: ActionOperation;
+    predicate?: AssertionPredicate;
     ok: boolean;
     errorCode?: string;
     value?: unknown;
+    actualType?: string;
+    expectedType?: string;
+    assertionEvent?: { runId: string; eventId: string };
   }[];
   failedStepId?: string;
 }

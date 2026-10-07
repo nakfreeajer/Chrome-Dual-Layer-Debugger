@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Timeline } from '../../src/trace/Timeline.js';
 import type { ActionBackend, ActionOutcome, ActionStep } from '../../src/testing/ActionContract.js';
 import { parseMonkeyCliOptions, resolveMonkeyArtifactPath, runMonkeyCli, type MonkeyCliDependencies } from '../../src/cli/main.js';
@@ -24,6 +27,9 @@ const args = ['--profile', 'profile.json', '--seed', '429', '--backend', 'PLAYWR
 test('monkey CLI strictly parses required bounded options and rejects ambiguous arguments', () => {
   assert.deepEqual(parseMonkeyCliOptions(args), { profilePath: 'profile.json', seed: 429, backend: 'PLAYWRIGHT', endpoint: 'http://127.0.0.1:9444', approvalReference: 'secret-approval', timelinePath: '.agent-work/artifacts/monkey-timeline.jsonl', replayArtifactPath: '.agent-work/artifacts/monkey-replay.json' });
   for (const bad of [[], [...args, '--unknown', 'x'], [...args, '--seed', '429'], [...args, 'extra'], [...args.slice(0, 2), '--seed', '01', ...args.slice(3)], [...args.slice(0, 2), '--seed', '-1', ...args.slice(3)]]) assert.throws(() => parseMonkeyCliOptions(bad));
+  assert.equal(parseMonkeyCliOptions([...args, '--failure-artifact', '.agent-work/artifacts/f.json', '--synthetic-failure-details']).syntheticFailureDetails, true);
+  assert.throws(() => parseMonkeyCliOptions([...args, '--synthetic-failure-details']), /requires --failure-artifact/);
+  assert.throws(() => parseMonkeyCliOptions([...args, '--failure-artifact', 'x', '--synthetic-failure-details', '--synthetic-failure-details']), /Duplicate/);
 });
 
 test('monkey CLI validates profile before session creation and returns sanitized result', async () => {
@@ -96,4 +102,51 @@ test('invalid profile never opens the authorized TEST session', async () => {
   const deps = { ...dependencies(record), async readProfileFile() { return { ...rawProfile, bounds: { maxActions: 0, maxDurationMs: 1000 } }; } };
   await assert.rejects(runMonkeyCli(args, deps));
   assert.equal(record.opened, 0);
+});
+
+test('monkey terminal failure writes a privacy-reduced artifact with action refs and no assertions', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'cdld-monkey-failure-'));
+  const original = process.cwd();
+  try {
+    process.chdir(root);
+    const record = { opened: 0, closed: 0, output: [] as string[], timeline: undefined as Timeline | undefined, replay: undefined as unknown };
+    const base = dependencies(record);
+    const deps = { ...base, async openSession(options: Parameters<MonkeyCliDependencies['openSession']>[0]) {
+      const session = await base.openSession(options);
+      const backend: ActionBackend = { ...session.backend, async execute(step: ActionStep): Promise<ActionOutcome> { return { stepId: step.stepId, operation: step.operation, backend: 'PLAYWRIGHT', ok: false, errorCode: 'ACTION_FAILED' }; } };
+      return { ...session, backend };
+    } };
+    const code = await runMonkeyCli([...args, '--failure-artifact', '.agent-work/artifacts/monkey-failure.json'], deps);
+    assert.equal(code, 2);
+    const artifact = JSON.parse(await readFile('.agent-work/artifacts/monkey-failure.json', 'utf8')) as Record<string, unknown>;
+    assert.equal(artifact.kind, 'CDLD_TEST1D_FAILURE');
+    assert.equal(artifact.runnerKind, 'MONKEY');
+    assert.equal(artifact.stopReason, 'ACTION_FAILED');
+    assert.equal((artifact.timelineRefs as unknown[]).length >= 2, true);
+    assert.equal((record.timeline?.snapshot() ?? []).some((event) => event.category === 'ASSERTION'), false);
+    assert.equal(JSON.stringify(artifact).includes('#private'), false);
+  } finally { process.chdir(original); await rm(root, { recursive: true, force: true }); }
+});
+
+test('monkey target-envelope failure artifact includes terminal safety evidence and no assertion', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'cdld-monkey-envelope-'));
+  const original = process.cwd();
+  try {
+    process.chdir(root);
+    const record = { opened: 0, closed: 0, output: [] as string[], timeline: undefined as Timeline | undefined, replay: undefined as unknown };
+    const base = dependencies(record);
+    const deps = { ...base, async openSession(options: Parameters<MonkeyCliDependencies['openSession']>[0]) {
+      const session = await base.openSession(options);
+      return { ...session, async assertTargetEnvelope() { throw new Error('TARGET_ENVELOPE_VIOLATION'); } };
+    } };
+    const code = await runMonkeyCli([...args, '--failure-artifact', '.agent-work/artifacts/envelope.json'], deps);
+    assert.equal(code, 2);
+    const artifact = JSON.parse(await readFile('.agent-work/artifacts/envelope.json', 'utf8')) as Record<string, unknown>;
+    assert.equal(artifact.stopReason, 'TARGET_ENVELOPE_VIOLATION');
+    assert.equal((artifact.timelineRefs as unknown[]).some((ref) => {
+      const item = ref as { eventId: string };
+      return record.timeline?.snapshot().find((event) => event.eventId === item.eventId)?.type === 'EXPLORATORY_RUN_FAILED';
+    }), true);
+    assert.equal(record.timeline?.snapshot().some((event) => event.category === 'ASSERTION'), false);
+  } finally { process.chdir(original); await rm(root, { recursive: true, force: true }); }
 });

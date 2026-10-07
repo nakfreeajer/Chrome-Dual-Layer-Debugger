@@ -19,6 +19,23 @@ export type ActionOperation =
   | 'check' | 'uncheck' | 'select'
   | 'readText' | 'readValue' | 'readState' | 'exists' | 'visible' | 'waitFor' | 'ready';
 
+export type AssertionPredicate = 'truthy' | 'falsy' | 'equals' | 'notEquals' | 'contains' | 'notContains';
+
+export function evaluateAssertionPredicate(actual: unknown, predicate: AssertionPredicate, expected?: unknown): boolean {
+  switch (predicate) {
+    case 'truthy': return Boolean(actual);
+    case 'falsy': return !Boolean(actual);
+    case 'equals': return isDeepStrictEqual(actual, expected);
+    case 'notEquals': return !isDeepStrictEqual(actual, expected);
+    case 'contains':
+      if (typeof actual !== 'string' || typeof expected !== 'string' || expected.length > 4096) return false;
+      return actual.includes(expected);
+    case 'notContains':
+      if (typeof actual !== 'string' || typeof expected !== 'string' || expected.length > 4096) return false;
+      return !actual.includes(expected);
+  }
+}
+
 export interface ActionStep {
   stepId: string;
   scenarioId?: string;
@@ -42,14 +59,15 @@ export interface ActionOutcome {
   backend: TestingBackendId;
   ok: boolean;
   value?: unknown;
-  errorCode?: 'AUTHORIZATION_REQUIRED' | 'TARGET_MISMATCH' | 'UNSUPPORTED' | 'ACTION_FAILED' | 'TIMEOUT';
+  errorCode?: string;
+  assertionEvent?: { runId: string; eventId: string };
 }
 
 export interface ActionBackend {
   readonly backend: TestingBackendId;
   readonly targetId: string;
   execute(step: ActionStep, authorization?: TestTargetAuthorization): Promise<ActionOutcome>;
-  assert(step: ActionStep, predicate: 'truthy' | 'equals', expected?: unknown, authorization?: TestTargetAuthorization): Promise<ActionOutcome>;
+  assert(step: ActionStep, predicate: AssertionPredicate, expected?: unknown, authorization?: TestTargetAuthorization): Promise<ActionOutcome>;
 }
 
 export function validateTestAuthorization(
@@ -97,15 +115,28 @@ export async function executeWithTimeline(
 export async function assertWithTimeline(
   backend: ActionBackend,
   step: ActionStep,
-  predicate: 'truthy' | 'equals',
+  predicate: AssertionPredicate,
   expected: unknown,
   timeline: Timeline,
   authorization?: TestTargetAuthorization
 ): Promise<ActionOutcome> {
   const measured = await backend.execute(step, authorization);
-  const outcome = { ...measured, ok: measured.ok && (predicate === 'truthy' ? Boolean(measured.value) : isDeepStrictEqual(measured.value, expected)) };
-  timeline.append(timeline.create({ source: backend.backend === 'PLAYWRIGHT' ? 'PLAYWRIGHT' : 'GAS', category: 'ASSERTION', type: outcome.ok ? 'ASSERTION_PASSED' : 'ASSERTION_FAILED', data: { stepId: step.stepId, operation: step.operation } }));
-  return outcome;
+  const predicatePassed = measured.ok && evaluateAssertionPredicate(measured.value, predicate, expected);
+  const ok = measured.ok && predicatePassed;
+  const errorCode = !measured.ok ? measured.errorCode : ok ? undefined : 'ASSERTION_FAILED';
+  const event = timeline.create({ source: backend.backend === 'PLAYWRIGHT' ? 'PLAYWRIGHT' : 'GAS', category: 'ASSERTION', type: ok ? 'ASSERTION_PASSED' : 'ASSERTION_FAILED', data: {
+    ...(step.scenarioId ? { scenarioId: step.scenarioId } : {}), stepId: step.stepId, operation: step.operation, predicate,
+    actualType: valueType(measured.value), ...(predicate === 'truthy' || predicate === 'falsy' ? {} : { expectedType: valueType(expected) }),
+    ...(errorCode ? { errorCode } : {})
+  } });
+  timeline.append(event);
+  return { ...measured, ok, ...(errorCode ? { errorCode } : {}), assertionEvent: { runId: event.runId, eventId: event.eventId } };
+}
+
+export function valueType(value: unknown): string {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'array';
+  return typeof value;
 }
 
 /** Minimal deterministic scenario executor for one already-selected backend. */

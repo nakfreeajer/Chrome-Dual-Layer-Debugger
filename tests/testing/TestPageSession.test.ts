@@ -83,6 +83,29 @@ test('target envelope guard accepts the authorized page/frame origins and reject
   await frameSession.close();
 });
 
+test('failure diagnostics use the session envelope guard and never inspect an already-violated PAGE or FRAME', async () => {
+  for (const scopeKind of ['PAGE', 'FRAME'] as const) {
+    const f = setup();
+    const session = await TestPageSession.open({ endpoint: 'http://127.0.0.1:9444', backend: 'PLAYWRIGHT', approvalReference: 'approved', scenario: scenario(scopeKind), discovery: f.discovery, gasAdapter: f.gas });
+    let locatorCalls = 0, runtimeCalls = 0, screenshotCalls = 0;
+    const guardedPage = f.ownedPage as unknown as Record<string, any>;
+    guardedPage.locator = () => { locatorCalls++; return { first() { return this; }, async evaluate() { return {}; } }; };
+    guardedPage.evaluate = async () => { runtimeCalls++; return 'complete'; };
+    guardedPage.screenshot = async () => { screenshotCalls++; return Buffer.from('synthetic'); };
+    if (scopeKind === 'PAGE') guardedPage.url = () => 'http://127.0.0.2/escaped';
+    else guardedPage.frames = () => [f.mainFrame];
+
+    const result = await session.captureFailureDiagnostics('#private', true);
+    assert.equal(result.dom.status, 'OMITTED_TARGET_ENVELOPE');
+    assert.equal(result.runtime.status, 'OMITTED_TARGET_ENVELOPE');
+    assert.equal(result.runtime.envelopeSafe, false);
+    assert.equal(result.runtime.targetContentEvaluation, 'NOT_RUN');
+    assert.equal(result.screenshot.status, 'OMITTED_TARGET_ENVELOPE');
+    assert.deepEqual({ locatorCalls, runtimeCalls, screenshotCalls }, { locatorCalls: 0, runtimeCalls: 0, screenshotCalls: 0 });
+    await session.close();
+  }
+});
+
 test('navigation/detach event latch fails closed before a subsequent action can begin', async () => {
   const f = setup();
   const session = await TestPageSession.open({ endpoint: 'http://127.0.0.1:9444', backend: 'PLAYWRIGHT', approvalReference: 'approved', scenario: scenario('FRAME'), discovery: f.discovery, gasAdapter: f.gas });

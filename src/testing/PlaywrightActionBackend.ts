@@ -1,6 +1,5 @@
 import type { Frame, Page } from 'playwright';
-import { isDeepStrictEqual } from 'node:util';
-import { boundedTimeoutMs, isMutatingOperation, validateTestAuthorization, type ActionBackend, type ActionOutcome, type ActionStep, type TestTargetAuthorization } from './ActionContract.js';
+import { boundedTimeoutMs, evaluateAssertionPredicate, isMutatingOperation, validateTestAuthorization, type ActionBackend, type ActionOutcome, type ActionStep, type AssertionPredicate, type TestTargetAuthorization } from './ActionContract.js';
 
 function requiredSelector(step: ActionStep): string {
   if (!step.selector?.trim()) throw new Error('ACTION_FAILED');
@@ -62,9 +61,9 @@ export class PlaywrightActionBackend implements ActionBackend {
     }
   }
 
-  async assert(step: ActionStep, predicate: 'truthy' | 'equals', expected?: unknown, authorization?: TestTargetAuthorization): Promise<ActionOutcome> {
+  async assert(step: ActionStep, predicate: AssertionPredicate, expected?: unknown, authorization?: TestTargetAuthorization): Promise<ActionOutcome> {
     const result = await this.execute(step, authorization);
-    const ok = result.ok && (predicate === 'truthy' ? Boolean(result.value) : isDeepStrictEqual(result.value, expected));
-    return { ...result, ok };
+    const ok = result.ok && evaluateAssertionPredicate(result.value, predicate, expected);
+    return { ...result, ok, ...(result.ok && !ok ? { errorCode: 'ASSERTION_FAILED' } : {}) };
   }
 }

@@ -3,6 +3,7 @@ import { PlaywrightBrowserDiscovery } from '../browser/PlaywrightBrowserDiscover
 import { GasAdapter, type GasTestTargetContext } from '../gas/GasAdapter.js';
 import { GasOopifActionBackend } from './GasOopifActionBackend.js';
 import { PlaywrightActionBackend } from './PlaywrightActionBackend.js';
+import { captureFailureDiagnostics, type FailureDiagnosticResult } from './FailureDiagnostics.js';
 import type { ActionBackend, TestTargetAuthorization, TestingBackendId } from './ActionContract.js';
 import type { SmokeScenario } from './SmokeScenario.js';
 import type { SmokeTarget } from './SmokeScenario.js';
@@ -63,6 +64,7 @@ export class TestPageSession {
   readonly selectedScope: Page | Frame;
   private readonly authorizedPageOrigin: string;
   private readonly authorizedScopeOrigin: string;
+  private readonly selectedScopeKind: 'PAGE' | 'FRAME';
 
   private constructor(
     discovery: PlaywrightBrowserDiscovery,
@@ -84,6 +86,7 @@ export class TestPageSession {
     this.selectedScope = selectedScope;
     this.authorizedPageOrigin = authorizedPageOrigin;
     this.authorizedScopeOrigin = authorizedScopeOrigin;
+    this.selectedScopeKind = selectedScope === page ? 'PAGE' : 'FRAME';
     this.navigationHandler = (frame) => {
       try {
         if (frame === page.mainFrame() && TestPageSession.originOf(page.url()) !== this.authorizedPageOrigin) this.envelopeViolation = true;
@@ -196,6 +199,19 @@ export class TestPageSession {
         if (TestPageSession.originOf((this.selectedScope as Frame).url()) !== this.authorizedScopeOrigin) throw new Error();
       }
     } catch { throw new Error('TARGET_ENVELOPE_VIOLATION'); }
+  }
+
+  /** Captures bounded diagnostics only from this session's exact runner-owned page/scope. */
+  async captureFailureDiagnostics(selector?: string, syntheticDetails = false): Promise<FailureDiagnosticResult> {
+    const page = this.ownedPage;
+    if (!page) return {
+      dom: { status: selector ? 'OMITTED_TARGET_ENVELOPE' : 'NOT_REQUESTED' },
+      runtime: { status: 'OMITTED_TARGET_ENVELOPE', pageClosed: true, frameAttached: false, scopeKind: this.selectedScopeKind, envelopeSafe: false, targetContentEvaluation: 'NOT_RUN' },
+      screenshot: { status: syntheticDetails ? 'OMITTED_TARGET_ENVELOPE' : 'NOT_REQUESTED' }
+    };
+    return captureFailureDiagnostics({ page, scope: this.selectedScope, selector,
+      authorizedPageOrigin: this.authorizedPageOrigin, authorizedScopeOrigin: this.authorizedScopeOrigin, syntheticDetails,
+      assertTargetEnvelope: () => this.assertTargetEnvelope() });
   }
 
   async close(): Promise<void> {

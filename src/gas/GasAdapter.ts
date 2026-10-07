@@ -95,7 +95,11 @@ export interface GasRemoteDebugApi {
   connectBrowserCdp(options: { host: string; port: number }): Promise<DependencyState>;
   discoverTargets(state: DependencyState): Promise<Array<Record<string, unknown>>>;
   attachRecursive(state: DependencyState, options: { targetSelector: (target: Record<string, unknown>) => boolean }): Promise<{ targetInfo: Record<string, unknown>; sessionId: string } | null>;
-  waitForDefaultContexts(state: DependencyState, options: { timeoutMs: number; pollMs: number }): Promise<unknown[]>;
+  waitForDefaultContexts(state: DependencyState, options: {
+    timeoutMs: number;
+    pollMs: number;
+    predicate?: (contexts: Array<Record<string, unknown>>) => Array<Record<string, unknown>> | false;
+  }): Promise<unknown[] | null>;
   listRuntimeContexts(state: DependencyState, options?: { includeIgnoredContexts?: boolean }): Array<Record<string, unknown>>;
   findRuntimeContext(state: DependencyState, predicate: (probe: unknown, context: Record<string, unknown>) => boolean, options: { timeoutMs: number; pollMs: number; probeExpression: string }): Promise<Record<string, unknown> | null>;
   sendScopedCdpCommand?(state: DependencyState, request: GasScopedCommand): Promise<unknown>;
@@ -270,14 +274,26 @@ export class GasAdapter {
         targetSelector: (target) => idField(target, 'targetId', 'id') === authorization.targetId
       });
       if (!attached) throw new Error('gas-remote-debug did not attach the authorized existing TEST target');
-      await this.api.waitForDefaultContexts(state, { timeoutMs: 5000, pollMs: 100 });
       const attachedSessionId = attached.sessionId;
+      const readyContexts = await this.api.waitForDefaultContexts(state, {
+        timeoutMs: 5000,
+        pollMs: 100,
+        predicate: (contexts) => {
+          const exactContexts = contexts.filter((context) => context.targetId === authorization.targetId
+            && context.sessionId === attachedSessionId
+            && Number.isSafeInteger(context.executionContextId));
+          return exactContexts.length > 0 ? exactContexts : false;
+        }
+      });
+      if (!Array.isArray(readyContexts) || readyContexts.length === 0) {
+        throw new Error('Authorized TEST target has no live default execution context');
+      }
       const contexts = [...state.registries.contexts.values()]
         .filter((context) => context.targetId === authorization.targetId
           && context.sessionId === attachedSessionId
           && context.alive === true
           && context.defaultWorld === true
-          && typeof context.executionContextId === 'number')
+          && Number.isSafeInteger(context.executionContextId))
         .map((context) => ({
           targetId: authorization.targetId,
           sessionId: attachedSessionId,

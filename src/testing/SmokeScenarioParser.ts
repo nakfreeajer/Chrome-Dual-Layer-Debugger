@@ -1,5 +1,5 @@
 import { CAPABILITY_MATRIX } from './CapabilityMatrix.js';
-import { isMutatingOperation, boundedTimeoutMs, type ActionOperation } from './ActionContract.js';
+import { isMutatingOperation, boundedTimeoutMs, type ActionOperation, type AssertionPredicate } from './ActionContract.js';
 import type { SmokeScenario, SmokeStep } from './SmokeScenario.js';
 
 const actionFields = new Set(['stepId', 'kind', 'operation', 'selector', 'value', 'key', 'deltaX', 'deltaY', 'timeoutMs']);
@@ -92,11 +92,15 @@ function parseStep(value: unknown, index: number): SmokeStep {
   } else if (item.deltaX !== undefined || item.deltaY !== undefined) throw new Error(`steps[${index}] delta is not applicable`);
   if (item.timeoutMs !== undefined) result.timeoutMs = boundedTimeoutMs(item.timeoutMs as number);
   if (item.kind === 'assert') {
-    if (item.predicate !== 'truthy' && item.predicate !== 'equals') throw new Error(`steps[${index}].predicate must be truthy or equals`);
-    if (item.predicate === 'equals' && !Object.prototype.hasOwnProperty.call(item, 'expected')) throw new Error(`steps[${index}].expected is required for equals`);
-    if (item.predicate === 'truthy' && Object.prototype.hasOwnProperty.call(item, 'expected')) throw new Error(`steps[${index}].expected is not used by truthy`);
-    result.predicate = item.predicate;
-    if (item.predicate === 'equals') result.expected = item.expected;
+    const predicate = item.predicate;
+    const allowedPredicates = new Set<AssertionPredicate>(['truthy', 'falsy', 'equals', 'notEquals', 'contains', 'notContains']);
+    if (typeof predicate !== 'string' || !allowedPredicates.has(predicate as AssertionPredicate)) throw new Error(`steps[${index}].predicate is unsupported`);
+    const expects = predicate === 'equals' || predicate === 'notEquals' || predicate === 'contains' || predicate === 'notContains';
+    if (expects && !Object.prototype.hasOwnProperty.call(item, 'expected')) throw new Error(`steps[${index}].expected is required for ${predicate}`);
+    if (!expects && Object.prototype.hasOwnProperty.call(item, 'expected')) throw new Error(`steps[${index}].expected is not used by ${predicate}`);
+    if ((predicate === 'contains' || predicate === 'notContains') && (typeof item.expected !== 'string' || item.expected.length > 4096 || item.expected.includes('\0'))) throw new Error(`steps[${index}].expected must be a bounded string for ${predicate}`);
+    result.predicate = predicate;
+    if (expects) result.expected = item.expected;
   }
   return result as unknown as SmokeStep;
 }

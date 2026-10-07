@@ -29,5 +29,7 @@ export * from './testing/ExploratoryProfile.js';
 export * from './testing/ExploratoryProfileParser.js';
 export * from './testing/ExploratoryGenerator.js';
 export * from './testing/ExploratoryRunner.js';
+export * from './testing/FailureArtifact.js';
+export * from './testing/FailureDiagnostics.js';
 export * from './relay/PromptArtifactStore.js';
 export * from './relay/PromptRelayDescriptor.js';

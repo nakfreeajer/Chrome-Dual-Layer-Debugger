@@ -82,3 +82,27 @@ test('Timeline omits selectors, input/expected values, approval reference and ru
   for (const secret of ['#private-input', '#private-result', 'sensitive-synthetic-value', 'private-approval-reference', 'private details']) assert.equal(serialized.includes(secret), false);
   assert.ok(serialized.includes('runner-fixture'));
 });
+
+test('normalized assertion event preserves identity and type metadata without values', async () => {
+  const timeline = new Timeline({ runId: 'assertion-identity' });
+  const base = backend();
+  const wrongValueBackend: ActionBackend = { ...base, async execute(step) {
+    return { stepId: step.stepId, operation: step.operation, backend: 'PLAYWRIGHT', ok: true, ...(step.operation === 'readText' ? { value: 'wrong-value' } : {}) };
+  } };
+  const result = await runSmokeScenario({ backend: wrongValueBackend, scenario, timeline, authorization });
+  const failed = timeline.snapshot().find((event) => event.type === 'ASSERTION_FAILED')!;
+  const data = failed.data as Record<string, unknown>;
+  const resultRef = result.stepResults.find((step) => step.stepId === 'second')?.assertionEvent;
+  assert.equal(failed.runId, timeline.runId);
+  assert.deepEqual(resultRef, { runId: failed.runId, eventId: failed.eventId });
+  assert.equal(data.scenarioId, scenario.scenarioId);
+  assert.equal(data.stepId, 'second');
+  assert.equal(data.operation, 'readText');
+  assert.equal(data.predicate, 'equals');
+  assert.equal(data.actualType, 'string');
+  assert.equal(data.expectedType, 'string');
+  assert.equal(data.errorCode, 'ASSERTION_FAILED');
+  assert.equal(JSON.stringify(data).includes('wrong'), false);
+  assert.equal(data.actual, undefined);
+  assert.equal(data.expected, undefined);
+});

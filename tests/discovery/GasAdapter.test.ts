@@ -48,7 +48,11 @@ function makeFixture() {
       const targetId = String(selected.targetId);
       return { targetInfo: selected, sessionId: targetId === 'target-native' ? 'session-native' : 'iframe-session-native' };
     },
-    async waitForDefaultContexts() { calls.wait += 1; return contexts; },
+    async waitForDefaultContexts(_state, options) {
+      calls.wait += 1;
+      const selected = options.predicate?.(contexts);
+      return selected === false || selected === undefined ? contexts : selected;
+    },
     listRuntimeContexts() { calls.list += 1; return contexts; },
     async disconnect() { calls.disconnect += 1; },
     redactSecrets(value) { return value; },
@@ -114,6 +118,81 @@ test('TEST-only target attachment requires explicit target authorization and ret
   assert.equal(calls.attach, 1);
   assert.equal(calls.wait, 1);
   await adapter.disconnect();
+  assert.equal(calls.disconnect, 1);
   assert.equal(calls.pageClose, 0);
   assert.equal(calls.browserClose, 0);
+});
+
+test('TEST target readiness ignores unrelated contexts until the exact target and attached session appear', async () => {
+  const { calls, api, contexts, page } = makeFixture();
+  const unrelated = { ...contexts[0], targetId: 'unrelated-target', sessionId: 'unrelated-session', executionContextId: 12 };
+  let polls = 0;
+  api.waitForDefaultContexts = async (_state, options) => {
+    calls.wait += 1;
+    for (const available of [[unrelated], [unrelated, contexts[0]]]) {
+      polls += 1;
+      const selected = options.predicate?.(available);
+      if (selected !== false && selected !== undefined) return selected;
+    }
+    return null;
+  };
+
+  const adapter = new GasAdapter(api);
+  const result = await adapter.connectTestTarget('http://127.0.0.1:9222', {
+    mode: 'TEST', targetId: 'target-native', fixtureId: 'synthetic-fixture', approvalReference: 'human-test-approval'
+  });
+
+  assert.equal(polls, 2);
+  assert.deepEqual(result, [{ targetId: 'target-native', sessionId: 'session-native', executionContextId: 77, frameId: 'frame-native', defaultWorld: true }]);
+  assert.equal(calls.attach, 1);
+  await adapter.disconnect();
+});
+
+test('TEST target readiness fails closed when only unrelated default contexts exist', async () => {
+  const { calls, api, contexts } = makeFixture();
+  let predicateAccepted = false;
+  api.waitForDefaultContexts = async (_state, options) => {
+    calls.wait += 1;
+    const unrelated = [{ ...contexts[0], targetId: 'unrelated-target', sessionId: 'unrelated-session' }];
+    const selected = options.predicate?.(unrelated);
+    predicateAccepted = Array.isArray(selected) && selected.length > 0;
+    return selected === false || selected === undefined ? null : selected;
+  };
+
+  const adapter = new GasAdapter(api);
+  await assert.rejects(adapter.connectTestTarget('http://127.0.0.1:9222', {
+    mode: 'TEST', targetId: 'target-native', fixtureId: 'synthetic-fixture', approvalReference: 'human-test-approval'
+  }), /no live default execution context/);
+  assert.equal(predicateAccepted, false);
+  assert.equal(calls.wait, 1);
+  assert.equal(calls.disconnect, 1);
+  assert.equal(calls.pageClose, 0);
+  assert.equal(calls.browserClose, 0);
+});
+
+test('TEST target readiness requires both exact target and attached session plus a safe execution context ID', async () => {
+  const { calls, api, contexts } = makeFixture();
+  const exact = contexts[0];
+  const wrongSession = { ...exact, sessionId: 'other-session' };
+  const wrongTarget = { ...exact, targetId: 'other-target' };
+  const unsafeContextId = { ...exact, executionContextId: Number.MAX_SAFE_INTEGER + 1 };
+  let capturedPredicate: NonNullable<Parameters<GasRemoteDebugApi['waitForDefaultContexts']>[1]['predicate']> | undefined;
+  api.waitForDefaultContexts = async (_state, options) => {
+    calls.wait += 1;
+    capturedPredicate = options.predicate;
+    const selected = options.predicate?.([wrongSession, wrongTarget, unsafeContextId, exact]);
+    return selected === false || selected === undefined ? null : selected;
+  };
+
+  const adapter = new GasAdapter(api);
+  const result = await adapter.connectTestTarget('http://127.0.0.1:9222', {
+    mode: 'TEST', targetId: 'target-native', fixtureId: 'synthetic-fixture', approvalReference: 'human-test-approval'
+  });
+  assert.ok(capturedPredicate);
+  assert.equal(capturedPredicate([wrongSession]), false);
+  assert.equal(capturedPredicate([wrongTarget]), false);
+  assert.equal(capturedPredicate([unsafeContextId]), false);
+  assert.deepEqual(capturedPredicate([wrongSession, wrongTarget, unsafeContextId, exact]), [exact]);
+  assert.deepEqual(result.map((context) => [context.targetId, context.sessionId, context.executionContextId]), [['target-native', 'session-native', 77]]);
+  await adapter.disconnect();
 });
