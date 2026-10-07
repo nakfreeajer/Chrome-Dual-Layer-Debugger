@@ -134,3 +134,9 @@ The next bounded integration, if separately authorized, should evaluate a privac
 - Existing Brave target inventory was preserved; runner pages and local fixture resources were cleaned up; endpoint remained responsive. No external GAS deployment or business target was involved.
 - Repair 1 added independent main-frame and selected-frame request-origin latching. The accepted 50 ms GAS_OOPIF FRAME event-delivery drain is bounded safety synchronization, not correlation authority.
 - No later TEST milestone was started; TEST.1D/1E/1F remain unauthorized.
+
+## 2026-10-07 - TEST.1D Assertions and Failure Artifacts - AUTHORIZED
+- Following TEST.1C closure, TEST.1D is authorized for bounded implementation only under the frozen documentation architecture.
+- The six-predicate assertion slice, privacy-reduced versioned failure artifact, bounded opt-in synthetic details, session-level diagnostics, exact Timeline identity references, and V0.1I sole correlation authority are specified in the accepted authorization documentation.
+- Implementation, tests, validation, acceptance, publication, and live qualification have NOT happened yet. No source or tests were changed by this authorization.
+- TEST.1E and TEST.1F remain PLANNED / NOT AUTHORIZED.
