@@ -12,6 +12,12 @@ import { parseSmokeScenario } from '../testing/SmokeScenarioParser.js';
 import type { SmokeScenario, SmokeScenarioResult } from '../testing/SmokeScenario.js';
 import type { TestingBackendId } from '../testing/ActionContract.js';
 import { TestPageSession } from '../testing/TestPageSession.js';
+import { mkdir, stat, writeFile } from 'node:fs/promises';
+import { dirname, isAbsolute, relative, resolve } from 'node:path';
+import { parseExploratoryProfile } from '../testing/ExploratoryProfileParser.js';
+import { generateExploratoryPlan, validateExploratorySeed } from '../testing/ExploratoryGenerator.js';
+import { runExploratoryProfile } from '../testing/ExploratoryRunner.js';
+import type { ExploratoryProfile, ExploratoryReplayArtifact, GeneratedExploratoryPlan, ExploratoryResult } from '../testing/ExploratoryProfile.js';
 
 const MAX_V1_OBSERVATION_MS = 300_000;
 
@@ -46,10 +52,11 @@ export function parseCliOptions(args: string[]): CliOptions {
 }
 
 export async function runCli(args: string[]): Promise<number> {
+  if (args[0] === 'monkey') return runMonkeyCli(args.slice(1));
   if (args[0] === 'smoke') {
     return runSmokeCli(args.slice(1));
   }
-  if (args[0] !== 'discover') throw new Error('Usage: node dist/src/cli/main.js discover [--endpoint URL] [--timeline PATH] [--observe-v1-ms N] | smoke --scenario FILE --backend PLAYWRIGHT|GAS_OOPIF --endpoint URL --approval-reference TEXT [--timeline PATH]');
+  if (args[0] !== 'discover') throw new Error('Usage: node dist/src/cli/main.js discover [--endpoint URL] [--timeline PATH] [--observe-v1-ms N] | smoke --scenario FILE --backend PLAYWRIGHT|GAS_OOPIF --endpoint URL --approval-reference TEXT [--timeline PATH] | monkey --profile FILE --seed UINT32 --backend PLAYWRIGHT|GAS_OOPIF --endpoint URL --approval-reference TEXT [--timeline PATH] [--replay-artifact PATH]');
   const { endpoint, timelinePath, observeV1Ms } = parseCliOptions(args.slice(1));
   const discovery = new PlaywrightBrowserDiscovery(endpoint);
   const gasAdapter = new GasAdapter();
@@ -125,6 +132,115 @@ export async function runCli(args: string[]): Promise<number> {
     }
   }
   return 0;
+}
+
+export interface MonkeyCliOptions {
+  profilePath: string;
+  seed: number;
+  backend: TestingBackendId;
+  endpoint: string;
+  approvalReference: string;
+  timelinePath: string;
+  replayArtifactPath: string;
+}
+
+export function parseMonkeyCliOptions(args: string[]): MonkeyCliOptions {
+  const values = new Map<string, string>();
+  const allowed = new Set(['--profile', '--seed', '--backend', '--endpoint', '--approval-reference', '--timeline', '--replay-artifact']);
+  for (let index = 0; index < args.length; index += 1) {
+    const flag = args[index];
+    if (!allowed.has(flag)) throw new Error(`Unknown or unexpected monkey argument: ${flag}`);
+    if (values.has(flag)) throw new Error(`Duplicate monkey argument: ${flag}`);
+    const value = args[index + 1];
+    if (typeof value !== 'string' || value.length === 0 || value.startsWith('--')) throw new Error(`${flag} requires a value`);
+    values.set(flag, value);
+    index += 1;
+  }
+  for (const required of ['--profile', '--seed', '--backend', '--endpoint', '--approval-reference']) if (!values.has(required)) throw new Error(`${required} is required for monkey`);
+  const seedText = values.get('--seed')!;
+  if (!/^(0|[1-9]\d*)$/.test(seedText)) throw new Error('--seed must be a canonical unsigned 32-bit integer');
+  const seed = validateExploratorySeed(Number(seedText));
+  const backend = values.get('--backend');
+  if (backend !== 'PLAYWRIGHT' && backend !== 'GAS_OOPIF') throw new Error('--backend must be PLAYWRIGHT or GAS_OOPIF');
+  const endpoint = values.get('--endpoint')!;
+  let parsedEndpoint: URL;
+  try { parsedEndpoint = new URL(endpoint); } catch { throw new Error('--endpoint must be an absolute HTTP(S) URL'); }
+  if (!['http:', 'https:'].includes(parsedEndpoint.protocol) || parsedEndpoint.username || parsedEndpoint.password) throw new Error('--endpoint must be an HTTP(S) URL without credentials');
+  const approvalReference = values.get('--approval-reference')!;
+  if (!approvalReference.trim() || approvalReference.length > 512 || approvalReference.includes('\0')) throw new Error('--approval-reference must be non-empty and bounded');
+  return { profilePath: values.get('--profile')!, seed, backend, endpoint, approvalReference,
+    timelinePath: values.get('--timeline') ?? '.agent-work/artifacts/monkey-timeline.jsonl',
+    replayArtifactPath: values.get('--replay-artifact') ?? '.agent-work/artifacts/monkey-replay.json' };
+}
+
+const ARTIFACT_ROOT = resolve('.agent-work/artifacts');
+export function resolveMonkeyArtifactPath(path: string): string {
+  const full = resolve(path);
+  const fromRoot = relative(ARTIFACT_ROOT, full);
+  if (!fromRoot || fromRoot === '..' || fromRoot.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) || isAbsolute(fromRoot)) throw new Error('Timeline and replay paths must be inside .agent-work/artifacts');
+  return full;
+}
+
+export interface MonkeyCliDependencies {
+  readProfileFile(path: string): Promise<unknown>;
+  openSession(options: { endpoint: string; backend: TestingBackendId; approvalReference: string; fixtureId: string; target: ExploratoryProfile['target'] }): Promise<Pick<TestPageSession, 'backend' | 'authorization' | 'close' | 'assertTargetEnvelope'>>;
+  writeTimeline(path: string, timeline: Timeline): Promise<void>;
+  writeReplay(path: string, artifact: ExploratoryReplayArtifact): Promise<void>;
+  writeOutput(line: string): void;
+  createTimeline(): Timeline;
+  now(): number;
+}
+
+const defaultMonkeyCliDependencies: MonkeyCliDependencies = {
+  async readProfileFile(path) {
+    const info = await stat(path);
+    if (!info.isFile() || info.size > 1_048_576) throw new Error('Profile file must be a regular file no larger than 1 MiB');
+    return JSON.parse(await readFile(path, 'utf8')) as unknown;
+  },
+  openSession: (options) => TestPageSession.open(options),
+  writeOutput(line) { console.log(line); },
+  createTimeline() { return new Timeline(); },
+  now() { return performance.now(); },
+  async writeReplay(path, artifact) {
+    const full = resolveMonkeyArtifactPath(path);
+    await mkdir(dirname(full), { recursive: true });
+    await writeFile(full, `${JSON.stringify(artifact)}\n`, { encoding: 'utf8', flag: 'wx' });
+  },
+  async writeTimeline(path, timeline) {
+    const full = resolveMonkeyArtifactPath(path);
+    const writer = new FileJsonlTraceWriter(full);
+    try { for (const event of timeline.snapshot()) await writer.write(event); }
+    finally { await writer.close(); }
+  }
+};
+
+/** Generates and executes a fully validated deterministic bounded profile. */
+export async function runMonkeyCli(args: string[], dependencies: MonkeyCliDependencies = defaultMonkeyCliDependencies): Promise<number> {
+  const options = parseMonkeyCliOptions(args);
+  resolveMonkeyArtifactPath(options.timelinePath);
+  resolveMonkeyArtifactPath(options.replayArtifactPath);
+  const profile = parseExploratoryProfile(await dependencies.readProfileFile(options.profilePath));
+  const plan: GeneratedExploratoryPlan = generateExploratoryPlan(profile, options.seed);
+  const timeline = dependencies.createTimeline();
+  const replayArtifactPath = options.replayArtifactPath === '.agent-work/artifacts/monkey-replay.json'
+    ? `.agent-work/artifacts/monkey-replay-${timeline.runId}.json` : options.replayArtifactPath;
+  const session = await dependencies.openSession({ endpoint: options.endpoint, backend: options.backend,
+    approvalReference: options.approvalReference, fixtureId: profile.profileId, target: profile.target });
+  timeline.append(timeline.create({ source: 'CORE', category: 'SESSION', type: 'SESSION_STARTED', data: { profileId: profile.profileId, backend: options.backend } }));
+  let result: ExploratoryResult;
+  try {
+    result = await runExploratoryProfile({ backend: session.backend, profile, artifact: plan, timeline,
+      authorization: session.authorization, assertTargetEnvelope: () => session.assertTargetEnvelope(), now: dependencies.now });
+  } finally {
+    await session.close();
+    timeline.append(timeline.create({ source: 'CORE', category: 'SESSION', type: 'SESSION_ENDED', data: { profileId: profile.profileId, backend: options.backend } }));
+  }
+  await dependencies.writeReplay(replayArtifactPath, { kind: 'CDLD_TEST1C_REPLAY', schemaVersion: 1, ...plan,
+    backend: options.backend, terminalStatus: result.status, stopReason: result.stopReason,
+    generatedCount: result.generatedCount, executedCount: result.executedCount });
+  await dependencies.writeTimeline(options.timelinePath, timeline);
+  dependencies.writeOutput(JSON.stringify(result));
+  return result.status === 'FAIL' ? 2 : 0;
 }
 
 export interface SmokeCliOptions {

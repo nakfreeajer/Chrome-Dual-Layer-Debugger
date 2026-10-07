@@ -16,7 +16,12 @@ function scenario(kind: 'PAGE' | 'FRAME' = 'PAGE') {
 function setup() {
   const events: string[] = [];
   const fakeFrame = { url: () => 'http://localhost/child', async waitForLoadState(state: string) { events.push(`frame:${state}`); } } as unknown as Frame;
-  const ownedPage = { frames: () => [{ url: () => 'http://127.0.0.1/outer' }, fakeFrame], isClosed: () => false, async close() { events.push('owned:close'); } } as unknown as Page;
+  const mainFrame = { url: () => 'http://127.0.0.1/outer' } as unknown as Frame;
+  const pageHandlers = new Map<string, Set<(event: any) => void>>();
+  const ownedPage = { url: () => 'http://127.0.0.1/outer', mainFrame: () => mainFrame, frames: () => [mainFrame, fakeFrame], isClosed: () => false,
+    on(event: string, handler: (event: any) => void) { const handlers = pageHandlers.get(event) ?? new Set(); handlers.add(handler); pageHandlers.set(event, handlers); },
+    off(event: string, handler: (event: any) => void) { pageHandlers.get(event)?.delete(handler); },
+    async close() { events.push('owned:close'); } } as unknown as Page;
   const existingPage = { isClosed: () => false, async close() { events.push('existing:close'); } } as unknown as Page;
   const discovered = { pageId: 'PAGE-0001', contextId: 'CONTEXT-0001', url: 'http://127.0.0.1/outer', mode: 'BROWSER_ONLY', frames: [
     { frameId: 'FRAME-0001', protocolFrameId: 'p1', url: 'http://127.0.0.1/outer', children: [] },
@@ -44,7 +49,7 @@ function setup() {
     },
     async disconnect() { events.push('gas:disconnect'); }
   } as unknown as GasAdapter;
-  return { events, fakeFrame, ownedPage, existingPage, discovery, gas, gasCalls };
+  return { events, fakeFrame, mainFrame, pageHandlers, ownedPage, existingPage, discovery, gas, gasCalls };
 }
 
 test('PLAYWRIGHT binds to the runner-owned page and never selects or closes an existing page', async () => {
@@ -58,6 +63,70 @@ test('PLAYWRIGHT binds to the runner-owned page and never selects or closes an e
   assert.equal(f.events.filter((item) => item === 'owned:close').length, 1);
   assert.equal(f.events.includes('existing:close'), false);
   assert.ok(f.events.includes('playwright:disconnect'));
+});
+
+test('target envelope guard accepts the authorized page/frame origins and rejects navigation or detached frames', async () => {
+  const pageFixture = setup();
+  const pageSession = await TestPageSession.open({ endpoint: 'http://127.0.0.1:9444', backend: 'PLAYWRIGHT', approvalReference: 'approved', scenario: scenario(), discovery: pageFixture.discovery, gasAdapter: pageFixture.gas });
+  await pageSession.assertTargetEnvelope();
+  (pageFixture.ownedPage as unknown as { url(): string }).url = () => 'http://127.0.0.2/escaped';
+  await assert.rejects(pageSession.assertTargetEnvelope(), /TARGET_ENVELOPE_VIOLATION/);
+  await pageSession.close();
+  assert.equal(pageFixture.pageHandlers.get('framenavigated')?.size, 0);
+  assert.equal(pageFixture.pageHandlers.get('framedetached')?.size, 0);
+
+  const frameFixture = setup();
+  const frameSession = await TestPageSession.open({ endpoint: 'http://127.0.0.1:9444', backend: 'PLAYWRIGHT', approvalReference: 'approved', scenario: scenario('FRAME'), discovery: frameFixture.discovery, gasAdapter: frameFixture.gas });
+  await frameSession.assertTargetEnvelope();
+  (frameFixture.fakeFrame as unknown as { url(): string }).url = () => 'http://attacker.invalid/escaped';
+  await assert.rejects(frameSession.assertTargetEnvelope(), /TARGET_ENVELOPE_VIOLATION/);
+  await frameSession.close();
+});
+
+test('navigation/detach event latch fails closed before a subsequent action can begin', async () => {
+  const f = setup();
+  const session = await TestPageSession.open({ endpoint: 'http://127.0.0.1:9444', backend: 'PLAYWRIGHT', approvalReference: 'approved', scenario: scenario('FRAME'), discovery: f.discovery, gasAdapter: f.gas });
+  (f.fakeFrame as unknown as { url(): string }).url = () => 'http://attacker.invalid/escape';
+  for (const handler of f.pageHandlers.get('framenavigated') ?? []) handler(f.fakeFrame);
+  (f.fakeFrame as unknown as { url(): string }).url = () => 'http://localhost/child';
+  await assert.rejects(session.assertTargetEnvelope(), /TARGET_ENVELOPE_VIOLATION/);
+  await session.close();
+  assert.equal(f.pageHandlers.get('framenavigated')?.size, 0);
+  assert.equal(f.pageHandlers.get('framedetached')?.size, 0);
+});
+
+test('out-of-origin navigation request is latched before the destination commits', async () => {
+  const f = setup();
+  const session = await TestPageSession.open({ endpoint: 'http://127.0.0.1:9444', backend: 'PLAYWRIGHT', approvalReference: 'approved', scenario: scenario('FRAME'), discovery: f.discovery, gasAdapter: f.gas });
+  const request = { isNavigationRequest: () => true, frame: () => f.fakeFrame, url: () => 'http://attacker.invalid/escape' };
+  for (const handler of f.pageHandlers.get('request') ?? []) handler(request);
+  await assert.rejects(session.assertTargetEnvelope(), /TARGET_ENVELOPE_VIOLATION/);
+  await session.close();
+  assert.equal(f.pageHandlers.get('request')?.size, 0);
+});
+
+test('FRAME scope independently latches an out-of-origin top-level navigation request before commit', async () => {
+  const f = setup();
+  const session = await TestPageSession.open({ endpoint: 'http://127.0.0.1:9444', backend: 'PLAYWRIGHT', approvalReference: 'approved', scenario: scenario('FRAME'), discovery: f.discovery, gasAdapter: f.gas });
+  const request = { isNavigationRequest: () => true, frame: () => f.mainFrame, url: () => 'http://attacker.invalid/top-level-escape' };
+  for (const handler of f.pageHandlers.get('request') ?? []) handler(request);
+  await assert.rejects(session.assertTargetEnvelope(), /TARGET_ENVELOPE_VIOLATION/);
+  await session.close();
+  assert.equal(f.pageHandlers.get('request')?.size, 0);
+});
+
+test('target envelope guard fails closed for a closed PAGE and a detached selected FRAME', async () => {
+  const pageFixture = setup();
+  const pageSession = await TestPageSession.open({ endpoint: 'http://127.0.0.1:9444', backend: 'PLAYWRIGHT', approvalReference: 'approved', scenario: scenario(), discovery: pageFixture.discovery, gasAdapter: pageFixture.gas });
+  (pageFixture.ownedPage as unknown as { isClosed(): boolean }).isClosed = () => true;
+  await assert.rejects(pageSession.assertTargetEnvelope(), /TARGET_ENVELOPE_VIOLATION/);
+  await pageSession.close();
+
+  const frameFixture = setup();
+  const frameSession = await TestPageSession.open({ endpoint: 'http://127.0.0.1:9444', backend: 'PLAYWRIGHT', approvalReference: 'approved', scenario: scenario('FRAME'), discovery: frameFixture.discovery, gasAdapter: frameFixture.gas });
+  (frameFixture.ownedPage as unknown as { frames(): Frame[] }).frames = () => [];
+  await assert.rejects(frameSession.assertTargetEnvelope(), /TARGET_ENVELOPE_VIOLATION/);
+  await frameSession.close();
 });
 
 test('PLAYWRIGHT binds FRAME scope to the one exact URL match', async () => {

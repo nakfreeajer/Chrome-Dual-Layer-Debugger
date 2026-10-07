@@ -1,10 +1,11 @@
-import type { Frame, Page } from 'playwright';
+import type { Frame, Page, Request } from 'playwright';
 import { PlaywrightBrowserDiscovery } from '../browser/PlaywrightBrowserDiscovery.js';
 import { GasAdapter, type GasTestTargetContext } from '../gas/GasAdapter.js';
 import { GasOopifActionBackend } from './GasOopifActionBackend.js';
 import { PlaywrightActionBackend } from './PlaywrightActionBackend.js';
 import type { ActionBackend, TestTargetAuthorization, TestingBackendId } from './ActionContract.js';
 import type { SmokeScenario } from './SmokeScenario.js';
+import type { SmokeTarget } from './SmokeScenario.js';
 
 interface DebugTarget { id?: unknown; targetId?: unknown; type?: unknown; url?: unknown; }
 type FetchTargets = (url: string) => Promise<DebugTarget[]>;
@@ -37,7 +38,9 @@ export interface TestPageSessionOptions {
   endpoint: string;
   backend: TestingBackendId;
   approvalReference: string;
-  scenario: SmokeScenario;
+  scenario?: Pick<SmokeScenario, 'scenarioId' | 'target'>;
+  fixtureId?: string;
+  target?: SmokeTarget;
   discovery?: PlaywrightBrowserDiscovery;
   gasAdapter?: GasAdapter;
   fetchTargets?: FetchTargets;
@@ -49,11 +52,17 @@ export class TestPageSession {
   private readonly gas: GasAdapter;
   private ownedPage?: Page;
   private closed = false;
+  private envelopeViolation = false;
+  private readonly navigationHandler: (frame: Frame) => void;
+  private readonly detachHandler: (frame: Frame) => void;
+  private readonly requestHandler: (request: Request) => void;
 
   readonly backend: ActionBackend;
   readonly authorization: TestTargetAuthorization;
   readonly selectedTargetId: string;
   readonly selectedScope: Page | Frame;
+  private readonly authorizedPageOrigin: string;
+  private readonly authorizedScopeOrigin: string;
 
   private constructor(
     discovery: PlaywrightBrowserDiscovery,
@@ -62,7 +71,9 @@ export class TestPageSession {
     backend: ActionBackend,
     authorization: TestTargetAuthorization,
     selectedTargetId: string,
-    selectedScope: Page | Frame
+    selectedScope: Page | Frame,
+    authorizedPageOrigin: string,
+    authorizedScopeOrigin: string
   ) {
     this.discovery = discovery;
     this.gas = gas;
@@ -71,6 +82,31 @@ export class TestPageSession {
     this.authorization = authorization;
     this.selectedTargetId = selectedTargetId;
     this.selectedScope = selectedScope;
+    this.authorizedPageOrigin = authorizedPageOrigin;
+    this.authorizedScopeOrigin = authorizedScopeOrigin;
+    this.navigationHandler = (frame) => {
+      try {
+        if (frame === page.mainFrame() && TestPageSession.originOf(page.url()) !== this.authorizedPageOrigin) this.envelopeViolation = true;
+        if (this.selectedScope !== page && frame === this.selectedScope && TestPageSession.originOf(frame.url()) !== this.authorizedScopeOrigin) this.envelopeViolation = true;
+      } catch { this.envelopeViolation = true; }
+    };
+    this.detachHandler = (frame) => {
+      if (frame === page.mainFrame() || (this.selectedScope !== page && frame === this.selectedScope)) this.envelopeViolation = true;
+    };
+    this.requestHandler = (request) => {
+      try {
+        if (!request.isNavigationRequest()) return;
+        const frame = request.frame();
+        const destinationOrigin = TestPageSession.originOf(request.url());
+        if (frame === page.mainFrame() && destinationOrigin !== this.authorizedPageOrigin) this.envelopeViolation = true;
+        if (this.selectedScope !== page && frame === this.selectedScope && destinationOrigin !== this.authorizedScopeOrigin) {
+          this.envelopeViolation = true;
+        }
+      } catch { this.envelopeViolation = true; }
+    };
+    page.on('framenavigated', this.navigationHandler);
+    page.on('framedetached', this.detachHandler);
+    page.on('request', this.requestHandler);
   }
 
   static async open(options: TestPageSessionOptions): Promise<TestPageSession> {
@@ -79,45 +115,52 @@ export class TestPageSession {
       || options.approvalReference.length > 512 || options.approvalReference.includes('\0')) {
       throw new Error('A valid TEST approval reference is required before browser navigation');
     }
-    if (typeof options.scenario?.scenarioId !== 'string' || !options.scenario.scenarioId.trim() || options.scenario.scenarioId.includes('\0')) {
+    const fixtureId = options.scenario?.scenarioId ?? options.fixtureId;
+    const target = options.scenario?.target ?? options.target;
+    if (typeof fixtureId !== 'string' || !fixtureId.trim() || fixtureId.includes('\0')) {
       throw new Error('A valid TEST fixture identity is required before browser navigation');
     }
+    if (!target || typeof target.pageUrl !== 'string') throw new Error('A valid TEST target is required before browser navigation');
+    const authorizedPageOrigin = TestPageSession.originOf(target.pageUrl);
+    const authorizedScopeOrigin = target.scope.kind === 'FRAME' ? TestPageSession.originOf(target.scope.url) : authorizedPageOrigin;
     const discovery = options.discovery ?? new PlaywrightBrowserDiscovery(options.endpoint);
     const gas = options.gasAdapter ?? new GasAdapter();
     const fetchTargets = options.fetchTargets ?? defaultFetchTargets;
     let page: Page | undefined;
     try {
-      const created = await discovery.createRunnerOwnedPage(options.scenario.target.pageUrl, {
-        mode: 'TEST', fixtureId: options.scenario.scenarioId, approvalReference: options.approvalReference
+      const created = await discovery.createRunnerOwnedPage(target.pageUrl, {
+        mode: 'TEST', fixtureId, approvalReference: options.approvalReference
       });
       page = created.page;
       let selectedScope: Page | Frame = page;
       let selectedTargetId = created.pageId;
-      let exactScopeUrl = options.scenario.target.pageUrl;
+      let exactScopeUrl = target.pageUrl;
       let targetType: 'page' | 'iframe' = 'page';
-      if (options.scenario.target.scope.kind === 'FRAME') {
-        const selected = await discovery.selectRunnerOwnedFrame(page, options.scenario.target.scope.url, created.discovered);
+      if (target.scope.kind === 'FRAME') {
+        const selected = await discovery.selectRunnerOwnedFrame(page, target.scope.url, created.discovered);
         selectedScope = selected.frame;
         selectedTargetId = selected.frameId;
-        exactScopeUrl = options.scenario.target.scope.url;
+        exactScopeUrl = target.scope.url;
         targetType = 'iframe';
       }
+      if (TestPageSession.originOf(page.url()) !== authorizedPageOrigin) throw new Error('TARGET_ENVELOPE_VIOLATION');
+      if (selectedScope !== page && TestPageSession.originOf((selectedScope as Frame).url()) !== authorizedScopeOrigin) throw new Error('TARGET_ENVELOPE_VIOLATION');
       let backend: ActionBackend;
       let authorization: TestTargetAuthorization;
       if (options.backend === 'PLAYWRIGHT') {
         backend = new PlaywrightActionBackend(selectedTargetId, selectedScope);
-        authorization = { mode: 'TEST', backend: options.backend, targetId: selectedTargetId, fixtureId: options.scenario.scenarioId, approvalReference: options.approvalReference };
+        authorization = { mode: 'TEST', backend: options.backend, targetId: selectedTargetId, fixtureId, approvalReference: options.approvalReference };
       } else {
         const nativeTargetId = await findExactTarget(options.endpoint, targetType, exactScopeUrl, fetchTargets);
         const contexts: GasTestTargetContext[] = await gas.connectTestTarget(options.endpoint, {
-          mode: 'TEST', targetId: nativeTargetId, fixtureId: options.scenario.scenarioId, approvalReference: options.approvalReference
+          mode: 'TEST', targetId: nativeTargetId, fixtureId, approvalReference: options.approvalReference
         });
         if (contexts.length !== 1 || contexts[0].targetId !== nativeTargetId) throw new Error('Authorized GAS target has an ambiguous default execution context');
         backend = new GasOopifActionBackend(nativeTargetId, contexts[0].sessionId, contexts[0].executionContextId, gas);
-        authorization = { mode: 'TEST', backend: options.backend, targetId: nativeTargetId, fixtureId: options.scenario.scenarioId, approvalReference: options.approvalReference };
+        authorization = { mode: 'TEST', backend: options.backend, targetId: nativeTargetId, fixtureId, approvalReference: options.approvalReference };
         selectedTargetId = nativeTargetId;
       }
-      return new TestPageSession(discovery, gas, page, backend, authorization, selectedTargetId, selectedScope);
+      return new TestPageSession(discovery, gas, page, backend, authorization, selectedTargetId, selectedScope, authorizedPageOrigin, authorizedScopeOrigin);
     } catch (error) {
       if (page) {
         try { await discovery.closeRunnerOwnedPage(page); } catch { /* Continue disconnecting owned sessions. */ }
@@ -127,12 +170,43 @@ export class TestPageSession {
     }
   }
 
+  private static originOf(value: string): string {
+    try {
+      const url = new URL(value);
+      if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error();
+      return url.origin;
+    } catch { throw new Error('TARGET_ENVELOPE_VIOLATION'); }
+  }
+
+  /** Rechecks the exact runner-owned page/frame containment immediately around every generated action. */
+  async assertTargetEnvelope(): Promise<void> {
+    const initialPage = this.ownedPage;
+    if (this.backend.backend === 'GAS_OOPIF' && this.selectedScope !== initialPage && initialPage && !initialPage.isClosed()) {
+      // Raw child-target input can return before Playwright forwards the already-issued
+      // navigation request from the OOPIF. Let that public request event reach the
+      // latch before the runner is allowed to start another generated action.
+      await initialPage.waitForTimeout(50);
+    }
+    try {
+      const page = this.ownedPage;
+      if (!page || this.closed || page.isClosed() || this.envelopeViolation) throw new Error();
+      if (TestPageSession.originOf(page.url()) !== this.authorizedPageOrigin) throw new Error();
+      if (this.selectedScope !== page) {
+        if (!page.frames().includes(this.selectedScope as Frame)) throw new Error();
+        if (TestPageSession.originOf((this.selectedScope as Frame).url()) !== this.authorizedScopeOrigin) throw new Error();
+      }
+    } catch { throw new Error('TARGET_ENVELOPE_VIOLATION'); }
+  }
+
   async close(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
     const page = this.ownedPage;
     this.ownedPage = undefined;
     let closeError: unknown;
+    page?.off('framenavigated', this.navigationHandler);
+    page?.off('framedetached', this.detachHandler);
+    page?.off('request', this.requestHandler);
     try {
       if (page) await this.discovery.closeRunnerOwnedPage(page);
     } catch (error) { closeError = error; }
