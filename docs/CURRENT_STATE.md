@@ -1,7 +1,8 @@
 # Current State
 
 ## Status
-V0.1J privacy-limited V1 evidence production and V0.1K raw child/OOPIF marker fusion are accepted and published together at `9e6998488b02e5493f4a4b34e6c0b60b8d193465`. TEST.1A dual-backend capability parity is accepted, live-qualified and published at implementation commit `65f82b3fe9bc48f1d8a0c1f02429713d9c6d4878` with documentation closure `c6d0d09d41eae9417b4edc5df4a6a1568a2bc468`; its capability matrix records 19 common operations as PASS, four as GAP, and screenshot as backend-specific. TEST.1B Controlled Smoke Scenario Runner is accepted and closed at source commit `9f54b116f20fa56246546602b26d47eb519ac77a` and documentation commit `0202d6a522be37b4718b80cfa3d4808efe090a16`; its four bounded Brave scenarios and 214/214 regression suite passed. By Rony Finster's explicit decision, TEST.1C Bounded Monkey / Exploratory Action Engine is AUTHORIZED / NEXT for bounded source implementation under the architecture recorded below. TEST.1C implementation has not started and is not accepted. TEST.1D and later remain PLANNED / NOT AUTHORIZED. Passive observation remains the default outside explicit TEST authorization. Executor -> Architect evidence relay remains manual; no Orchestrator, watcher, dispatcher, or automatic execution exists.
+
+TEST.1C Bounded Monkey / Exploratory Action Engine is ACCEPTED / CLOSED. Its source implementation was published at `7e6afb8a2ebf2b4672762c1eb01493e53b7b5d37` (parent `5969c328f90c6d3875f079bf1017b39f9c58b65c`), with accepted source patch SHA-256 `c8ce93e4687f64195d92bc031f9b91e7436f25e2a9f06c054d20a74093333818`. Validation passed `npm run check`, `npm test` 238/238, and `git diff --check`; final Brave 9444 parity/replay and both-backend containment cases passed. TEST.1C provides bounded deterministic seeded exploratory actions only for explicitly authorized targets and shared PASS capabilities. The accepted GAS_OOPIF FRAME 50 ms event-delivery drain is a bounded safety synchronization measure, not correlation authority. There is no active source milestone after TEST.1C closure. TEST.1D, TEST.1E, and TEST.1F remain PLANNED / NOT AUTHORIZED. Passive observation remains the default outside explicit TEST authorization. Executor-to-Architect evidence return remains manual; no Orchestrator, watcher, dispatcher, or automatic execution exists.
 
 ## Repository
 - Repository: `nakfreeajer/Chrome-Dual-Layer-Debugger`
@@ -95,7 +96,7 @@ The opt-in V0.1J producer now feeds privacy-reduced Playwright/page-scoped Netwo
 
 The TEST.1A parity implementation is validated on a real distinct local OOPIF target in the already-running Brave 9444 session. A single 31-step scenario ran first through GAS_OOPIF and then Playwright after fixture reset. All 19 declared common operations produced matching normalized outcomes and expected fixture state. Both backends also passed four assertions and returned the expected deterministic assertion failure without crashing. The capability matrix records 19 PASS, 4 GAP, 0 UNQUALIFIED and 1 BACKEND_SPECIFIC (screenshot). Detailed local evidence is under ignored `.agent-work/artifacts/`.
 
-TEST.1A closed the evidence-backed capability contract and parity foundation. TEST.1B Controlled Smoke Scenario Runner is accepted and closed below. Rony has authorized TEST.1C; its source implementation has not started and is not accepted. Existing user/business tabs remain protected unless separately authorized.
+TEST.1A closed the evidence-backed capability contract and parity foundation. TEST.1B Controlled Smoke Scenario Runner and TEST.1C Bounded Monkey / Exploratory Action Engine are accepted and closed below. Existing user/business tabs remain protected unless separately authorized.
 
 ## TEST.1B - Controlled Smoke Scenario Runner - ACCEPTED / CLOSED
 - Implementation HEAD: `9f54b116f20fa56246546602b26d47eb519ac77a`; parent: `37fba3c5dcc1f904c7333d72ea989b85853b3374`.
@@ -105,16 +106,14 @@ TEST.1A closed the evidence-backed capability contract and parity foundation. TE
 - Accepted live Brave 9444 matrix: PLAYWRIGHT and GAS_OOPIF pass scenarios exited 0 after 8 ordered steps; each deterministic assertion failure exited 2 before its later click. The pre-existing tab remained unchanged, runner-owned pages closed, the fixture server stopped, ports 4558 and 4564 were closed, and the temporary fixture directory was removed. Timeline privacy checks passed.
 - No AFFOTECH/business target, external GAS deployment, browser launch/restart/termination, tag, or release was involved.
 
-## TEST.1C - Bounded Monkey / Exploratory Action Engine - AUTHORIZED / NEXT
-- Authorization is for bounded source implementation only; it does not mean implementation, validation, or acceptance has occurred.
-- Build a deterministic bounded action generator on the accepted TEST.1A action contract and TEST.1B runner/session model. Use a strict project-owned declarative profile with exact PAGE/FRAME target semantics and bounded candidate templates; no arbitrary DOM-wide exploration or executable profile fields.
-- Initial generated operations must be mutating operations in the accepted ActionOperation contract and marked `PASS` for both PLAYWRIGHT and GAS_OOPIF. No backend-specific opt-in or GAP/BACKEND_SPECIFIC/UNQUALIFIED operation in the initial slice.
-- Generation is deterministic from a versioned generator contract, explicit seed, and validated profile; same inputs produce the same ordered action sequence across backends. Do not use `Math.random()` or ambient nondeterminism.
-- Validate the complete profile before runner-owned page creation/navigation. Record generator version, seed, profile identity/hash, backend, ordered generated steps, and terminal result. Record each generated action before execution with stable action identity/order. Keep Timeline privacy-reduced; raw replay material is limited to bounded TEST artifacts for explicitly authorized synthetic/project-owned fixtures.
-- Enforce `maxActions` 1..100, `maxDurationMs` 1..60000, and per-action timeout <=10000 ms. Stop on action failure, safety/target guard failure, a reached bound, or setup/infrastructure failure. No infinite generation or unbounded retries.
-- Preserve runner-owned PAGE/FRAME target and origin envelope; fail closed if generated navigation or an action moves outside it. Initial live qualification is limited to a disposable local project-owned fixture in the already-running Brave endpoint `http://127.0.0.1:9444`; do not launch/restart/terminate a browser, use port 9222, access business/user targets, or deploy external GAS.
-- V0.1I remains the single correlation proof authority. Action identity, generated-action identity, requestId, observerScopeId, correlationId, seed, timing, order, and frame proximity remain separate and are not correlation authority.
-- TEST.1C does not absorb TEST.1D assertion/failure-artifact expansion, TEST.1E generalized fixture/reset governance, or TEST.1F persisted regression suites.
+## TEST.1C - Bounded Monkey / Exploratory Action Engine - ACCEPTED / CLOSED
+- Source implementation commit: `7e6afb8a2ebf2b4672762c1eb01493e53b7b5d37`; parent: `5969c328f90c6d3875f079bf1017b39f9c58b65c`; accepted complete source patch SHA-256: `c8ce93e4687f64195d92bc031f9b91e7436f25e2a9f06c054d20a74093333818`.
+- Adds a strict declarative profile, deterministic `TEST1C_GEN_V1` plan generation from an explicit seed, a backend-neutral ordered plan, bounded execution/replay, privacy-reduced evidence, and exact runner-owned PAGE/FRAME scope.
+- Validation: `npm run check` PASS; `npm test` 238/238 PASS; `git diff --check` PASS.
+- Accepted live Brave 9444 qualification: safe parity passed on PLAYWRIGHT and GAS_OOPIF with identical plan digest/ordered entries and equal synthetic fixture effect; PLAYWRIGHT replay passed with the same plan. Selected-frame escape and FRAME-scoped top-level PAGE escape failed closed on both backends with `TARGET_ENVELOPE_VIOLATION`, generated=2/executed=1, only `MONKEY-000001` started, and no later action started.
+- Pre-existing Brave target inventory was unchanged; runner-owned pages and fixture resources were cleaned up; Brave remained responsive. No external GAS deployment or business/user target was used.
+- Repair 1 established independent main-frame and selected-frame origin checks on every navigation request. GAS_OOPIF FRAME scope retains a fixed 50 ms event-delivery drain before final containment recheck; it is bounded safety synchronization, not correlation authority.
+- TEST.1D, TEST.1E, and TEST.1F remain PLANNED / NOT AUTHORIZED. No active source milestone follows TEST.1C closure.
 
 ## Unresolved items
 - Historical V0.1C JSONL lacks `runId`; it remains valid historical evidence and is not migrated by V0.1D.

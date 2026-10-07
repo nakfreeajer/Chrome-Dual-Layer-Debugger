@@ -125,3 +125,12 @@ The next bounded integration, if separately authorized, should evaluate a privac
 - Rony Finster authorized proceeding with TEST.1C. This is an authorization record only; source implementation, validation, acceptance, publication, and live qualification have not occurred.
 - Initial boundary: strict declarative project-owned target/profile; common PASS mutating operations only across PLAYWRIGHT and GAS_OOPIF; deterministic version + seed + profile generation; action-before-execution evidence; hard action/time bounds; exact runner-owned target safety; no arbitrary DOM-wide exploration or production/business targets.
 - V0.1I remains the sole correlation authority. TEST.1D, TEST.1E, and TEST.1F responsibilities remain separate and unauthorized.
+
+## 2026-10-07 - TEST.1C Bounded Monkey / Exploratory Action Engine - ACCEPTED / CLOSED
+- Source implementation published at `7e6afb8a2ebf2b4672762c1eb01493e53b7b5d37`, parent `5969c328f90c6d3875f079bf1017b39f9c58b65c`, with accepted source patch SHA-256 `c8ce93e4687f64195d92bc031f9b91e7436f25e2a9f06c054d20a74093333818`.
+- Deterministic validation passed: `npm run check`, `npm test` 238/238, and `git diff --check`.
+- Final Brave 9444 safe parity passed on PLAYWRIGHT and GAS_OOPIF with matching ordered plan digest/entries and synthetic fixture effect. PLAYWRIGHT replay reproduced the exact plan.
+- Selected-frame cross-origin escape and FRAME-scoped top-level PAGE escape both failed closed on both backends with `TARGET_ENVELOPE_VIOLATION`; generated=2, executed=1, only `MONKEY-000001` started, and the second action did not start.
+- Existing Brave target inventory was preserved; runner pages and local fixture resources were cleaned up; endpoint remained responsive. No external GAS deployment or business target was involved.
+- Repair 1 added independent main-frame and selected-frame request-origin latching. The accepted 50 ms GAS_OOPIF FRAME event-delivery drain is bounded safety synchronization, not correlation authority.
+- No later TEST milestone was started; TEST.1D/1E/1F remain unauthorized.

@@ -163,6 +163,32 @@ PAGE scope uses the runner-owned `PAGE-*` identity. FRAME scope binds to the exa
 
 Scenario lifecycle events are combined with existing action/assertion events. Timeline evidence omits selectors, raw input/expected values, approval references, credentials, cookies, authorization headers, and private DOM dumps. Optional cooperative V1 observation remains separate from action-target identity and continues to use the accepted V0.1I proof rules.
 
+## Bounded exploratory engine - TEST.1C
+
+TEST.1C adds deterministic bounded exploratory actions for explicitly authorized TEST targets. The profile is declarative and strictly validated before runner-owned page creation or navigation; arbitrary JavaScript, executable profile fields, and arbitrary DOM-wide exploration are excluded.
+
+The accepted pipeline is:
+
+```text
+validated declarative profile
+    -> normalized profile hash
+    -> TEST1C_GEN_V1 + explicit seed
+    -> pre-generated backend-neutral ordered plan
+    -> selected equal execution backend
+    -> TestPageSession exact PAGE/FRAME ownership
+    -> target-envelope guard
+    -> privacy-reduced Timeline evidence + bounded replay artifact
+    -> terminal PASS / BOUND_REACHED / FAIL
+```
+
+Generation is deterministic from the validated profile, generator version, and explicit seed. Only mutating operations marked PASS for both PLAYWRIGHT and GAS_OOPIF are eligible. The plan is generated before backend execution, and each action is recorded before execution. This supports plan digest/ordered-entry comparison and exact replay without treating timing or order as correlation evidence.
+
+The runner enforces bounded action count, duration, and per-action timeouts; action timeouts are capped to the remaining run duration. It stops on the first action failure, target-envelope violation, reached bound, or setup/infrastructure failure. Timeline and replay evidence remain privacy-reduced and are limited to authorized synthetic/project-owned fixtures.
+
+For every navigation request, the request-event latch independently checks the runner-owned page main-frame origin. Under FRAME scope it also checks the selected frame origin. Either out-of-origin request fails closed before a later generated action can start. For GAS_OOPIF FRAME scope, a fixed 50 ms public-Playwright event-delivery drain precedes the final containment recheck so an already-issued child/OOPIF navigation request can reach the request listener. This drain is bounded safety synchronization only; it is not correlation evidence or proof authority.
+
+Target identity, generated action identity, CDP requestId, observerScopeId, correlationId, seed, and timing/order remain distinct. V0.1I remains the sole correlation proof authority. TEST.1C does not provide generalized production testing, arbitrary DOM crawling, or persisted regression suites; TEST.1D, TEST.1E, and TEST.1F remain separate and unauthorized.
+
 ## Engineering workflow architecture
 
 The project uses an AMO-inspired Human -> Architect-Curator -> Executor authority model, but **no automated Orchestrator is part of this project**. Relay is performed manually by the Human Owner. Repository governance and the software runtime architecture are independent concerns.

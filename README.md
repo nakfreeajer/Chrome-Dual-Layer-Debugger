@@ -37,7 +37,7 @@ First-class testing capabilities include:
 - **Failure evidence** — retain the exact last action plus privacy-reduced browser/network/GAS timeline evidence needed to diagnose the failure.
 - **Safe test mode** — mutation is allowed only under an explicit active-test authorization; ordinary debugger observation remains read-only-first.
 
-The published V0.1J/V0.1K implementation provides the deterministic cross-layer evidence layer. TEST.1A established and live-qualified the first common active-testing capability set, and TEST.1B adds a controlled declarative smoke scenario runner for explicitly authorized test targets. Monkey testing and broader regression execution remain future work and must use only evidence-backed capabilities.
+The published V0.1J/V0.1K implementation provides the deterministic cross-layer evidence layer. TEST.1A established the common active-testing capability set, TEST.1B added a controlled declarative smoke runner, and TEST.1C adds a bounded deterministic seeded exploratory/monkey engine for explicitly authorized TEST targets. TEST.1C is limited to declared capabilities qualified for both backends; it is not generalized production testing, arbitrary DOM crawling, or a persisted regression-suite system. TEST.1D and later remain separately planned and unauthorized.
 
 After `npm run build`, a smoke scenario is invoked with `node dist/src/cli/main.js smoke --scenario <FILE> --backend PLAYWRIGHT|GAS_OOPIF --endpoint <URL> --approval-reference <TEXT>`. Only capabilities qualified in the project matrix are shared across backends; TEST mode is limited to explicitly authorized targets.
 

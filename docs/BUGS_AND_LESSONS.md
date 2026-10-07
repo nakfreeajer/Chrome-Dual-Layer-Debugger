@@ -35,3 +35,7 @@ TEST.1B review found that validating authorization only when an action executes 
 
 ### L-010 - Public Playwright OOPIF Frames may lack a unique page-tree identity
 An OOPIF may appear as a public Playwright `Frame` while the page CDP `Page.getFrameTree` result has no unique corresponding node. Preserve an accepted normalized frame identity when deterministically available; otherwise assign a stable debugger-local identity to the exact selected Frame and do not claim it is a protocol `FrameId`.
+
+### L-011 - Latch navigation containment before commit
+
+TEST.1C live qualification showed that a post-commit frame-navigation event can arrive too late to prevent a later generated action from starting. Latch out-of-origin navigation from the public Playwright Page request event before destination commit. Under FRAME scope, the runner-owned page main-frame origin and selected-frame origin are independent containment boundaries. GAS_OOPIF child/OOPIF public-event delivery required the accepted bounded 50 ms drain before the final recheck. The drain is safety synchronization, not correlation evidence or proof authority. Deterministic tests and live qualification must prove action 2 does not start after an escape.

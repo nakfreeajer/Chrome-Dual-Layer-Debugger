@@ -263,3 +263,20 @@ Repair 1 added the following regression contracts:
 - Operate only on runner-owned pages; fail closed for missing or ambiguous exact targets.
 - Stop on first failure; do not claim parity outside the capability matrix and accepted live matrix.
 - Keep selectors, raw input/expected values, approval references, credentials, cookies, authorization headers and private DOM dumps out of Timeline evidence.
+
+## Accepted TEST.1C bounded monkey / exploratory action engine
+TEST.1C source implementation was published at `7e6afb8a2ebf2b4672762c1eb01493e53b7b5d37` (parent `5969c328f90c6d3875f079bf1017b39f9c58b65c`); accepted source patch SHA-256: `c8ce93e4687f64195d92bc031f9b91e7436f25e2a9f06c054d20a74093333818`.
+
+Accepted deterministic validation:
+- `npm run check` PASS;
+- `npm test` 238/238 PASS;
+- `git diff --check` PASS;
+- tests cover strict declarative profile validation, deterministic seeded `TEST1C_GEN_V1` plans, backend-neutral plan identity/replay, bounds and remaining-duration timeout caps, action-before-execution evidence, target containment, stop-on-first-failure, privacy reduction, and cleanup.
+
+Accepted live validation used only Rony's already-running Brave at `http://127.0.0.1:9444` and a disposable local fixture; no external deployment or business/user target was used. The browser was not launched, restarted, or terminated.
+- Safe parity: PLAYWRIGHT and GAS_OOPIF both PASS with generated=1/executed=1 and equal synthetic fixture effect. Plan SHA-256 `c94fa0b7d235798f7329f5ee1c0b8bc3dd82dae8a8104546152cc7cb6ce2fffa`; sanitized ordered plan `MONKEY-000001 / synthetic-hit / click`. PLAYWRIGHT replay matched the same digest and ordered entry.
+- Selected-frame escape: profile SHA-256 `79e2e9ef510cd37af4e0ebe6d086eb94448c8890004b15bbca5b39d51ab2378a`; plan SHA-256 `6590efa3d00158b6e7b4e3f2e74e6f2f1fe810e9bac3b785d47d3548210b80cf`. Both backends failed with `TARGET_ENVELOPE_VIOLATION`, generated=2/executed=1; only `MONKEY-000001` started and the subsequent action did not start.
+- FRAME-scoped top-level PAGE escape: profile SHA-256 `35cc616cebb62152fca33721c27b6b720f4907c6a4ce212d813bc765cd244307`; plan SHA-256 `6f36a6377f921698c3a8b60e22559bbf273b8e71064c1c5113dcb4853a01c18f`. Both backends failed with `TARGET_ENVELOPE_VIOLATION`, generated=2/executed=1; only `MONKEY-000001` started and the subsequent action did not start.
+- Before/after pre-existing Brave target count was 1 and the sorted target-identity digest was unchanged. The pre-existing page remained open; runner pages closed; local server, temporary directory, and ports 4558/4564/4565 were cleaned; Brave remained responsive.
+- Retained evidence is privacy-reduced: plan entries contain only stepId, candidateId, and operation; no fixture URLs, raw selector/value data, approval references, or raw target IDs are retained.
+- Accepted limitation: GAS_OOPIF FRAME scope waits a fixed 50 ms for already-issued navigation-request events before final envelope recheck. This is bounded safety synchronization, not correlation authority. No external deployment or browser lifecycle mutation occurred.
