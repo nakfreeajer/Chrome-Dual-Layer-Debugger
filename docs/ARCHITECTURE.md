@@ -187,7 +187,19 @@ The runner enforces bounded action count, duration, and per-action timeouts; act
 
 For every navigation request, the request-event latch independently checks the runner-owned page main-frame origin. Under FRAME scope it also checks the selected frame origin. Either out-of-origin request fails closed before a later generated action can start. For GAS_OOPIF FRAME scope, a fixed 50 ms public-Playwright event-delivery drain precedes the final containment recheck so an already-issued child/OOPIF navigation request can reach the request listener. This drain is bounded safety synchronization only; it is not correlation evidence or proof authority.
 
-Target identity, generated action identity, CDP requestId, observerScopeId, correlationId, seed, and timing/order remain distinct. V0.1I remains the sole correlation proof authority. TEST.1C does not provide generalized production testing, arbitrary DOM crawling, or persisted regression suites; TEST.1D, TEST.1E, and TEST.1F remain separate and unauthorized.
+Target identity, generated action identity, CDP requestId, observerScopeId, correlationId, seed, and timing/order remain distinct. V0.1I remains the sole correlation proof authority. TEST.1C does not provide generalized production testing, arbitrary DOM crawling, or persisted regression suites; TEST.1D later closed as a separate bounded assertion/failure-evidence milestone, while TEST.1E and TEST.1F remain unauthorized.
+
+## Assertions and failure artifacts - TEST.1D (accepted)
+
+TEST.1D is accepted and closed at source commit `5a05c8e98f0555cca9cf05028dfa31ff20464039` (parent `acb03cae34199bb5dd4c4bd7e89e4093f8d30e91`; accepted source patch SHA-256 `7464b9bb90fdd190374c69cb3a2adf740d88f97c4c835e0312141b5d7a0b5c3a`). The assertion contract is the exact shared predicate set `truthy`, `falsy`, `equals`, `notEquals`, `contains`, and `notContains`; PLAYWRIGHT and GAS_OOPIF use the same evaluator and normalized assertion Timeline evidence. The predicates are non-mutating reads and do not add arbitrary expressions, regex, coercive comparisons, or backend-specific behavior.
+
+Terminal action/assertion failures may produce a `CDLD_TEST1D_FAILURE` schema-version-1 envelope with exact `(runId,eventId)` references. Default retained evidence is privacy-reduced and excludes approval references, raw selectors/values, credentials, cookies, authorization headers, and private DOM. Optional synthetic-fixture detail is opt-in, loopback-target limited, and bounded. Screenshot metadata may accompany a bounded session-level diagnostic artifact; screenshot is not an ActionOperation or GAS parity capability.
+
+DOM, runtime, and screenshot diagnostics share a total 5-second deadline, have no retry loop, and cannot replace the original failure. Timeout prevents later diagnostic stages from starting, even if an earlier underlying operation completes late. The existing TestPageSession target envelope is rechecked before each target-content diagnostic stage. An unsafe envelope yields `OMITTED_TARGET_ENVELOPE`; no later target-content diagnostics or screenshot are collected.
+
+GAS_OOPIF readiness is predicate-scoped to the exact authorized `targetId` and attached `sessionId`, and requires a live, default, non-ignored context with a safe integer executionContextId. A globally present default context is not sufficient. This uses the pinned dependency's public predicate-scoped wait and preserves the existing timeout and polling bounds.
+
+V0.1I remains the sole correlation proof authority. A failure artifact may classify a relationship as `PROVEN_BY_EXISTING_EVIDENCE` only when it references an existing proof-complete V0.1I correlation; otherwise the relationship remains `RUN_CONTEXT_ONLY` or `UNKNOWN`. Exact same-run Timeline references to action, assertion, or failure events are diagnostic identity references, not correlation proof. Timing/order, URLs, and frame/page proximity never prove correlation. TEST.1D does not add correlation, generalized production testing, or capabilities outside the accepted matrix. TEST.1E and TEST.1F remain PLANNED / NOT AUTHORIZED.
 
 ## Engineering workflow architecture
 

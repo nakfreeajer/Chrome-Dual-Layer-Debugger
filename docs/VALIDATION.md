@@ -280,3 +280,21 @@ Accepted live validation used only Rony's already-running Brave at `http://127.0
 - Before/after pre-existing Brave target count was 1 and the sorted target-identity digest was unchanged. The pre-existing page remained open; runner pages closed; local server, temporary directory, and ports 4558/4564/4565 were cleaned; Brave remained responsive.
 - Retained evidence is privacy-reduced: plan entries contain only stepId, candidateId, and operation; no fixture URLs, raw selector/value data, approval references, or raw target IDs are retained.
 - Accepted limitation: GAS_OOPIF FRAME scope waits a fixed 50 ms for already-issued navigation-request events before final envelope recheck. This is bounded safety synchronization, not correlation authority. No external deployment or browser lifecycle mutation occurred.
+
+## Accepted TEST.1D assertions and failure artifacts
+
+Source implementation: `5a05c8e98f0555cca9cf05028dfa31ff20464039`; parent: `acb03cae34199bb5dd4c4bd7e89e4093f8d30e91`; accepted complete source review patch SHA-256: `7464b9bb90fdd190374c69cb3a2adf740d88f97c4c835e0312141b5d7a0b5c3a`.
+
+Deterministic validation passed: `npm run check`, `npm test` 263/263, and `git diff --check`. The common PLAYWRIGHT/GAS_OOPIF assertion matrices passed for all six accepted predicates and deliberate failures. Six isolated GAS cases repeated after the exact target/session context-readiness repair reached assertion execution; no setup exit 1 remained in the accepted post-repair matrix.
+
+Accepted live qualification also verified privacy-reduced failure artifacts, exact same-run Timeline references, synthetic-detail screenshot sidecar hash/length metadata, diagnostic timeout preservation with no late continuation, and target-envelope fail-closed omission for DOM/runtime/screenshot. The pre-existing Brave target inventory remained unchanged; runner pages, fixture servers, ports, and temporary fixture files were cleaned up; Brave remained responsive. No external deployment or business target was used. These are final accepted results; earlier intermediate failed/inconclusive attempts are not the final qualification.
+
+Regression contracts:
+- Preserve the exact six predicates and shared backend semantics; assertions remain non-mutating common PASS reads.
+- Keep default failure evidence privacy-reduced and bounded; exact synthetic detail remains explicit and restricted.
+- Use exact `(runId,eventId)` references. V0.1I remains the sole correlation proof authority; timing/order, URL, and frame proximity never prove correlation.
+- Bound diagnostics to the shared 5-second deadline, without retries or post-timeout continuation.
+- Recheck target-envelope safety before each target-content diagnostic; omit later target-content evidence after violation.
+- Require a qualifying default execution context on the exact authorized GAS target and attached session.
+- Screenshot remains session-level diagnostic evidence, not a GAS ActionOperation capability.
+- TEST.1E and TEST.1F remain PLANNED / NOT AUTHORIZED.

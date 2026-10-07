@@ -140,3 +140,11 @@ The next bounded integration, if separately authorized, should evaluate a privac
 - The six-predicate assertion slice, privacy-reduced versioned failure artifact, bounded opt-in synthetic details, session-level diagnostics, exact Timeline identity references, and V0.1I sole correlation authority are specified in the accepted authorization documentation.
 - Implementation, tests, validation, acceptance, publication, and live qualification have NOT happened yet. No source or tests were changed by this authorization.
 - TEST.1E and TEST.1F remain PLANNED / NOT AUTHORIZED.
+
+## 2026-10-07 - TEST.1D Assertions and Failure Artifacts - ACCEPTED / CLOSED
+- Source published at `5a05c8e98f0555cca9cf05028dfa31ff20464039`, parent `acb03cae34199bb5dd4c4bd7e89e4093f8d30e91`, with accepted complete source patch SHA-256 `7464b9bb90fdd190374c69cb3a2adf740d88f97c4c835e0312141b5d7a0b5c3a`.
+- Deterministic validation passed: `npm run check`, `npm test` 263/263, and `git diff --check`.
+- Added the shared six-predicate assertion contract and versioned privacy-reduced failure artifacts with bounded diagnostics and exact Timeline references. V0.1I remained the sole correlation authority.
+- Live qualification repaired an exact GAS target/session context-readiness race, prevented diagnostic stages from continuing after timeout, and enforced target-envelope checks before each diagnostic stage. PLAYWRIGHT passed the six-predicate scenario; all six deliberate failures reached `ASSERTION_FAILED` / exit 2. GAS_OOPIF passed the same scenario and all six deliberate failures reached `ASSERTION_FAILED` / exit 2; the repaired `truthy` and `notContains` cases were each repeated three times, all reaching assertion execution with no setup exit 1.
+- Privacy-reduced artifacts, bounded synthetic screenshot metadata, timeout preservation, fail-closed target-envelope omission, unchanged pre-existing target inventory, cleanup, and Brave endpoint responsiveness were verified. No business target or external deployment was used.
+- No TEST.1E or TEST.1F work was started; both remain PLANNED / NOT AUTHORIZED.
