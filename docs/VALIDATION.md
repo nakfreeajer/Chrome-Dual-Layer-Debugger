@@ -298,3 +298,16 @@ Regression contracts:
 - Require a qualifying default execution context on the exact authorized GAS target and attached session.
 - Screenshot remains session-level diagnostic evidence, not a GAS ActionOperation capability.
 - TEST.1E and TEST.1F remain PLANNED / NOT AUTHORIZED.
+
+## Accepted PUBLIC.1A-SAFETY.1A GAS evidence redaction
+
+Source publication: `9fdc9a4300252e8bae0ef280e3758dd699bf5a3d` (`fix(gas): harden Apps Script secret redaction`), based on `04174d701d2f42f5a4c7e776432e515c548eb911`.
+
+Accepted validation reported:
+- `npm run check` PASS;
+- `npm test` 267/267 PASS;
+- `git diff --check` PASS.
+
+Focused tests cover the supported `/macros/s/{id}/exec`, `/a/macros/{domain}/s/{id}/exec`, and `/macros/d/{id}/usercodeapp` route layouts; case variants; relative and malformed route-like strings; embedded HTTP(S) URLs; and whole-input parseable absolute URLs, including WSS. They also cover userinfo, all parsed-URL query values, non-empty fragments, deterministic/idempotent output, unrelated-path false positives, and GAS discovery target URL, frame URL, and context origin output. The context-origin case is supplied through `listRuntimeContexts()`.
+
+Regression boundary: redaction statements apply to these covered URL forms and the audited `GasAdapter` discovery evidence fields. They do not assert universal leakage prevention across unrelated output sinks. Do not regress the project wrapper on whole-input absolute URL schemes, bypass it for returned target/frame/context URL fields, or broaden known-route matching to unrelated paths. TEST.1D remains closed; TEST.1E/1F remain PLANNED / NOT AUTHORIZED, and no later PUBLIC safety slice is authorized here.

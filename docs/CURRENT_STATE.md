@@ -158,3 +158,9 @@ Reuse existing runner/session ownership, TEST.1B authorization-before-navigation
 - `--observe-v1-ms` is opt-in. Playwright Page console is diagnostic only and is not production marker authority.
 - Accepted tests: `npm run check` PASS; `npm test` 178/178 PASS; `git diff --check` PASS.
 - Live Brave validation passed with explicit fixture start gating, all four controls ready before the gate, exactly one success and one failure proof, ordinary native traffic quiet, stable target identity, and cleanup verified. No further browser diagnostic is pending.
+
+## Accepted PUBLIC.1A-SAFETY.1A GAS evidence redaction
+- Public review identified a privacy defect in GAS URL evidence redaction. The bounded fix was published at `9fdc9a4300252e8bae0ef280e3758dd699bf5a3d`.
+- `GasAdapter` applies the project redactor to retained target URLs, frame URLs, and runtime-context origins. It covers the supported Apps Script deployment, Workspace-domain, and usercodeapp route forms, plus URL userinfo, query values, and non-empty fragments for parseable absolute URLs; whole-input absolute URLs are handled regardless of scheme.
+- Relative and malformed route-like strings receive bounded best-effort handling. Matching is case-insensitive and deterministic/idempotent, with tests for unrelated-path false positives. These statements apply to the covered redaction paths, not universally to unrelated sinks.
+- Accepted validation: `npm run check` PASS, `npm test` 267/267 PASS, and `git diff --check` PASS. TEST.1D remains closed; TEST.1E and TEST.1F remain PLANNED / NOT AUTHORIZED. No later PUBLIC safety slice is authorized by this closure.
