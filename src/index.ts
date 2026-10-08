@@ -34,5 +34,7 @@ export * from './testing/FailureDiagnostics.js';
 export * from './testing/RegressionSuite.js';
 export * from './testing/RegressionSuiteParser.js';
 export * from './testing/RegressionSuiteRunner.js';
+export { launchOwnedBrowser, isActiveOwnedBrowserLease } from './testing/OwnedBrowserProcess.js';
+export type { OwnedBrowserLease, OwnedBrowserCleanupResult, OwnedResourceStatus } from './testing/OwnedBrowserProcess.js';
 export * from './relay/PromptArtifactStore.js';
 export * from './relay/PromptRelayDescriptor.js';
