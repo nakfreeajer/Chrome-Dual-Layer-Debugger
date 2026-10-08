@@ -16,6 +16,7 @@ import { basename, dirname, extname, isAbsolute, relative, resolve } from 'node:
 import { parseExploratoryProfile } from '../testing/ExploratoryProfileParser.js';
 import { generateExploratoryPlan, validateExploratorySeed } from '../testing/ExploratoryGenerator.js';
 import { runExploratoryProfile } from '../testing/ExploratoryRunner.js';
+import type { FixtureLifecycleJournal, FixtureLifecycleSummary, SyntheticFixtureDriver } from '../testing/FixtureLifecycle.js';
 import type { ExploratoryProfile, ExploratoryReplayArtifact, GeneratedExploratoryPlan, ExploratoryResult } from '../testing/ExploratoryProfile.js';
 import { buildFailureArtifact, resolveFailureArtifactPath, writeFailureArtifact, type TimelineEventRef } from '../testing/FailureArtifact.js';
 import { isLoopbackHttpUrl, type FailureDiagnosticResult } from '../testing/FailureDiagnostics.js';
@@ -147,17 +148,24 @@ export interface MonkeyCliOptions {
   replayArtifactPath: string;
   failureArtifactPath?: string;
   syntheticFailureDetails?: boolean;
+  fixtureLifecycle?: true;
 }
 
 export function parseMonkeyCliOptions(args: string[]): MonkeyCliOptions {
   const values = new Map<string, string>();
-  const allowed = new Set(['--profile', '--seed', '--backend', '--endpoint', '--approval-reference', '--timeline', '--replay-artifact', '--failure-artifact', '--synthetic-failure-details']);
+  const allowed = new Set(['--profile', '--seed', '--backend', '--endpoint', '--approval-reference', '--timeline', '--replay-artifact', '--failure-artifact', '--synthetic-failure-details', '--fixture-lifecycle']);
   let syntheticFailureDetails = false;
+  let fixtureLifecycle = false;
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index];
     if (flag === '--synthetic-failure-details') {
       if (syntheticFailureDetails) throw new Error('Duplicate monkey argument: --synthetic-failure-details');
       syntheticFailureDetails = true;
+      continue;
+    }
+    if (flag === '--fixture-lifecycle') {
+      if (fixtureLifecycle) throw new Error('Duplicate monkey argument: --fixture-lifecycle');
+      fixtureLifecycle = true;
       continue;
     }
     if (!allowed.has(flag)) throw new Error(`Unknown or unexpected monkey argument: ${flag}`);
@@ -184,7 +192,7 @@ export function parseMonkeyCliOptions(args: string[]): MonkeyCliOptions {
     timelinePath: values.get('--timeline') ?? '.agent-work/artifacts/monkey-timeline.jsonl',
     replayArtifactPath: values.get('--replay-artifact') ?? '.agent-work/artifacts/monkey-replay.json',
     ...(values.has('--failure-artifact') ? { failureArtifactPath: values.get('--failure-artifact')! } : {}),
-    ...(syntheticFailureDetails ? { syntheticFailureDetails } : {}) };
+    ...(syntheticFailureDetails ? { syntheticFailureDetails } : {}), ...(fixtureLifecycle ? { fixtureLifecycle: true as const } : {}) };
 }
 
 export function resolveMonkeyArtifactPath(path: string): string {
@@ -196,7 +204,8 @@ export function resolveMonkeyArtifactPath(path: string): string {
 
 export interface MonkeyCliDependencies {
   readProfileFile(path: string): Promise<unknown>;
-  openSession(options: { endpoint: string; backend: TestingBackendId; approvalReference: string; fixtureId: string; target: ExploratoryProfile['target'] }): Promise<Pick<TestPageSession, 'backend' | 'authorization' | 'close' | 'assertTargetEnvelope'> & Partial<Pick<TestPageSession, 'captureFailureDiagnostics'>>>;
+  openSession(options: { endpoint: string; backend: TestingBackendId; approvalReference: string; fixtureId: string; target: ExploratoryProfile['target']; fixtureLifecycle?: { driver: SyntheticFixtureDriver; runId: string; journal?: FixtureLifecycleJournal } }): Promise<Pick<TestPageSession, 'backend' | 'authorization' | 'close' | 'assertTargetEnvelope'> & Partial<Pick<TestPageSession, 'captureFailureDiagnostics' | 'beginFixtureRun' | 'finishFixtureRun'>>>;
+  fixtureDriver?: SyntheticFixtureDriver;
   writeTimeline(path: string, timeline: Timeline): Promise<void>;
   writeReplay(path: string, artifact: ExploratoryReplayArtifact): Promise<void>;
   writeOutput(line: string): void;
@@ -233,6 +242,7 @@ export async function runMonkeyCli(args: string[], dependencies: MonkeyCliDepend
   resolveMonkeyArtifactPath(options.timelinePath);
   resolveMonkeyArtifactPath(options.replayArtifactPath);
   const profile = parseExploratoryProfile(await dependencies.readProfileFile(options.profilePath));
+  if (options.fixtureLifecycle && !dependencies.fixtureDriver) throw new Error('FIXTURE_LIFECYCLE_DRIVER_UNAVAILABLE');
   if (options.failureArtifactPath) await validateFailureArtifactDestination(options.failureArtifactPath, options.syntheticFailureDetails === true, profile.target);
   const plan: GeneratedExploratoryPlan = generateExploratoryPlan(profile, options.seed);
   const timeline = dependencies.createTimeline();
@@ -240,14 +250,30 @@ export async function runMonkeyCli(args: string[], dependencies: MonkeyCliDepend
   const replayArtifactPath = options.replayArtifactPath === '.agent-work/artifacts/monkey-replay.json'
     ? `.agent-work/artifacts/monkey-replay-${timeline.runId}.json` : options.replayArtifactPath;
   const session = await dependencies.openSession({ endpoint: options.endpoint, backend: options.backend,
-    approvalReference: options.approvalReference, fixtureId: profile.profileId, target: profile.target });
+    approvalReference: options.approvalReference, fixtureId: profile.profileId, target: profile.target,
+    ...(options.fixtureLifecycle ? { fixtureLifecycle: { driver: dependencies.fixtureDriver!, runId: timeline.runId } } : {}) });
   timeline.append(timeline.create({ source: 'CORE', category: 'SESSION', type: 'SESSION_STARTED', data: { profileId: profile.profileId, backend: options.backend } }));
-  let result: ExploratoryResult;
+  let result: ExploratoryResult | undefined;
   let failureDiagnostic: FailureDiagnosticResult | undefined;
   let failureArtifactStatus: string | undefined;
+  let fixtureLifecycleSummary: FixtureLifecycleSummary | undefined;
+  let fixtureRunStarted = false;
+  let fixtureRunFinalized = false;
+  let fixtureLifecycleUnknown = false;
+  let executionError: unknown;
   try {
+    if (options.fixtureLifecycle) requireFixtureRunMethods(session);
+    if (options.fixtureLifecycle) {
+      try { await session.beginFixtureRun!(); fixtureRunStarted = true; }
+      catch (error) { fixtureLifecycleUnknown = true; throw error; }
+    }
     result = await runExploratoryProfile({ backend: session.backend, profile, artifact: plan, timeline,
       authorization: session.authorization, assertTargetEnvelope: () => session.assertTargetEnvelope(), now: dependencies.now });
+    if (fixtureRunStarted) {
+      fixtureRunFinalized = true;
+      try { await session.finishFixtureRun!(result.status === 'FAIL' ? 'FAIL' : 'PASS'); }
+      catch (error) { fixtureLifecycleUnknown = true; throw error; }
+    }
     if (result.status === 'FAIL' && options.failureArtifactPath) {
       const failed = result.actionResults.at(-1);
       const refs = failureRefs(timeline, result.runId, failed?.stepId, result.stopReason === 'TARGET_ENVELOPE_VIOLATION');
@@ -264,16 +290,37 @@ export async function runMonkeyCli(args: string[], dependencies: MonkeyCliDepend
       try { await persistFailureWithScreenshot(options.failureArtifactPath, artifact, failureDiagnostic, timeline.runId); failureArtifactStatus = 'WRITTEN'; }
       catch { failureArtifactStatus = 'WRITE_ERROR'; }
     }
+  } catch (error) {
+    executionError = error;
+    if (options.fixtureLifecycle && error instanceof Error && error.message === 'FIXTURE_LIFECYCLE_SESSION_METHODS_UNAVAILABLE') fixtureLifecycleUnknown = true;
   } finally {
-    await session.close();
+    if (fixtureRunStarted && !fixtureRunFinalized) {
+      fixtureRunFinalized = true;
+      try { await session.finishFixtureRun!('UNKNOWN'); } catch { fixtureLifecycleUnknown = true; }
+    }
+    try {
+      const closeResult = await session.close();
+      if (closeResult) fixtureLifecycleSummary = closeResult;
+    } catch (error) {
+      if (!executionError) executionError = error;
+      if (options.fixtureLifecycle) { fixtureLifecycleSummary = undefined; fixtureLifecycleUnknown = true; }
+    }
+    if (fixtureLifecycleUnknown) fixtureLifecycleSummary = unknownFixtureSummary(fixtureLifecycleSummary,
+      options.fixtureLifecycle ? { runId: timeline.runId, fixtureId: profile.profileId, driverId: dependencies.fixtureDriver!.driverId } : undefined);
     timeline.append(timeline.create({ source: 'CORE', category: 'SESSION', type: 'SESSION_ENDED', data: { profileId: profile.profileId, backend: options.backend } }));
   }
+  if (executionError) throw attachFixtureSummary(executionError, options.fixtureLifecycle ? fixtureLifecycleSummary : undefined);
+  if (!result) throw new Error('Exploratory runner produced no result');
   await dependencies.writeReplay(replayArtifactPath, { kind: 'CDLD_TEST1C_REPLAY', schemaVersion: 1, ...plan,
     backend: options.backend, terminalStatus: result.status, stopReason: result.stopReason,
     generatedCount: result.generatedCount, executedCount: result.executedCount });
   await dependencies.writeTimeline(options.timelinePath, timeline);
-  dependencies.writeOutput(JSON.stringify({ ...result, ...(failureArtifactStatus ? { failureArtifactStatus } : {}) }));
-  return result.status === 'FAIL' ? 2 : 0;
+  const cleanupVerified = !options.fixtureLifecycle || fixtureLifecycleSummary?.overallStatus === 'PASS';
+  const finalStatus = cleanupVerified ? result.status : 'FAIL';
+  dependencies.writeOutput(JSON.stringify({ ...result, status: finalStatus,
+    ...(options.fixtureLifecycle ? { testStatus: result.status, fixtureLifecycle: fixtureLifecycleSummary ?? { overallStatus: 'UNKNOWN' } } : {}),
+    ...(failureArtifactStatus ? { failureArtifactStatus } : {}) }));
+  return result.status === 'FAIL' || !cleanupVerified ? 2 : 0;
 }
 
 export interface SmokeCliOptions {
@@ -284,17 +331,24 @@ export interface SmokeCliOptions {
   timelinePath: string;
   failureArtifactPath?: string;
   syntheticFailureDetails?: boolean;
+  fixtureLifecycle?: true;
 }
 
 export function parseSmokeCliOptions(args: string[]): SmokeCliOptions {
   const values = new Map<string, string>();
-  const allowed = new Set(['--scenario', '--backend', '--endpoint', '--approval-reference', '--timeline', '--failure-artifact', '--synthetic-failure-details']);
+  const allowed = new Set(['--scenario', '--backend', '--endpoint', '--approval-reference', '--timeline', '--failure-artifact', '--synthetic-failure-details', '--fixture-lifecycle']);
   let syntheticFailureDetails = false;
+  let fixtureLifecycle = false;
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index];
     if (flag === '--synthetic-failure-details') {
       if (syntheticFailureDetails) throw new Error('Duplicate smoke argument: --synthetic-failure-details');
       syntheticFailureDetails = true;
+      continue;
+    }
+    if (flag === '--fixture-lifecycle') {
+      if (fixtureLifecycle) throw new Error('Duplicate smoke argument: --fixture-lifecycle');
+      fixtureLifecycle = true;
       continue;
     }
     if (!allowed.has(flag)) throw new Error(`Unknown or unexpected smoke argument: ${flag}`);
@@ -323,13 +377,14 @@ export function parseSmokeCliOptions(args: string[]): SmokeCliOptions {
     approvalReference,
     timelinePath: values.get('--timeline') ?? '.agent-work/artifacts/smoke-timeline.jsonl',
     ...(values.has('--failure-artifact') ? { failureArtifactPath: values.get('--failure-artifact')! } : {}),
-    ...(syntheticFailureDetails ? { syntheticFailureDetails } : {})
+    ...(syntheticFailureDetails ? { syntheticFailureDetails } : {}), ...(fixtureLifecycle ? { fixtureLifecycle: true as const } : {})
   };
 }
 
 export interface SmokeCliDependencies {
   readScenarioFile(path: string): Promise<unknown>;
-  openSession(options: { endpoint: string; backend: TestingBackendId; approvalReference: string; scenario: SmokeScenario }): Promise<Pick<TestPageSession, 'backend' | 'authorization' | 'close'> & Partial<Pick<TestPageSession, 'captureFailureDiagnostics'>>>;
+  openSession(options: { endpoint: string; backend: TestingBackendId; approvalReference: string; scenario: SmokeScenario; fixtureLifecycle?: { driver: SyntheticFixtureDriver; runId: string; journal?: FixtureLifecycleJournal } }): Promise<Pick<TestPageSession, 'backend' | 'authorization' | 'close'> & Partial<Pick<TestPageSession, 'captureFailureDiagnostics' | 'beginFixtureRun' | 'finishFixtureRun'>>>;
+  fixtureDriver?: SyntheticFixtureDriver;
   writeTimeline(path: string, timeline: Timeline): Promise<void>;
   writeOutput(line: string): void;
   createTimeline(): Timeline;
@@ -351,18 +406,34 @@ const defaultSmokeCliDependencies: SmokeCliDependencies = {
 export async function runSmokeCli(args: string[], dependencies: SmokeCliDependencies = defaultSmokeCliDependencies): Promise<number> {
   const options = parseSmokeCliOptions(args);
   const scenario = parseSmokeScenario(await dependencies.readScenarioFile(options.scenarioPath));
+  if (options.fixtureLifecycle && !dependencies.fixtureDriver) throw new Error('FIXTURE_LIFECYCLE_DRIVER_UNAVAILABLE');
   if (options.failureArtifactPath) await validateFailureArtifactDestination(options.failureArtifactPath, options.syntheticFailureDetails === true, scenario.target);
   const timeline = dependencies.createTimeline();
   if (options.failureArtifactPath && options.syntheticFailureDetails) await validateScreenshotDestination(options.failureArtifactPath, timeline.runId);
   const session = await dependencies.openSession({
-    endpoint: options.endpoint, backend: options.backend, approvalReference: options.approvalReference, scenario
+    endpoint: options.endpoint, backend: options.backend, approvalReference: options.approvalReference, scenario,
+    ...(options.fixtureLifecycle ? { fixtureLifecycle: { driver: dependencies.fixtureDriver!, runId: timeline.runId } } : {})
   });
   let result: SmokeScenarioResult | undefined;
   let failureDiagnostic: FailureDiagnosticResult | undefined;
   let failureArtifactStatus: string | undefined;
+  let fixtureLifecycleSummary: FixtureLifecycleSummary | undefined;
   let executionError: unknown;
+  let fixtureRunStarted = false;
+  let fixtureRunFinalized = false;
+  let fixtureLifecycleUnknown = false;
   try {
+    if (options.fixtureLifecycle) requireFixtureRunMethods(session);
+    if (options.fixtureLifecycle) {
+      try { await session.beginFixtureRun!(); fixtureRunStarted = true; }
+      catch (error) { fixtureLifecycleUnknown = true; throw error; }
+    }
     result = await runSmokeScenario({ backend: session.backend, scenario, timeline, authorization: session.authorization });
+    if (fixtureRunStarted) {
+      fixtureRunFinalized = true;
+      try { await session.finishFixtureRun!(result.status === 'PASS' ? 'PASS' : 'FAIL'); }
+      catch (error) { fixtureLifecycleUnknown = true; throw error; }
+    }
     if (result.status === 'FAIL' && options.failureArtifactPath) {
       const failed = scenario.steps.find((step) => step.stepId === result!.failedStepId);
       const stepResult = result.stepResults.find((entry) => entry.stepId === result!.failedStepId);
@@ -383,23 +454,37 @@ export async function runSmokeCli(args: string[], dependencies: SmokeCliDependen
     }
   } catch (error) {
     executionError = error;
+    if (options.fixtureLifecycle && error instanceof Error && error.message === 'FIXTURE_LIFECYCLE_SESSION_METHODS_UNAVAILABLE') fixtureLifecycleUnknown = true;
   } finally {
-    await session.close();
+    if (fixtureRunStarted && !fixtureRunFinalized) {
+      fixtureRunFinalized = true;
+      try { await session.finishFixtureRun!('UNKNOWN'); } catch { fixtureLifecycleUnknown = true; }
+    }
+    try {
+      const closeResult = await session.close();
+      if (closeResult) fixtureLifecycleSummary = closeResult;
+    } catch (error) {
+      executionError ??= error;
+      if (options.fixtureLifecycle) { fixtureLifecycleSummary = undefined; fixtureLifecycleUnknown = true; }
+    }
+    if (fixtureLifecycleUnknown) fixtureLifecycleSummary = unknownFixtureSummary(fixtureLifecycleSummary,
+      options.fixtureLifecycle ? { runId: timeline.runId, fixtureId: scenario.scenarioId, driverId: dependencies.fixtureDriver!.driverId } : undefined);
   }
-  if (executionError) throw executionError;
+  if (executionError) throw attachFixtureSummary(executionError, options.fixtureLifecycle ? fixtureLifecycleSummary : undefined);
   if (!result) throw new Error('Smoke runner produced no result');
   await dependencies.writeTimeline(options.timelinePath, timeline);
   const output = {
     scenarioId: result.scenarioId,
     backend: result.backend,
-    status: result.status,
+    status: (!options.fixtureLifecycle || fixtureLifecycleSummary?.overallStatus === 'PASS') ? result.status : 'FAIL',
     runId: result.runId,
     stepResults: result.stepResults.map((step) => ({ stepId: step.stepId, kind: step.kind, operation: step.operation, ok: step.ok, ...(step.errorCode ? { errorCode: step.errorCode } : {}) })),
     ...(result.failedStepId ? { failedStepId: result.failedStepId } : {}),
+    ...(options.fixtureLifecycle ? { testStatus: result.status, fixtureLifecycle: fixtureLifecycleSummary ?? { overallStatus: 'UNKNOWN' } } : {}),
     ...(failureArtifactStatus ? { failureArtifactStatus } : {})
   };
   dependencies.writeOutput(JSON.stringify(output));
-  return result.status === 'PASS' ? 0 : 2;
+  return result.status === 'PASS' && (!options.fixtureLifecycle || fixtureLifecycleSummary?.overallStatus === 'PASS') ? 0 : 2;
 }
 
 function printGasEvidence(gas: GasDiscoveryResult, pages: Parameters<typeof mapCrossLayerIdentities>[0]): void {
@@ -472,6 +557,27 @@ function safeDiagnosticMetadata(result: FailureDiagnosticResult | undefined): Re
     runtime: result.runtime,
     screenshot: { status: screenshot.status, ...(screenshot.byteLength !== undefined ? { byteLength: screenshot.byteLength } : {}), ...(screenshot.sha256 ? { sha256: screenshot.sha256 } : {}) }
   };
+}
+
+function requireFixtureRunMethods(session: { beginFixtureRun?: () => Promise<void>; finishFixtureRun?: (outcome: 'PASS' | 'FAIL' | 'UNKNOWN') => Promise<void> }): asserts session is { beginFixtureRun: () => Promise<void>; finishFixtureRun: (outcome: 'PASS' | 'FAIL' | 'UNKNOWN') => Promise<void> } {
+  if (typeof session.beginFixtureRun !== 'function' || typeof session.finishFixtureRun !== 'function') {
+    throw new Error('FIXTURE_LIFECYCLE_SESSION_METHODS_UNAVAILABLE');
+  }
+}
+
+function unknownFixtureSummary(summary: FixtureLifecycleSummary | undefined, identity?: { runId: string; fixtureId: string; driverId: string }): FixtureLifecycleSummary | undefined {
+  if (summary) return { ...summary, cleanupVerificationStatus: 'UNKNOWN', overallStatus: 'UNKNOWN' };
+  if (!identity) return undefined;
+  return { schemaVersion: 1, ...identity, setupStatus: 'UNKNOWN', ownershipStatus: 'UNKNOWN', resetStatus: 'UNKNOWN',
+    resetVerificationStatus: 'UNKNOWN', targetBindingStatus: 'UNKNOWN', runStatus: 'UNKNOWN', browserResourceClosureStatus: 'UNKNOWN',
+    teardownStatus: 'UNKNOWN', cleanupVerificationStatus: 'UNKNOWN', overallStatus: 'UNKNOWN' };
+}
+
+function attachFixtureSummary(error: unknown, summary: FixtureLifecycleSummary | undefined): unknown {
+  if (!summary) return error;
+  const wrapped = error instanceof Error ? error : new Error('Fixture lifecycle execution failed', { cause: error });
+  (wrapped as Error & { fixtureLifecycle?: FixtureLifecycleSummary }).fixtureLifecycle = summary;
+  return wrapped;
 }
 
 async function persistFailureWithScreenshot(path: string, artifact: Record<string, unknown>, diagnostics: FailureDiagnosticResult | undefined, runId: string): Promise<void> {

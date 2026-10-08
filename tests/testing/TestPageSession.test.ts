@@ -6,6 +6,7 @@ import { PlaywrightBrowserDiscovery } from '../../src/browser/PlaywrightBrowserD
 import type { GasAdapter } from '../../src/gas/GasAdapter.js';
 import type { Page, Frame } from 'playwright';
 import { SessionIds } from '../../src/core/SessionIds.js';
+import { fixtureRuntimeIdentitySha256, type FixtureLifecycleEvidence, type FixtureLifecycleJournal, type FixtureRuntimeTargetIdentity, type SyntheticFixtureDriver, type SyntheticFixtureLease } from '../../src/testing/FixtureLifecycle.js';
 
 function scenario(kind: 'PAGE' | 'FRAME' = 'PAGE') {
   return parseSmokeScenario({ schemaVersion: 1, scenarioId: 'session-fixture', target: {
@@ -63,6 +64,105 @@ test('PLAYWRIGHT binds to the runner-owned page and never selects or closes an e
   assert.equal(f.events.filter((item) => item === 'owned:close').length, 1);
   assert.equal(f.events.includes('existing:close'), false);
   assert.ok(f.events.includes('playwright:disconnect'));
+});
+
+function lifecycleDriver(f: ReturnType<typeof setup>, overrides: Partial<SyntheticFixtureDriver> = {}, expectedIdentity: FixtureRuntimeTargetIdentity =
+  { backend: 'PLAYWRIGHT', scopeKind: 'PAGE', contextId: 'CONTEXT-0001', pageId: 'PAGE-0001' }): SyntheticFixtureDriver {
+  const target = scenario().target;
+  const lease: SyntheticFixtureLease = { schemaVersion: 1, kind: 'CDLD_SYNTHETIC_FIXTURE_LEASE', ownership: 'CDLD_SYNTHETIC',
+    fixtureId: 'session-fixture', driverId: 'session-driver', leaseId: 'lease-1', target, ownedResourceIds: ['owned-fixture'] };
+  return { driverId: 'session-driver', async setup() {
+      assert.equal(f.events.some((item) => item.startsWith('create:owned')), false, 'fixture resource lease precedes runner page creation');
+      f.events.push('fixture:setup'); return lease;
+    },
+    async verifyOwnership() { f.events.push('fixture:verify-ownership'); return true; }, async reset() { f.events.push('fixture:reset'); },
+    async verifyReset() { f.events.push('fixture:verify-reset'); return true; },
+    async attestTargetBinding(actualLease: SyntheticFixtureLease, identity: FixtureRuntimeTargetIdentity, challenge: string) {
+      f.events.push('fixture:attest-target');
+      const runtimeCreated = expectedIdentity.backend === 'PLAYWRIGHT' ? f.events.includes('create:owned:TEST') : f.events.includes('gas:attach');
+      if (!runtimeCreated || actualLease.leaseId !== lease.leaseId || fixtureRuntimeIdentitySha256(identity) !== fixtureRuntimeIdentitySha256(expectedIdentity)) return null;
+      return { schemaVersion: 1, kind: 'CDLD_FIXTURE_TARGET_ATTESTATION', driverId: 'session-driver', leaseId: actualLease.leaseId,
+        challenge, attestationId: 'attestation-1', runtimeIdentitySha256: fixtureRuntimeIdentitySha256(identity) };
+    },
+    async teardown() { f.events.push('fixture:teardown'); },
+    async verifyCleanup() { f.events.push('fixture:verify-cleanup'); return true; }, ...overrides };
+}
+
+function lifecycleJournal(): FixtureLifecycleJournal {
+  return { async record(_entry: FixtureLifecycleEvidence) {}, async close() {} };
+}
+
+test('opt-in fixture lifecycle setup and reset verification precede runner-owned page creation', async () => {
+  const f = setup();
+  const session = await TestPageSession.open({ endpoint: 'http://127.0.0.1:9444', backend: 'PLAYWRIGHT', approvalReference: 'approved', scenario: scenario(), discovery: f.discovery, gasAdapter: f.gas,
+    fixtureLifecycle: { driver: lifecycleDriver(f), runId: 'session-run', journal: lifecycleJournal() } });
+  assert.ok(f.events.indexOf('fixture:setup') < f.events.indexOf('create:owned:TEST'));
+  assert.ok(f.events.indexOf('fixture:reset') < f.events.indexOf('create:owned:TEST'));
+  assert.ok(f.events.indexOf('create:owned:TEST') < f.events.indexOf('fixture:attest-target'));
+  f.events.push('fixture:run-start'); await session.beginFixtureRun(); await session.finishFixtureRun('PASS');
+  assert.ok(f.events.indexOf('fixture:attest-target') < f.events.indexOf('fixture:run-start'));
+  const summary = await session.close();
+  assert.equal(summary?.overallStatus, 'PASS');
+  assert.ok(f.events.indexOf('owned:close') < f.events.indexOf('fixture:teardown'));
+  assert.ok(f.events.includes('fixture:verify-cleanup'));
+  assert.equal(f.events.includes('existing:close'), false);
+});
+
+test('setup/reset verification failure prevents page creation and closes only connected owned sessions', async () => {
+  const f = setup();
+  const driver = lifecycleDriver(f, { async verifyReset() { f.events.push('fixture:verify-reset'); return false; } });
+  await assert.rejects(TestPageSession.open({ endpoint: 'http://127.0.0.1:9444', backend: 'PLAYWRIGHT', approvalReference: 'approved', scenario: scenario(), discovery: f.discovery, gasAdapter: f.gas,
+    fixtureLifecycle: { driver, runId: 'session-failed-run', journal: lifecycleJournal() } }), /TEST_FIXTURE_LIFECYCLE_OPEN_FAILED/);
+  assert.equal(f.events.some((item) => item.startsWith('create:owned')), false);
+  assert.equal(f.events.includes('owned:close'), false);
+  assert.equal(f.events.includes('existing:close'), false);
+  assert.ok(f.events.includes('gas:disconnect'));
+  assert.ok(f.events.includes('playwright:disconnect'));
+  assert.equal(f.events.includes('fixture:teardown'), true, 'a lease with verified ownership is cleaned after reset verification failure');
+});
+
+test('fixture lease with wrong target is rejected before page creation and foreign targets are untouched', async () => {
+  const f = setup();
+  const wrong = { ...scenario().target, pageUrl: 'http://127.0.0.1/other' };
+  const driver = lifecycleDriver(f, { async setup() { f.events.push('fixture:setup'); return { schemaVersion: 1, kind: 'CDLD_SYNTHETIC_FIXTURE_LEASE', ownership: 'CDLD_SYNTHETIC',
+    fixtureId: 'session-fixture', driverId: 'session-driver', leaseId: 'lease-1', target: wrong, ownedResourceIds: ['foreign-page'] }; } });
+  await assert.rejects(TestPageSession.open({ endpoint: 'http://127.0.0.1:9444', backend: 'PLAYWRIGHT', approvalReference: 'approved', scenario: scenario(), discovery: f.discovery, gasAdapter: f.gas,
+    fixtureLifecycle: { driver, runId: 'session-wrong-target', journal: lifecycleJournal() } }), /TEST_FIXTURE_LIFECYCLE_OPEN_FAILED/);
+  assert.equal(f.events.some((item) => item.startsWith('create:owned')), false);
+  assert.equal(f.events.includes('existing:close'), false);
+  assert.equal(f.events.includes('fixture:teardown'), false, 'unverified lease must never be torn down');
+});
+
+test('same URL and scope cannot make a foreign or pre-existing runtime page attestable', async () => {
+  const f = setup();
+  const driver = lifecycleDriver(f, { async attestTargetBinding() { f.events.push('fixture:attest-target'); return null; } });
+  let caught: (Error & { fixtureLifecycle?: { targetBindingStatus: string } }) | undefined;
+  try {
+    await TestPageSession.open({ endpoint: 'http://127.0.0.1:9444', backend: 'PLAYWRIGHT', approvalReference: 'approved', scenario: scenario(), discovery: f.discovery,
+      gasAdapter: f.gas, fixtureLifecycle: { driver, runId: 'session-foreign-page', journal: lifecycleJournal() } });
+  } catch (error) { caught = error as Error & { fixtureLifecycle?: { targetBindingStatus: string } }; }
+  assert.equal(caught?.message, 'TEST_FIXTURE_LIFECYCLE_OPEN_FAILED');
+  assert.equal(caught?.fixtureLifecycle?.targetBindingStatus, 'FAILED');
+  assert.ok(f.events.includes('owned:close'), 'the runner-owned page is closed during failed setup cleanup');
+  assert.equal(f.events.includes('existing:close'), false);
+  assert.equal(f.events.includes('fixture:run-start'), false);
+});
+
+test('GAS_OOPIF lifecycle attests exact native target/session/context/frame only after raw target attachment', async () => {
+  const f = setup();
+  const gasIdentity: FixtureRuntimeTargetIdentity = { backend: 'GAS_OOPIF', scopeKind: 'PAGE', targetId: 'native-page-1',
+    sessionId: 'SESSION-1', executionContextId: 31, frameId: 'F-1' };
+  const session = await TestPageSession.open({ endpoint: 'http://127.0.0.1:9444', backend: 'GAS_OOPIF', approvalReference: 'approved', scenario: scenario(),
+    discovery: f.discovery, gasAdapter: f.gas, fetchTargets: async () => [{ type: 'page', targetId: 'native-page-1', url: 'http://127.0.0.1/outer' }],
+    fixtureLifecycle: { driver: lifecycleDriver(f, {}, gasIdentity), runId: 'gas-session-run', journal: lifecycleJournal() } });
+  assert.ok(f.events.indexOf('fixture:setup') < f.events.indexOf('create:owned:TEST'));
+  assert.ok(f.events.indexOf('gas:attach') < f.events.indexOf('fixture:attest-target'));
+  assert.equal(session.backend.targetId, 'native-page-1');
+  f.events.push('fixture:run-start'); await session.beginFixtureRun(); await session.finishFixtureRun('PASS');
+  assert.ok(f.events.indexOf('fixture:attest-target') < f.events.indexOf('fixture:run-start'));
+  const summary = await session.close();
+  assert.equal(summary?.targetBindingStatus, 'VERIFIED');
+  assert.equal(summary?.overallStatus, 'PASS');
 });
 
 test('target envelope guard accepts the authorized page/frame origins and rejects navigation or detached frames', async () => {

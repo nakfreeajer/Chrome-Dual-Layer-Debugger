@@ -7,6 +7,7 @@ import { captureFailureDiagnostics, type FailureDiagnosticResult } from './Failu
 import type { ActionBackend, TestTargetAuthorization, TestingBackendId } from './ActionContract.js';
 import type { SmokeScenario } from './SmokeScenario.js';
 import type { SmokeTarget } from './SmokeScenario.js';
+import { FixtureLifecycleController, createDefaultFixtureLifecycleJournal, type FixtureLifecycleJournal, type FixtureLifecycleSummary, type FixtureRuntimeTargetIdentity, type SyntheticFixtureDriver } from './FixtureLifecycle.js';
 
 interface DebugTarget { id?: unknown; targetId?: unknown; type?: unknown; url?: unknown; }
 type FetchTargets = (url: string) => Promise<DebugTarget[]>;
@@ -45,6 +46,7 @@ export interface TestPageSessionOptions {
   discovery?: PlaywrightBrowserDiscovery;
   gasAdapter?: GasAdapter;
   fetchTargets?: FetchTargets;
+  fixtureLifecycle?: { driver: SyntheticFixtureDriver; runId: string; journal?: FixtureLifecycleJournal };
 }
 
 /** Owns the one page created for a smoke run and its exact selected backend scope. */
@@ -65,6 +67,8 @@ export class TestPageSession {
   private readonly authorizedPageOrigin: string;
   private readonly authorizedScopeOrigin: string;
   private readonly selectedScopeKind: 'PAGE' | 'FRAME';
+  private readonly fixtureLifecycle?: FixtureLifecycleController;
+  private finalLifecycleSummary?: FixtureLifecycleSummary;
 
   private constructor(
     discovery: PlaywrightBrowserDiscovery,
@@ -75,7 +79,8 @@ export class TestPageSession {
     selectedTargetId: string,
     selectedScope: Page | Frame,
     authorizedPageOrigin: string,
-    authorizedScopeOrigin: string
+    authorizedScopeOrigin: string,
+    fixtureLifecycle?: FixtureLifecycleController
   ) {
     this.discovery = discovery;
     this.gas = gas;
@@ -87,6 +92,7 @@ export class TestPageSession {
     this.authorizedPageOrigin = authorizedPageOrigin;
     this.authorizedScopeOrigin = authorizedScopeOrigin;
     this.selectedScopeKind = selectedScope === page ? 'PAGE' : 'FRAME';
+    this.fixtureLifecycle = fixtureLifecycle;
     this.navigationHandler = (frame) => {
       try {
         if (frame === page.mainFrame() && TestPageSession.originOf(page.url()) !== this.authorizedPageOrigin) this.envelopeViolation = true;
@@ -129,8 +135,15 @@ export class TestPageSession {
     const discovery = options.discovery ?? new PlaywrightBrowserDiscovery(options.endpoint);
     const gas = options.gasAdapter ?? new GasAdapter();
     const fetchTargets = options.fetchTargets ?? defaultFetchTargets;
+    const fixtureLifecycle = options.fixtureLifecycle ? new FixtureLifecycleController({
+      driver: options.fixtureLifecycle.driver,
+      request: { fixtureId, target },
+      runId: options.fixtureLifecycle.runId,
+      journal: options.fixtureLifecycle.journal ?? createDefaultFixtureLifecycleJournal(options.fixtureLifecycle.runId)
+    }) : undefined;
     let page: Page | undefined;
     try {
+      if (fixtureLifecycle) await fixtureLifecycle.prepare();
       const created = await discovery.createRunnerOwnedPage(target.pageUrl, {
         mode: 'TEST', fixtureId, approvalReference: options.approvalReference
       });
@@ -139,10 +152,12 @@ export class TestPageSession {
       let selectedTargetId = created.pageId;
       let exactScopeUrl = target.pageUrl;
       let targetType: 'page' | 'iframe' = 'page';
+      let selectedFrameId: string | undefined;
       if (target.scope.kind === 'FRAME') {
         const selected = await discovery.selectRunnerOwnedFrame(page, target.scope.url, created.discovered);
         selectedScope = selected.frame;
         selectedTargetId = selected.frameId;
+        selectedFrameId = selected.frameId;
         exactScopeUrl = target.scope.url;
         targetType = 'iframe';
       }
@@ -150,7 +165,26 @@ export class TestPageSession {
       if (selectedScope !== page && TestPageSession.originOf((selectedScope as Frame).url()) !== authorizedScopeOrigin) throw new Error('TARGET_ENVELOPE_VIOLATION');
       let backend: ActionBackend;
       let authorization: TestTargetAuthorization;
+      let runtimeIdentity: FixtureRuntimeTargetIdentity | undefined;
       if (options.backend === 'PLAYWRIGHT') {
+        if (fixtureLifecycle) {
+          if (selectedScope === page) {
+            runtimeIdentity = { backend: 'PLAYWRIGHT', scopeKind: 'PAGE', contextId: created.discovered.contextId, pageId: created.pageId };
+          } else {
+            const findFrame = (frames: typeof created.discovered.frames): typeof created.discovered.frames[number] | undefined => {
+              for (const frame of frames) {
+                if (frame.frameId === selectedFrameId) return frame;
+                const nested = findFrame(frame.children);
+                if (nested) return nested;
+              }
+              return undefined;
+            };
+            const discoveredFrame = findFrame(created.discovered.frames);
+            if (!discoveredFrame?.protocolFrameId || !selectedFrameId) throw new Error('FIXTURE_TARGET_PROTOCOL_IDENTITY_UNAVAILABLE');
+            runtimeIdentity = { backend: 'PLAYWRIGHT', scopeKind: 'FRAME', contextId: created.discovered.contextId,
+              pageId: created.pageId, frameId: selectedFrameId, protocolFrameId: discoveredFrame.protocolFrameId };
+          }
+        }
         backend = new PlaywrightActionBackend(selectedTargetId, selectedScope);
         authorization = { mode: 'TEST', backend: options.backend, targetId: selectedTargetId, fixtureId, approvalReference: options.approvalReference };
       } else {
@@ -159,16 +193,32 @@ export class TestPageSession {
           mode: 'TEST', targetId: nativeTargetId, fixtureId, approvalReference: options.approvalReference
         });
         if (contexts.length !== 1 || contexts[0].targetId !== nativeTargetId) throw new Error('Authorized GAS target has an ambiguous default execution context');
+        if (fixtureLifecycle) runtimeIdentity = { backend: 'GAS_OOPIF', scopeKind: target.scope.kind, targetId: contexts[0].targetId,
+          sessionId: contexts[0].sessionId, executionContextId: contexts[0].executionContextId, frameId: contexts[0].frameId };
         backend = new GasOopifActionBackend(nativeTargetId, contexts[0].sessionId, contexts[0].executionContextId, gas);
         authorization = { mode: 'TEST', backend: options.backend, targetId: nativeTargetId, fixtureId, approvalReference: options.approvalReference };
         selectedTargetId = nativeTargetId;
       }
-      return new TestPageSession(discovery, gas, page, backend, authorization, selectedTargetId, selectedScope, authorizedPageOrigin, authorizedScopeOrigin);
-    } catch (error) {
-      if (page) {
-        try { await discovery.closeRunnerOwnedPage(page); } catch { /* Continue disconnecting owned sessions. */ }
+      if (fixtureLifecycle) {
+        if (!runtimeIdentity) throw new Error('FIXTURE_TARGET_RUNTIME_IDENTITY_UNAVAILABLE');
+        await fixtureLifecycle.bindTarget({ fixtureId, runtimeIdentity, target: {
+          pageUrl: page.url(), scope: selectedScope === page ? { kind: 'PAGE' } : { kind: 'FRAME', url: (selectedScope as Frame).url() }
+        } });
       }
-      try { await gas.disconnect(); } finally { await discovery.disconnect(); }
+      return new TestPageSession(discovery, gas, page, backend, authorization, selectedTargetId, selectedScope, authorizedPageOrigin, authorizedScopeOrigin, fixtureLifecycle);
+    } catch (error) {
+      let resourcesClosed: 'VERIFIED' | 'FAILED' = 'VERIFIED';
+      if (page) {
+        try { await discovery.closeRunnerOwnedPage(page); } catch { resourcesClosed = 'FAILED'; }
+      }
+      try { await gas.disconnect(); } catch { resourcesClosed = 'FAILED'; }
+      try { await discovery.disconnect(); } catch { resourcesClosed = 'FAILED'; }
+      if (fixtureLifecycle) {
+        const summary = await fixtureLifecycle.finish(resourcesClosed);
+        const lifecycleError = new Error('TEST_FIXTURE_LIFECYCLE_OPEN_FAILED', { cause: error }) as Error & { fixtureLifecycle?: FixtureLifecycleSummary };
+        lifecycleError.fixtureLifecycle = summary;
+        throw lifecycleError;
+      }
       throw error;
     }
   }
@@ -201,6 +251,14 @@ export class TestPageSession {
     } catch { throw new Error('TARGET_ENVELOPE_VIOLATION'); }
   }
 
+  async beginFixtureRun(): Promise<void> {
+    if (this.fixtureLifecycle) await this.fixtureLifecycle.startRun();
+  }
+
+  async finishFixtureRun(outcome: 'PASS' | 'FAIL' | 'UNKNOWN'): Promise<void> {
+    if (this.fixtureLifecycle) await this.fixtureLifecycle.finishRun(outcome);
+  }
+
   /** Captures bounded diagnostics only from this session's exact runner-owned page/scope. */
   async captureFailureDiagnostics(selector?: string, syntheticDetails = false): Promise<FailureDiagnosticResult> {
     const page = this.ownedPage;
@@ -214,8 +272,8 @@ export class TestPageSession {
       assertTargetEnvelope: () => this.assertTargetEnvelope() });
   }
 
-  async close(): Promise<void> {
-    if (this.closed) return;
+  async close(): Promise<void | FixtureLifecycleSummary> {
+    if (this.closed) return this.finalLifecycleSummary;
     this.closed = true;
     const page = this.ownedPage;
     this.ownedPage = undefined;
@@ -228,6 +286,11 @@ export class TestPageSession {
     } catch (error) { closeError = error; }
     try { await this.gas.disconnect(); } catch (error) { closeError ??= error; }
     try { await this.discovery.disconnect(); } catch (error) { closeError ??= error; }
+    if (this.fixtureLifecycle) {
+      this.finalLifecycleSummary = await this.fixtureLifecycle.finish(closeError ? 'FAILED' : 'VERIFIED');
+      return this.finalLifecycleSummary;
+    }
     if (closeError) throw closeError;
+    return undefined;
   }
 }

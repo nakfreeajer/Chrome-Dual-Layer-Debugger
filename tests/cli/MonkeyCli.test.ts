@@ -7,12 +7,13 @@ import { Timeline } from '../../src/trace/Timeline.js';
 import type { ActionBackend, ActionOutcome, ActionStep } from '../../src/testing/ActionContract.js';
 import { parseMonkeyCliOptions, resolveMonkeyArtifactPath, runMonkeyCli, type MonkeyCliDependencies } from '../../src/cli/main.js';
 import type { ExploratoryProfile } from '../../src/testing/ExploratoryProfile.js';
+import type { FixtureLifecycleSummary, SyntheticFixtureDriver } from '../../src/testing/FixtureLifecycle.js';
 
 const rawProfile = { schemaVersion: 1, profileId: 'monkey-cli-test', target: { pageUrl: 'http://127.0.0.1/app', scope: { kind: 'PAGE' } }, bounds: { maxActions: 2, maxDurationMs: 1000 },
   candidates: [{ candidateId: 'click', operation: 'click', selector: '#private' }] };
 
-function dependencies(record: { opened: number; closed: number; output: string[]; timeline?: Timeline; replay?: unknown }): MonkeyCliDependencies {
-  const backend: ActionBackend = { backend: 'PLAYWRIGHT', targetId: 'PAGE-1', async execute(step: ActionStep): Promise<ActionOutcome> { return { stepId: step.stepId, operation: step.operation, backend: 'PLAYWRIGHT', ok: true }; }, async assert(step) { return { stepId: step.stepId, operation: step.operation, backend: 'PLAYWRIGHT', ok: true }; } };
+function dependencies(record: { opened: number; closed: number; output: string[]; timeline?: Timeline; replay?: unknown }, actions?: { count: number }): MonkeyCliDependencies {
+  const backend: ActionBackend = { backend: 'PLAYWRIGHT', targetId: 'PAGE-1', async execute(step: ActionStep): Promise<ActionOutcome> { if (actions) actions.count += 1; return { stepId: step.stepId, operation: step.operation, backend: 'PLAYWRIGHT', ok: true }; }, async assert(step) { if (actions) actions.count += 1; return { stepId: step.stepId, operation: step.operation, backend: 'PLAYWRIGHT', ok: true }; } };
   return {
     async readProfileFile(path) { assert.equal(path, 'profile.json'); return rawProfile; },
     async openSession(options: { fixtureId: string; target: ExploratoryProfile['target'] }) { record.opened += 1; assert.equal(options.fixtureId, 'monkey-cli-test'); assert.equal(options.target.pageUrl, 'http://127.0.0.1/app');
@@ -30,6 +31,70 @@ test('monkey CLI strictly parses required bounded options and rejects ambiguous 
   assert.equal(parseMonkeyCliOptions([...args, '--failure-artifact', '.agent-work/artifacts/f.json', '--synthetic-failure-details']).syntheticFailureDetails, true);
   assert.throws(() => parseMonkeyCliOptions([...args, '--synthetic-failure-details']), /requires --failure-artifact/);
   assert.throws(() => parseMonkeyCliOptions([...args, '--failure-artifact', 'x', '--synthetic-failure-details', '--synthetic-failure-details']), /Duplicate/);
+  assert.equal(parseMonkeyCliOptions([...args, '--fixture-lifecycle']).fixtureLifecycle, true);
+  assert.throws(() => parseMonkeyCliOptions([...args, '--fixture-lifecycle', '--fixture-lifecycle']), /Duplicate/);
+});
+
+const noOpFixtureDriver: SyntheticFixtureDriver = { driverId: 'synthetic-fixture-driver', async setup() { return {}; }, async verifyOwnership() { return false; },
+  async reset() {}, async verifyReset() { return false; }, async attestTargetBinding() { return null; }, async teardown() {}, async verifyCleanup() { return false; } };
+
+test('monkey fixture lifecycle opt-in fails closed before session open without a trusted driver', async () => {
+  const record = { opened: 0, closed: 0, output: [] as string[] };
+  await assert.rejects(runMonkeyCli([...args, '--fixture-lifecycle'], dependencies(record)), /FIXTURE_LIFECYCLE_DRIVER_UNAVAILABLE/);
+  assert.equal(record.opened, 0);
+  assert.equal(record.output.length, 0);
+});
+
+test('monkey cleanup failure preserves runner outcome but prevents overall PASS', async () => {
+  const record = { opened: 0, closed: 0, output: [] as string[], timeline: undefined as Timeline | undefined, replay: undefined as unknown };
+  const base = dependencies(record);
+  const failedCleanup = { schemaVersion: 1, runId: 'monkey-cli-run', fixtureId: 'monkey-cli-test', driverId: 'fixture-driver', setupStatus: 'VERIFIED', ownershipStatus: 'VERIFIED', resetStatus: 'VERIFIED', resetVerificationStatus: 'VERIFIED', targetBindingStatus: 'VERIFIED', browserResourceClosureStatus: 'VERIFIED', teardownStatus: 'FAILED', cleanupVerificationStatus: 'FAILED', overallStatus: 'FAIL' } as FixtureLifecycleSummary;
+  const gates: string[] = [];
+  const deps: MonkeyCliDependencies = { ...base, fixtureDriver: noOpFixtureDriver,
+    async openSession(options) { assert.equal(options.fixtureLifecycle?.runId, 'monkey-cli-run'); record.opened += 1;
+      const session = await base.openSession(options);
+      return { ...session, async beginFixtureRun() { gates.push('begin'); }, async finishFixtureRun() { gates.push('finish'); }, async close() { record.closed += 1; return failedCleanup; } }; } };
+  const code = await runMonkeyCli([...args, '--fixture-lifecycle'], deps);
+  assert.equal(code, 2);
+  const output = JSON.parse(record.output[0]) as { status: string; testStatus: string; fixtureLifecycle: FixtureLifecycleSummary };
+  assert.equal(output.status, 'FAIL');
+  assert.equal(output.testStatus, 'PASS');
+  assert.equal(output.fixtureLifecycle.overallStatus, 'FAIL');
+  assert.deepEqual(gates, ['begin', 'finish']);
+});
+
+test('monkey lifecycle opt-in rejects a session missing run gates before actions and reports UNKNOWN cleanup', async () => {
+  const record = { opened: 0, closed: 0, output: [] as string[] }; const actions = { count: 0 };
+  const base = dependencies(record, actions);
+  const deps: MonkeyCliDependencies = { ...base, fixtureDriver: noOpFixtureDriver,
+    async openSession(options) { const session = await base.openSession(options); return { ...session, async close() { record.closed += 1; } }; } };
+  await assert.rejects(runMonkeyCli([...args, '--fixture-lifecycle'], deps), (error: Error & { fixtureLifecycle?: FixtureLifecycleSummary }) => {
+    assert.equal(error.message, 'FIXTURE_LIFECYCLE_SESSION_METHODS_UNAVAILABLE');
+    assert.equal(error.fixtureLifecycle?.overallStatus, 'UNKNOWN');
+    assert.equal(error.fixtureLifecycle?.cleanupVerificationStatus, 'UNKNOWN');
+    return true;
+  });
+  assert.equal(record.opened, 1); assert.equal(record.closed, 1); assert.equal(actions.count, 0); assert.equal(record.output.length, 0);
+});
+
+test('monkey lifecycle start or finish errors close the session and report UNKNOWN', async () => {
+  for (const failedGate of ['begin', 'finish'] as const) {
+    const record = { opened: 0, closed: 0, output: [] as string[] }; const actions = { count: 0 };
+    const base = dependencies(record, actions);
+    const deps: MonkeyCliDependencies = { ...base, fixtureDriver: noOpFixtureDriver,
+      async openSession(options) {
+        const session = await base.openSession(options);
+        return { ...session, async beginFixtureRun() { if (failedGate === 'begin') throw new Error('begin failed'); },
+          async finishFixtureRun() { if (failedGate === 'finish') throw new Error('finish failed'); }, async close() { record.closed += 1; } };
+      } };
+    await assert.rejects(runMonkeyCli([...args, '--fixture-lifecycle'], deps), (error: Error & { fixtureLifecycle?: FixtureLifecycleSummary }) => {
+      assert.equal(error.message, `${failedGate} failed`); assert.equal(error.fixtureLifecycle?.overallStatus, 'UNKNOWN');
+      assert.equal(error.fixtureLifecycle?.cleanupVerificationStatus, 'UNKNOWN'); return true;
+    });
+    assert.equal(record.closed, 1);
+    if (failedGate === 'begin') assert.equal(actions.count, 0); else assert.ok(actions.count > 0);
+    assert.equal(record.output.length, 0);
+  }
 });
 
 test('monkey CLI validates profile before session creation and returns sanitized result', async () => {
