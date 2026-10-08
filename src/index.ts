@@ -31,5 +31,8 @@ export * from './testing/ExploratoryGenerator.js';
 export * from './testing/ExploratoryRunner.js';
 export * from './testing/FailureArtifact.js';
 export * from './testing/FailureDiagnostics.js';
+export * from './testing/RegressionSuite.js';
+export * from './testing/RegressionSuiteParser.js';
+export * from './testing/RegressionSuiteRunner.js';
 export * from './relay/PromptArtifactStore.js';
 export * from './relay/PromptRelayDescriptor.js';

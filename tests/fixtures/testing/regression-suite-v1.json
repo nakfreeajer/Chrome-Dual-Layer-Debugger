@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "suiteId": "synthetic-regression-v1",
+  "eligibleBackends": ["PLAYWRIGHT", "GAS_OOPIF"],
+  "nondeterministicFields": [],
+  "cases": [
+    {
+      "caseId": "readiness-pass",
+      "kind": "SMOKE",
+      "scenario": {
+        "schemaVersion": 1,
+        "scenarioId": "readiness-pass",
+        "target": { "pageUrl": "http://127.0.0.1:4558/", "scope": { "kind": "PAGE" } },
+        "steps": [
+          { "stepId": "ready", "kind": "assert", "operation": "ready", "predicate": "equals", "expected": "complete" }
+        ]
+      },
+      "expected": { "status": "PASS", "steps": [{ "stepId": "ready", "state": "PASS" }] }
+    },
+    {
+      "caseId": "assertion-fail",
+      "kind": "SMOKE",
+      "scenario": {
+        "schemaVersion": 1,
+        "scenarioId": "assertion-fail",
+        "target": { "pageUrl": "http://127.0.0.1:4558/", "scope": { "kind": "PAGE" } },
+        "steps": [
+          { "stepId": "ready", "kind": "assert", "operation": "ready", "predicate": "equals", "expected": "complete" },
+          { "stepId": "intentional-fail", "kind": "assert", "operation": "readText", "selector": "#synthetic-label", "predicate": "equals", "expected": "expected-synthetic-text" },
+          { "stepId": "must-not-run", "kind": "action", "operation": "click", "selector": "#synthetic-button" }
+        ]
+      },
+      "expected": { "status": "FAIL", "steps": [
+        { "stepId": "ready", "state": "PASS" },
+        { "stepId": "intentional-fail", "state": "FAIL", "errorCode": "ASSERTION_FAILED" },
+        { "stepId": "must-not-run", "state": "NOT_RUN" }
+      ] }
+    },
+    {
+      "caseId": "seeded-monkey-pass",
+      "kind": "MONKEY",
+      "profile": {
+        "schemaVersion": 1,
+        "profileId": "seeded-monkey-pass",
+        "target": { "pageUrl": "http://127.0.0.1:4558/", "scope": { "kind": "PAGE" } },
+        "bounds": { "maxActions": 2, "maxDurationMs": 1000 },
+        "candidates": [{ "candidateId": "synthetic-click", "operation": "click", "selector": "#synthetic-button" }]
+      },
+      "seed": 17,
+      "expected": {
+        "status": "PASS",
+        "stopReason": "ALL_ACTIONS_COMPLETED",
+        "generatedCount": 2,
+        "executedCount": 2,
+        "steps": [
+          { "stepId": "MONKEY-000001", "candidateId": "synthetic-click", "operation": "click", "state": "PASS" },
+          { "stepId": "MONKEY-000002", "candidateId": "synthetic-click", "operation": "click", "state": "PASS" }
+        ]
+      }
+    }
+  ]
+}

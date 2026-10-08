@@ -9,7 +9,7 @@ import { V1ObserverScopeIds } from '../browser/V1CorrelationObserver.js';
 import { access, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { runSmokeScenario } from '../testing/SmokeRunner.js';
 import { parseSmokeScenario } from '../testing/SmokeScenarioParser.js';
-import type { SmokeScenario, SmokeScenarioResult } from '../testing/SmokeScenario.js';
+import type { SmokeScenario, SmokeScenarioResult, SmokeTarget } from '../testing/SmokeScenario.js';
 import type { TestingBackendId } from '../testing/ActionContract.js';
 import { TestPageSession } from '../testing/TestPageSession.js';
 import { basename, dirname, extname, isAbsolute, relative, resolve } from 'node:path';
@@ -20,8 +20,13 @@ import type { FixtureLifecycleJournal, FixtureLifecycleSummary, SyntheticFixture
 import type { ExploratoryProfile, ExploratoryReplayArtifact, GeneratedExploratoryPlan, ExploratoryResult } from '../testing/ExploratoryProfile.js';
 import { buildFailureArtifact, resolveFailureArtifactPath, writeFailureArtifact, type TimelineEventRef } from '../testing/FailureArtifact.js';
 import { isLoopbackHttpUrl, type FailureDiagnosticResult } from '../testing/FailureDiagnostics.js';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { TraceEvent } from '../trace/TraceEvent.js';
+import { parseRegressionSuite, regressionSuiteSha256 } from '../testing/RegressionSuiteParser.js';
+import { compareRegressionSuiteResults, regressionOutcomeMatches, safeRegressionErrorCode, validateRegressionSuiteResultArtifact, type RegressionSuite, type RegressionSuiteCase, type RegressionSuiteResultArtifact } from '../testing/RegressionSuite.js';
+import { normalizeRegressionOutcome, runRegressionSuite } from '../testing/RegressionSuiteRunner.js';
+import { validateTestAuthorization } from '../testing/ActionContract.js';
+import type { ActionBackend } from '../testing/ActionContract.js';
 
 const MAX_V1_OBSERVATION_MS = 300_000;
 
@@ -56,6 +61,7 @@ export function parseCliOptions(args: string[]): CliOptions {
 }
 
 export async function runCli(args: string[]): Promise<number> {
+  if (args[0] === 'suite') return runRegressionSuiteCli(args.slice(1));
   if (args[0] === 'monkey') return runMonkeyCli(args.slice(1));
   if (args[0] === 'smoke') {
     return runSmokeCli(args.slice(1));
@@ -605,6 +611,201 @@ function failureRefs(timeline: Timeline, runId: string, stepId: string | undefin
   }
   if (includeExploratoryTerminal) add([...matching].reverse().find((event) => event.type === 'EXPLORATORY_RUN_FAILED'));
   return refs;
+}
+
+const REGRESSION_SUITE_MAX_BYTES = 256 * 1024;
+const REGRESSION_RESULT_MAX_BYTES = 256 * 1024;
+
+export type RegressionSuiteCliOptions =
+  | { command: 'run'; suitePath: string; backend: TestingBackendId; endpoint: string; approvalReference: string; resultPath: string; fixtureLifecycle: boolean }
+  | { command: 'compare'; suitePath: string; leftResultPath: string; rightResultPath: string };
+
+export function parseRegressionSuiteCliOptions(args: string[]): RegressionSuiteCliOptions {
+  const command = args[0];
+  if (command !== 'run' && command !== 'compare') throw new Error('Usage: suite run --suite FILE --backend PLAYWRIGHT|GAS_OOPIF --endpoint URL --approval-reference TEXT [--result-artifact PATH] [--fixture-lifecycle] | suite compare --suite FILE --left-result PATH --right-result PATH');
+  const rest = args.slice(1);
+  const values = new Map<string, string>();
+  let fixtureLifecycle = false;
+  const allowed = command === 'run'
+    ? new Set(['--suite', '--backend', '--endpoint', '--approval-reference', '--result-artifact', '--fixture-lifecycle'])
+    : new Set(['--suite', '--left-result', '--right-result']);
+  for (let index = 0; index < rest.length; index += 1) {
+    const flag = rest[index];
+    if (flag === '--fixture-lifecycle' && command === 'run') {
+      if (fixtureLifecycle) throw new Error('Duplicate suite argument: --fixture-lifecycle');
+      fixtureLifecycle = true;
+      continue;
+    }
+    if (!allowed.has(flag)) throw new Error(`Unknown or unexpected suite argument: ${flag}`);
+    if (values.has(flag)) throw new Error(`Duplicate suite argument: ${flag}`);
+    const value = rest[index + 1];
+    if (typeof value !== 'string' || value.length === 0 || value.startsWith('--')) throw new Error(`${flag} requires a value`);
+    values.set(flag, value);
+    index += 1;
+  }
+  const required = command === 'run' ? ['--suite', '--backend', '--endpoint', '--approval-reference'] : ['--suite', '--left-result', '--right-result'];
+  for (const key of required) if (!values.has(key)) throw new Error(`${key} is required for suite ${command}`);
+  if (command === 'compare') return { command, suitePath: values.get('--suite')!, leftResultPath: values.get('--left-result')!, rightResultPath: values.get('--right-result')! };
+  const backend = values.get('--backend');
+  if (backend !== 'PLAYWRIGHT' && backend !== 'GAS_OOPIF') throw new Error('--backend must be PLAYWRIGHT or GAS_OOPIF');
+  const endpoint = values.get('--endpoint')!;
+  let parsedEndpoint: URL;
+  try { parsedEndpoint = new URL(endpoint); } catch { throw new Error('--endpoint must be an absolute HTTP(S) URL'); }
+  if (!['http:', 'https:'].includes(parsedEndpoint.protocol) || parsedEndpoint.username || parsedEndpoint.password) throw new Error('--endpoint must be an HTTP(S) URL without credentials');
+  const approvalReference = values.get('--approval-reference')!;
+  if (!approvalReference.trim() || approvalReference.length > 512 || approvalReference.includes('\0')) throw new Error('--approval-reference must be non-empty and bounded');
+  return { command, suitePath: values.get('--suite')!, backend, endpoint, approvalReference,
+    resultPath: values.get('--result-artifact') ?? `.agent-work/artifacts/test1f-suite-${randomUUID()}.json`, fixtureLifecycle };
+}
+
+export function resolveRegressionSuiteArtifactPath(path: string): string {
+  const full = resolveFailureArtifactPath(path);
+  const fromRoot = relative(resolve('.agent-work/artifacts'), full);
+  if (!fromRoot || fromRoot === '..' || fromRoot.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) || isAbsolute(fromRoot)) throw new Error('Regression suite artifacts must remain inside .agent-work/artifacts');
+  return full;
+}
+
+async function readBoundedJson(path: string, maximumBytes: number, label: string): Promise<unknown> {
+  const details = await stat(path);
+  if (!details.isFile() || details.size < 1 || details.size > maximumBytes) throw new Error(`${label} size is invalid`);
+  return JSON.parse(await readFile(path, 'utf8')) as unknown;
+}
+
+async function writeBoundedJsonNoClobber(path: string, value: unknown, maximumBytes: number): Promise<void> {
+  const full = resolveRegressionSuiteArtifactPath(path);
+  const bytes = Buffer.from(JSON.stringify(value), 'utf8');
+  if (bytes.length < 1 || bytes.length > maximumBytes) throw new Error('Regression suite artifact size is invalid');
+  await mkdir(dirname(full), { recursive: true });
+  await writeFile(full, bytes, { flag: 'wx' });
+}
+
+function regressionTarget(testCase: RegressionSuiteCase) {
+  return testCase.kind === 'SMOKE' ? testCase.scenario.target : testCase.profile.target;
+}
+
+export interface RegressionSuiteCliDependencies {
+  readJsonFile(path: string): Promise<unknown>;
+  openSession(options: { endpoint: string; backend: TestingBackendId; approvalReference: string; scenario: { scenarioId: string; target: SmokeTarget }; fixtureId: string; fixtureLifecycle?: { driver: SyntheticFixtureDriver; runId: string } }): Promise<TestPageSession>;
+  fixtureDriver?: SyntheticFixtureDriver;
+  createTimeline(): Timeline;
+  writeTimeline(timeline: Timeline): Promise<void>;
+  writeResultArtifact(path: string, artifact: RegressionSuiteResultArtifact): Promise<void>;
+  readResultArtifact(path: string): Promise<unknown>;
+  writeOutput(line: string): void;
+}
+
+const defaultRegressionSuiteCliDependencies: RegressionSuiteCliDependencies = {
+  async readJsonFile(path) { return readBoundedJson(path, REGRESSION_SUITE_MAX_BYTES, 'Regression suite'); },
+  openSession(options) { return TestPageSession.open(options); },
+  createTimeline() { return new Timeline(); },
+  writeOutput(line) { console.log(line); },
+  async writeTimeline(timeline) {
+    const writer = new FileJsonlTraceWriter(`.agent-work/artifacts/test1f-suite-${timeline.runId}.jsonl`);
+    try { for (const event of timeline.snapshot()) await writer.write(event); }
+    finally { await writer.close(); }
+  },
+  writeResultArtifact(path, artifact) { return writeBoundedJsonNoClobber(path, artifact, REGRESSION_RESULT_MAX_BYTES); },
+  async readResultArtifact(path) { return readBoundedJson(resolveRegressionSuiteArtifactPath(path), REGRESSION_RESULT_MAX_BYTES, 'Regression result'); }
+};
+
+function caseStepCount(testCase: RegressionSuiteCase): number {
+  return testCase.kind === 'SMOKE' ? testCase.scenario.steps.length : testCase.expected.steps.length;
+}
+
+function syntheticSetupFailure(testCase: RegressionSuiteCase, code: string) {
+  const steps = testCase.kind === 'SMOKE'
+    ? testCase.scenario.steps.map((step) => ({ stepId: step.stepId, operation: step.operation, state: 'NOT_RUN' as const }))
+    : testCase.expected.steps.map((step) => ({ stepId: step.stepId, operation: step.operation, candidateId: step.candidateId, state: 'NOT_RUN' as const }));
+  return { status: 'FAIL' as const, stopReason: code, generatedCount: caseStepCount(testCase), executedCount: 0, steps };
+}
+
+function lifecycleStatus(summary: FixtureLifecycleSummary | undefined, requested: boolean): 'NOT_REQUESTED' | 'VERIFIED' | 'FAILED' | 'UNKNOWN' {
+  if (!requested) return 'NOT_REQUESTED';
+  if (!summary) return 'UNKNOWN';
+  const cleanupEvidence = [summary.setupStatus, summary.ownershipStatus, summary.resetStatus, summary.resetVerificationStatus,
+    summary.targetBindingStatus, summary.browserResourceClosureStatus, summary.teardownStatus, summary.cleanupVerificationStatus];
+  if (cleanupEvidence.includes('FAILED')) return 'FAILED';
+  return cleanupEvidence.every((status) => status === 'VERIFIED') ? 'VERIFIED' : 'UNKNOWN';
+}
+
+export async function runRegressionSuiteCli(args: string[], dependencies: RegressionSuiteCliDependencies = defaultRegressionSuiteCliDependencies): Promise<number> {
+  const options = parseRegressionSuiteCliOptions(args);
+  const parsed = parseRegressionSuite(await dependencies.readJsonFile(options.suitePath));
+  if (options.command === 'compare') {
+    const leftPath = resolveRegressionSuiteArtifactPath(options.leftResultPath);
+    const rightPath = resolveRegressionSuiteArtifactPath(options.rightResultPath);
+    const comparison = compareRegressionSuiteResults(parsed, await dependencies.readResultArtifact(leftPath), await dependencies.readResultArtifact(rightPath));
+    dependencies.writeOutput(JSON.stringify(comparison));
+    return comparison.status === 'PASS' ? 0 : 2;
+  }
+  if (!parsed.eligibleBackends.includes(options.backend)) throw new Error('BACKEND_NOT_SUITE_ELIGIBLE');
+  const resultPath = resolveRegressionSuiteArtifactPath(options.resultPath);
+  if (options.fixtureLifecycle) {
+    if (!dependencies.fixtureDriver) throw new Error('FIXTURE_LIFECYCLE_DRIVER_UNAVAILABLE');
+    if (options.backend !== 'PLAYWRIGHT' || parsed.cases.some((testCase) => regressionTarget(testCase).scope.kind !== 'PAGE')) throw new Error('FIXTURE_LIFECYCLE_SCOPE_UNSUPPORTED');
+  }
+  const artifact = await runRegressionSuite({ suite: parsed, backend: options.backend, fixtureLifecycleRequested: options.fixtureLifecycle, async executeCase(testCase, backend) {
+    const timeline = dependencies.createTimeline();
+    emitSessionEvent(timeline, 'SESSION_STARTED');
+    const target = regressionTarget(testCase);
+    const scenarioId = testCase.kind === 'SMOKE' ? testCase.scenario.scenarioId : testCase.profile.profileId;
+    let session: TestPageSession | undefined;
+    let fixtureRunStarted = false;
+    let fixtureRunFinalized = false;
+    let fixtureSummary: FixtureLifecycleSummary | undefined;
+    let actual;
+    let executionCode: string | undefined;
+    try {
+      session = await dependencies.openSession({ endpoint: options.endpoint, backend, approvalReference: options.approvalReference,
+        scenario: { scenarioId, target }, fixtureId: scenarioId,
+        ...(options.fixtureLifecycle ? { fixtureLifecycle: { driver: dependencies.fixtureDriver!, runId: timeline.runId } } : {}) });
+      validateTestAuthorization(backend, session.backend.targetId, session.authorization);
+      if (session.backend.backend !== backend || session.authorization.fixtureId !== scenarioId) throw new Error('TARGET_MISMATCH');
+      if (options.fixtureLifecycle) {
+        if (!session.beginFixtureRun || !session.finishFixtureRun) throw new Error('FIXTURE_LIFECYCLE_SESSION_METHODS_UNAVAILABLE');
+        await session.beginFixtureRun();
+        fixtureRunStarted = true;
+      }
+      await session.assertTargetEnvelope();
+      if (testCase.kind === 'SMOKE') {
+        const result = await runSmokeScenario({ backend: session.backend, scenario: testCase.scenario, timeline, authorization: session.authorization });
+        actual = normalizeRegressionOutcome(testCase, result);
+      } else {
+        const plan = generateExploratoryPlan(testCase.profile, testCase.seed);
+        const result = await runExploratoryProfile({ backend: session.backend, profile: testCase.profile, artifact: plan, timeline,
+          authorization: session.authorization, assertTargetEnvelope: () => session!.assertTargetEnvelope() });
+        actual = normalizeRegressionOutcome(testCase, result);
+      }
+      await session.assertTargetEnvelope();
+      if (fixtureRunStarted) {
+        fixtureRunFinalized = true;
+        await session.finishFixtureRun!(regressionOutcomeMatches(testCase.expected, actual) ? 'PASS' : 'FAIL');
+      }
+    } catch (error) {
+      executionCode = error instanceof Error ? safeRegressionErrorCode(error.message) ?? (error.message === 'FIXTURE_LIFECYCLE_DRIVER_UNAVAILABLE' ? undefined : 'RUNNER_FAILED') : 'RUNNER_FAILED';
+      actual = syntheticSetupFailure(testCase, executionCode ?? 'RUNNER_FAILED');
+    } finally {
+      if (fixtureRunStarted && !fixtureRunFinalized && session?.finishFixtureRun) {
+        fixtureRunFinalized = true;
+        try { await session.finishFixtureRun('UNKNOWN'); } catch { executionCode ??= 'RUNNER_FAILED'; }
+      }
+      if (session) {
+        try { const closed = await session.close(); if (closed) fixtureSummary = closed; }
+        catch { executionCode ??= 'RUNNER_FAILED'; }
+      }
+      emitSessionEvent(timeline, 'SESSION_ENDED');
+      await dependencies.writeTimeline(timeline);
+    }
+    const cleanup = lifecycleStatus(fixtureSummary, options.fixtureLifecycle);
+    if (executionCode && actual.status !== 'FAIL') actual = syntheticSetupFailure(testCase, executionCode);
+    return { runId: timeline.runId, outcome: actual, fixtureCleanupStatus: cleanup };
+  } });
+  const checked = validateRegressionSuiteResultArtifact(artifact, parsed);
+  await dependencies.writeResultArtifact(resultPath, checked);
+  dependencies.writeOutput(JSON.stringify({ suiteId: checked.suiteId, suiteSha256: checked.suiteSha256, backend: checked.backend,
+    suiteStatus: checked.suiteStatus, comparableFixtureState: checked.comparableFixtureState,
+    cases: checked.caseResults.map(({ caseId, runId, comparisonStatus, errorCode, fixtureCleanupStatus }) => ({ caseId, ...(runId ? { runId } : {}), comparisonStatus, ...(errorCode ? { errorCode } : {}), fixtureCleanupStatus })) }));
+  return checked.suiteStatus === 'PASS' ? 0 : 2;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
