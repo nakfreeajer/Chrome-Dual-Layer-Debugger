@@ -154,4 +154,12 @@ The next bounded integration, if separately authorized, should evaluate a privac
 - The accepted source fix routes target URL, frame URL, and runtime-context origin evidence through `redactGasSecrets()`. It covers the supported deployment, Workspace-domain, and usercodeapp routes; relative/malformed route-like inputs; embedded HTTP(S) URLs; and whole-input parseable absolute URLs independent of scheme.
 - Query values, URL userinfo, and non-empty fragments are removed on the covered URL paths. Route matching is case-insensitive, deterministic and idempotent; tests protect unrelated paths and ordinary text. Scope remains the audited GAS evidence surface, not a universal guarantee over unrelated sinks.
 - Source publication: `9fdc9a4300252e8bae0ef280e3758dd699bf5a3d` (`fix(gas): harden Apps Script secret redaction`). Validation reported: `npm run check` PASS, `npm test` 267/267 PASS, `git diff --check` PASS.
-- TEST.1D remains closed. TEST.1E/1F remain planned and unauthorized; no subsequent PUBLIC safety slice was authorized.
+- TEST.1D remains closed. At that point TEST.1E/1F were planned and unauthorized; no subsequent PUBLIC safety slice was authorized by that closure.
+
+## 2026-10-08 - TEST.1E Test Fixture / Reset / Cleanup Governance - ACCEPTED / CLOSED (bounded scope)
+- Stage B published trusted runner-page receipts and the loopback-only synthetic fixture driver at `9cc7ec7d4024487fda0350f32cf4dfc91fdefaea`. C2A published the accepted source implementation at `5289b096243f30b15b696092b84106ee17602ba2`.
+- C2A qualified receipt-bound setup/reset/teardown for synthetic PLAYWRIGHT PAGE lifecycle. The default CLI remains fail-closed without a trusted injected fixture driver.
+- C2B qualified an assertion-only scenario on a newly launched task-owned disposable Brave child. In that specific child/version/session, Playwright disconnect detached without exiting the browser; the owner separately stopped the verified child. The original `about:blank` target remained unchanged, the runner page closed, fixture cleanup was independently VERIFIED, and the fixture loopback port was FREE.
+- C2B reported `npm run check` PASS, `npm test` 312/312 PASS, and `git diff --check` PASS. C2B changed no source.
+- Closure is limited to the delivered/observed synthetic PAGE scope. Externally owned/shared browser disconnect behavior remains UNQUALIFIED; existing endpoints 9444 and 9222 were not tested; GAS_OOPIF and FRAME fixture lifecycle remain unsupported and fail closed. No generalized browser compatibility or production readiness is claimed.
+- TEST.1F remains PLANNED / NOT AUTHORIZED. No later milestone was authorized by this closure.

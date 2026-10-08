@@ -114,15 +114,16 @@ Published source: `5a05c8e98f0555cca9cf05028dfa31ff20464039` (parent `acb03cae34
 
 Delivered the six shared predicates (`truthy`, `falsy`, `equals`, `notEquals`, `contains`, `notContains`), normalized assertion Timeline evidence, and privacy-reduced `CDLD_TEST1D_FAILURE` v1 artifacts. Optional diagnostics are bounded, session-level evidence with a 5-second total deadline, no retries, and fail-closed target-envelope rechecks before each stage. Late completion cannot start later diagnostic stages. GAS_OOPIF readiness is scoped to the exact authorized target/session and qualifying default execution context. V0.1I remains the sole correlation authority.
 
-Accepted live evidence includes both-backend predicate pass/failure matrices, six isolated repaired GAS cases, privacy-reduced artifact and synthetic screenshot metadata checks, diagnostic timeout preservation, target-envelope omission, unchanged existing target inventory, cleanup, and Brave endpoint responsiveness. This is bounded TEST-target functionality, not production readiness. TEST.1E and TEST.1F remain PLANNED / NOT AUTHORIZED; no later source milestone is automatically authorized.
+Accepted live evidence includes both-backend predicate pass/failure matrices, six isolated repaired GAS cases, privacy-reduced artifact and synthetic screenshot metadata checks, diagnostic timeout preservation, target-envelope omission, unchanged existing target inventory, cleanup, and Brave endpoint responsiveness. This is bounded TEST-target functionality, not production readiness. TEST.1E later closed only for its bounded disposable-browser and synthetic Playwright PAGE scope; TEST.1F remains PLANNED / NOT AUTHORIZED, and no later source milestone is automatically authorized.
 
-TEST.1E - Test Fixture / Reset / Cleanup Governance and TEST.1F - Replayable Regression Suites remain PLANNED / NOT AUTHORIZED. No authorization of either follows from TEST.1D.
+## TEST.1E - Test Fixture / Reset / Cleanup Governance - ACCEPTED / CLOSED (bounded scope)
 
-## TEST.1E - Test Fixture / Reset / Cleanup Governance - PLANNED / NOT AUTHORIZED
-
-- Define disposable data setup, reset and teardown contracts.
-- Distinguish synthetic fixtures from real application/business data.
-- Require cleanup verification for mutating test runs.
+- Stage B published the owner-issued one-use runner-page receipt and loopback-only synthetic fixture driver at `9cc7ec7d4024487fda0350f32cf4dfc91fdefaea`; C2A published the accepted source implementation at `5289b096243f30b15b696092b84106ee17602ba2`.
+- C2A established trusted receipt binding and local synthetic PAGE fixture setup/reset/teardown contracts. The default CLI remains fail-closed without a trusted injected fixture driver.
+- C2B qualified one assertion-only synthetic PLAYWRIGHT PAGE lifecycle using a newly launched task-owned disposable Brave child. Its `browser.close()`/disconnect detached the Playwright connection in that observed process/version; the owner separately stopped the verified child after confirming target preservation and cleanup.
+- C2B deterministic validation: `npm run check` PASS, `npm test` 312/312 PASS, `git diff --check` PASS. The runner-owned page closed, the original `about:blank` target identity remained unchanged, fixture cleanup was independently VERIFIED, and the loopback fixture port was FREE.
+- Scope is not production readiness or generalized browser lifecycle safety. Disconnect behavior for externally owned/shared Brave remains UNQUALIFIED. Existing endpoints 9444 and 9222 were not tested. GAS_OOPIF and FRAME fixture lifecycle remain unsupported and fail closed. The default CLI does not select or load an arbitrary fixture driver.
+- TEST.1F - Replayable Regression Suites remains PLANNED / NOT AUTHORIZED. No subsequent milestone is authorized by this bounded closure.
 
 ## TEST.1F - Replayable Regression Suites - PLANNED / NOT AUTHORIZED
 
