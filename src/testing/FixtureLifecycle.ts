@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, open, readFile, type FileHandle } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import { consumeRunnerOwnedPageVerification, type RunnerOwnedPageIdentity, type RunnerOwnedPageVerification } from '../browser/PlaywrightBrowserDiscovery.js';
 import type { SmokeTarget } from './SmokeScenario.js';
 import { resolveFailureArtifactPath } from './FailureArtifact.js';
 
@@ -266,9 +267,11 @@ export class FixtureLifecycleController {
   private journalUnavailable = false;
 
   constructor(
-    private readonly options: { driver: SyntheticFixtureDriver; request: SyntheticFixtureRequest; runId: string; journal: FixtureLifecycleJournal; operationTimeoutMs?: number }
+    private readonly options: { driver: SyntheticFixtureDriver; request: SyntheticFixtureRequest; runId: string; journal: FixtureLifecycleJournal;
+      operationTimeoutMs?: number }
   ) {
     validId(options.request.fixtureId, 'fixtureId');
+    if (options.request.target.scope.kind !== 'PAGE') throw new Error('FIXTURE_LIFECYCLE_SCOPE_UNSUPPORTED');
     if (!runIdPattern.test(options.runId)) throw new Error('Fixture lifecycle runId is invalid');
     if (!options.driver || !idPattern.test(options.driver.driverId)) throw new Error('Eligible synthetic fixture driver is required');
     if (options.operationTimeoutMs !== undefined && (!Number.isSafeInteger(options.operationTimeoutMs) || options.operationTimeoutMs < 1 || options.operationTimeoutMs > 120_000)) throw new Error('Fixture operation timeout is invalid');
@@ -338,15 +341,37 @@ export class FixtureLifecycleController {
     }
   }
 
-  async bindTarget(actual: { fixtureId: string; target: SmokeTarget; runtimeIdentity: FixtureRuntimeTargetIdentity }): Promise<void> {
+  async bindTarget(actual: { fixtureId: string; target: SmokeTarget; runtimeIdentity: FixtureRuntimeTargetIdentity;
+    ownerVerification?: RunnerOwnedPageVerification; page?: object }): Promise<void> {
     if (!this.prepared || !this.lease || this.targetBindingStatus !== 'NOT_STARTED') throw new Error('FIXTURE_PRECONDITIONS_NOT_VERIFIED');
     this.targetBindingStatus = 'IN_PROGRESS';
     await this.record('TARGET_BINDING', 'IN_PROGRESS', { ownership: 'CDLD_SYNTHETIC', scopeKind: actual.target.scope.kind });
-    if (actual.fixtureId !== this.lease.fixtureId || !targetEqual(actual.target, this.lease.target) || !validateRuntimeIdentity(actual.runtimeIdentity)
-      || actual.runtimeIdentity.scopeKind !== actual.target.scope.kind) {
+    if (actual.target.scope.kind !== 'PAGE') {
+      this.targetBindingStatus = 'FAILED';
+      await this.record('TARGET_BINDING', 'FAILED', { ownership: 'CDLD_SYNTHETIC', scopeKind: actual.target.scope.kind });
+      throw new Error('FIXTURE_LIFECYCLE_SCOPE_UNSUPPORTED');
+    }
+    if (!validateRuntimeIdentity(actual.runtimeIdentity)) {
       this.targetBindingStatus = 'FAILED';
       await this.record('TARGET_BINDING', 'FAILED', { ownership: 'CDLD_SYNTHETIC', scopeKind: actual.target.scope.kind });
       throw new Error('FIXTURE_TARGET_BINDING_MISMATCH');
+    }
+    if (actual.runtimeIdentity.backend !== 'PLAYWRIGHT' || actual.runtimeIdentity.scopeKind !== 'PAGE') {
+      this.targetBindingStatus = 'FAILED';
+      await this.record('TARGET_BINDING', 'FAILED', { ownership: 'CDLD_SYNTHETIC', scopeKind: actual.target.scope.kind });
+      throw new Error('FIXTURE_LIFECYCLE_SCOPE_UNSUPPORTED');
+    }
+    if (actual.fixtureId !== this.lease.fixtureId || !targetEqual(actual.target, this.lease.target)) {
+      this.targetBindingStatus = 'FAILED';
+      await this.record('TARGET_BINDING', 'FAILED', { ownership: 'CDLD_SYNTHETIC', scopeKind: actual.target.scope.kind });
+      throw new Error('FIXTURE_TARGET_BINDING_MISMATCH');
+    }
+    const ownerVerified = actual.ownerVerification && actual.page && consumeRunnerOwnedPageVerification(
+      actual.ownerVerification, this.lease.leaseId, actual.page, actual.runtimeIdentity as RunnerOwnedPageIdentity);
+    if (!ownerVerified) {
+      this.targetBindingStatus = 'FAILED';
+      await this.record('TARGET_BINDING', 'FAILED', { ownership: 'CDLD_SYNTHETIC', scopeKind: actual.target.scope.kind });
+      throw new Error('FIXTURE_TARGET_OWNER_RECEIPT_NOT_VERIFIED');
     }
     const identityHash = fixtureRuntimeIdentitySha256(actual.runtimeIdentity);
     const challenge = randomUUID();

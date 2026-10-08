@@ -23,6 +23,56 @@ export interface RunnerPageTestIntent {
   approvalReference: string;
 }
 
+declare const runnerOwnedPageReceiptBrand: unique symbol;
+
+/** Opaque in-process capability issued only by the runner-owned page registry. */
+export type RunnerOwnedPageReceipt = { readonly [runnerOwnedPageReceiptBrand]: true };
+declare const runnerOwnedPageVerificationBrand: unique symbol;
+
+/** Opaque one-use proof minted only after the discovery registry consumes a valid receipt. */
+export type RunnerOwnedPageVerification = { readonly [runnerOwnedPageVerificationBrand]: true };
+
+export interface RunnerOwnedPageIdentity {
+  backend: 'PLAYWRIGHT';
+  scopeKind: 'PAGE';
+  contextId: string;
+  pageId: string;
+}
+
+interface RunnerOwnedPageReceiptRecord {
+  leaseId: string;
+  page: Page;
+  context: BrowserContext;
+  contextId: string;
+  pageId: string;
+}
+
+interface RunnerOwnedPageVerificationRecord {
+  leaseId: string;
+  page: Page;
+  identity: RunnerOwnedPageIdentity;
+  isCurrent(): boolean;
+}
+
+const runnerOwnedPageVerifications = new WeakMap<RunnerOwnedPageVerification, RunnerOwnedPageVerificationRecord>();
+
+/** Lifecycle gate for the opaque proof; arbitrary IDs or caller-created objects cannot pass this check. */
+export function consumeRunnerOwnedPageVerification(
+  verification: unknown,
+  fixtureLeaseId: string,
+  page: object,
+  identity: RunnerOwnedPageIdentity
+): boolean {
+  if (!verification || typeof verification !== 'object') return false;
+  const opaque = verification as RunnerOwnedPageVerification;
+  const record = runnerOwnedPageVerifications.get(opaque);
+  if (!record) return false;
+  runnerOwnedPageVerifications.delete(opaque);
+  return record.leaseId === fixtureLeaseId && record.page === page && record.isCurrent()
+    && record.identity.backend === identity.backend && record.identity.scopeKind === identity.scopeKind
+    && record.identity.contextId === identity.contextId && record.identity.pageId === identity.pageId;
+}
+
 function validateRunnerPageTestIntent(intent: RunnerPageTestIntent | undefined): asserts intent is RunnerPageTestIntent {
   if (!intent || intent.mode !== 'TEST' || !intent.fixtureId.trim() || !intent.approvalReference.trim()
     || intent.fixtureId.includes('\0') || intent.approvalReference.includes('\0') || intent.approvalReference.length > 512) {
@@ -64,6 +114,8 @@ export class PlaywrightBrowserDiscovery implements BrowserDiscovery {
   private readonly sessions = new Map<Page, CDPSession>();
   private readonly executionContextIds = new Map<Page, Set<number>>();
   private readonly runnerOwnedPages = new Set<Page>();
+  private readonly runnerOwnedPageReceipts = new Map<RunnerOwnedPageReceipt, RunnerOwnedPageReceiptRecord>();
+  private readonly runnerOwnedFixtureLeases = new Set<string>();
   private playwrightFrameIds = new WeakMap<Frame, string>();
   private nextPlaywrightFrameId = 0;
 
@@ -99,6 +151,8 @@ export class PlaywrightBrowserDiscovery implements BrowserDiscovery {
     this.executionContextIds.clear();
     this.ids.clear();
     this.runnerOwnedPages.clear();
+    this.runnerOwnedPageReceipts.clear();
+    this.runnerOwnedFixtureLeases.clear();
     this.playwrightFrameIds = new WeakMap<Frame, string>();
     this.nextPlaywrightFrameId = 0;
     const browser = this.browser;
@@ -116,20 +170,35 @@ export class PlaywrightBrowserDiscovery implements BrowserDiscovery {
   }
 
   /** Creates and navigates one page owned by an explicitly authorized TEST runner. */
-  async createRunnerOwnedPage(url: string, intent: RunnerPageTestIntent): Promise<{ page: Page; pageId: string; discovered: DiscoveredPage }> {
+  async createRunnerOwnedPage(url: string, intent: RunnerPageTestIntent, fixtureLeaseId?: string): Promise<{
+    page: Page; pageId: string; discovered: DiscoveredPage; ownerReceipt?: RunnerOwnedPageReceipt
+  }> {
     validateRunnerPageTestIntent(intent);
-    await this.connect();
-    const browser = this.browser;
-    const context = browser?.contexts()[0];
-    if (!context) throw new Error('No connected browser context is available for a runner-owned page');
-    const page = await context.newPage();
-    this.runnerOwnedPages.add(page);
+    if (fixtureLeaseId !== undefined && (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(fixtureLeaseId)
+      || this.runnerOwnedFixtureLeases.has(fixtureLeaseId))) {
+      throw new Error('Fixture target receipt lease is invalid or already registered');
+    }
+    if (fixtureLeaseId !== undefined) this.runnerOwnedFixtureLeases.add(fixtureLeaseId);
+    let page: Page | undefined;
     try {
+      await this.connect();
+      const browser = this.browser;
+      const context = browser?.contexts()[0];
+      if (!context) throw new Error('No connected browser context is available for a runner-owned page');
+      page = await context.newPage();
+      this.runnerOwnedPages.add(page);
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15_000 });
       const discovered = await this.discoverPage(page, context);
-      return { page, pageId: discovered.pageId, discovered };
+      if (fixtureLeaseId === undefined) return { page, pageId: discovered.pageId, discovered };
+      const ownerReceipt = Object.freeze({}) as RunnerOwnedPageReceipt;
+      this.runnerOwnedPageReceipts.set(ownerReceipt, {
+        leaseId: fixtureLeaseId, page, context, contextId: discovered.contextId, pageId: discovered.pageId
+      });
+      return { page, pageId: discovered.pageId, discovered, ownerReceipt };
     } catch (error) {
-      await this.closeRunnerOwnedPage(page);
+      try { if (page && this.runnerOwnedPages.has(page)) await this.closeRunnerOwnedPage(page); }
+      catch { /* Preserve the creation failure; fixture lifecycle cleanup will fail closed. */ }
+      finally { if (fixtureLeaseId !== undefined) this.runnerOwnedFixtureLeases.delete(fixtureLeaseId); }
       throw error;
     }
   }
@@ -168,7 +237,46 @@ export class PlaywrightBrowserDiscovery implements BrowserDiscovery {
   async closeRunnerOwnedPage(page: Page): Promise<void> {
     if (!this.runnerOwnedPages.has(page)) throw new Error('Refusing to close a page not owned by this TEST runner');
     this.runnerOwnedPages.delete(page);
+    for (const [receipt, record] of this.runnerOwnedPageReceipts) {
+      if (record.page === page) {
+        this.runnerOwnedPageReceipts.delete(receipt);
+      }
+    }
     if (!page.isClosed()) await page.close();
+  }
+
+  /** Consumes an owner-issued capability and verifies the exact registered PAGE object and IDs once. */
+  consumeRunnerOwnedPageReceipt(
+    receipt: unknown,
+    fixtureLeaseId: string,
+    page: Page,
+    identity: RunnerOwnedPageIdentity
+  ): RunnerOwnedPageVerification | null {
+    if (!receipt || typeof receipt !== 'object') return null;
+    const typedReceipt = receipt as RunnerOwnedPageReceipt;
+    const record = this.runnerOwnedPageReceipts.get(typedReceipt);
+    if (!record) return null;
+
+    // Any attempted use burns the capability, including wrong-lease/identity attempts.
+    this.runnerOwnedPageReceipts.delete(typedReceipt);
+    if (record.leaseId !== fixtureLeaseId || record.page !== page || !this.runnerOwnedPages.has(record.page)
+      || record.page.isClosed() || !identity || typeof identity !== 'object'
+      || identity.backend !== 'PLAYWRIGHT' || identity.scopeKind !== 'PAGE'
+      || identity.contextId !== record.contextId || identity.pageId !== record.pageId
+      || !this.browser?.contexts().includes(record.context) || !record.context.pages().includes(record.page)
+      || this.ids.forContext(record.context) !== record.contextId || this.ids.forPage(record.page) !== record.pageId) return null;
+
+    const samePageId = record.context.pages().filter((candidate) => this.ids.forPage(candidate) === record.pageId);
+    if (samePageId.length !== 1 || samePageId[0] !== record.page) return null;
+    const verification = Object.freeze({}) as RunnerOwnedPageVerification;
+    runnerOwnedPageVerifications.set(verification, {
+      leaseId: record.leaseId, page: record.page, identity: { backend: 'PLAYWRIGHT', scopeKind: 'PAGE',
+        contextId: record.contextId, pageId: record.pageId },
+      isCurrent: () => this.runnerOwnedPages.has(record.page) && !record.page.isClosed()
+        && !!this.browser?.contexts().includes(record.context) && record.context.pages().includes(record.page)
+        && this.ids.forContext(record.context) === record.contextId && this.ids.forPage(record.page) === record.pageId
+    });
+    return verification;
   }
 
   createV1Observer(pageId: string, timeline: Timeline, ids: V1ObserverScopeIds): V1CorrelationObserver {

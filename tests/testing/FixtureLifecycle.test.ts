@@ -17,11 +17,37 @@ import {
   type SyntheticFixtureLease
 } from '../../src/testing/FixtureLifecycle.js';
 import type { SmokeTarget } from '../../src/testing/SmokeScenario.js';
+import { PlaywrightBrowserDiscovery, type RunnerOwnedPageReceipt, type RunnerOwnedPageVerification } from '../../src/browser/PlaywrightBrowserDiscovery.js';
 
 const target: SmokeTarget = { pageUrl: 'http://127.0.0.1/synthetic', scope: { kind: 'PAGE' } };
 const pageIdentity: FixtureRuntimeTargetIdentity = { backend: 'PLAYWRIGHT', scopeKind: 'PAGE', contextId: 'CONTEXT-0001', pageId: 'PAGE-0001' };
 const pageBinding = { fixtureId: 'fixture-test', target, runtimeIdentity: pageIdentity };
 let generatedRuntimeTargetSequence = 0;
+
+/** Seed the discovery-owned registry as a deterministic test fixture, then use the real one-use verifier. */
+function ownerVerification(leaseId: string, identity: FixtureRuntimeTargetIdentity): { verification?: RunnerOwnedPageVerification; page: object } {
+  if (identity.backend !== 'PLAYWRIGHT' || identity.scopeKind !== 'PAGE') return { page: {} };
+  const discovery = Object.create(PlaywrightBrowserDiscovery.prototype) as PlaywrightBrowserDiscovery;
+  let closed = false;
+  const page = { isClosed: () => closed, async close() { closed = true; } } as unknown as import('playwright').Page;
+  const context = { pages: () => [page] } as unknown as import('playwright').BrowserContext;
+  const receipt = Object.freeze({}) as RunnerOwnedPageReceipt;
+  const state = discovery as unknown as {
+    browser: import('playwright').Browser;
+    ids: { forContext(value: object): string; forPage(value: object): string };
+    runnerOwnedPages: Set<import('playwright').Page>;
+    runnerOwnedPageReceipts: Map<RunnerOwnedPageReceipt, { leaseId: string; page: import('playwright').Page;
+      context: import('playwright').BrowserContext; contextId: string; pageId: string }>;
+    runnerOwnedFixtureLeases: Set<string>;
+  };
+  state.browser = { contexts: () => [context] } as unknown as import('playwright').Browser;
+  state.ids = { forContext: () => identity.contextId, forPage: () => identity.pageId };
+  state.runnerOwnedPages = new Set([page]);
+  state.runnerOwnedPageReceipts = new Map([[receipt, { leaseId, page, context,
+    contextId: identity.contextId, pageId: identity.pageId }]]);
+  state.runnerOwnedFixtureLeases = new Set([leaseId]);
+  return { verification: discovery.consumeRunnerOwnedPageReceipt(receipt, leaseId, page, identity as never) ?? undefined, page };
+}
 
 function identityEqual(left: FixtureRuntimeTargetIdentity, right: FixtureRuntimeTargetIdentity): boolean {
   return fixtureRuntimeIdentitySha256(left) === fixtureRuntimeIdentitySha256(right);
@@ -39,10 +65,8 @@ function createDriver(options: { leaseId?: string; runtimeIdentity?: FixtureRunt
   const createRuntimeTarget = (identity?: FixtureRuntimeTargetIdentity, ownedByLease = options.runtimeOwnedByLease ?? true) => {
     assert.ok(calls.includes('setup'), 'runtime is created only after setup returns its data/resource lease');
     assert.equal(hostRuntimeIdentity, undefined, 'fake host creates one runtime target per fixture lease');
-    hostRuntimeIdentity = identity ?? options.runtimeIdentity ?? {
-      backend: 'PLAYWRIGHT', scopeKind: 'PAGE', contextId: `CONTEXT-RUNTIME-${++generatedRuntimeTargetSequence}`,
-      pageId: `PAGE-RUNTIME-${generatedRuntimeTargetSequence}`
-    };
+    hostRuntimeIdentity = identity ?? options.runtimeIdentity ?? pageIdentity;
+    generatedRuntimeTargetSequence += 1;
     runtimeCreatedAfterSetup = true;
     runtimeLeaseId = ownedByLease ? lease.leaseId : 'pre-existing-foreign-lease';
     calls.push('runtime:create');
@@ -78,9 +102,13 @@ function createDriver(options: { leaseId?: string; runtimeIdentity?: FixtureRunt
   return { driver, lease, calls, createRuntimeTarget, registerPreExistingTarget, get hostRuntimeIdentity() { return hostRuntimeIdentity; } };
 }
 
-function bindingFor(driver: ReturnType<typeof createDriver>, fixtureTarget: SmokeTarget = target) {
+function bindingFor(driver: ReturnType<typeof createDriver>, fixtureTarget: SmokeTarget = target,
+  runtimeIdentity: FixtureRuntimeTargetIdentity = driver.hostRuntimeIdentity!) {
   assert.ok(driver.hostRuntimeIdentity, 'host runtime target must exist before binding');
-  return { fixtureId: 'fixture-test', target: fixtureTarget, runtimeIdentity: driver.hostRuntimeIdentity };
+  const owner = driver.calls.includes('runtime:create') && driver.hostRuntimeIdentity?.backend === 'PLAYWRIGHT'
+    ? ownerVerification(driver.lease.leaseId, driver.hostRuntimeIdentity) : undefined;
+  return { fixtureId: 'fixture-test', target: fixtureTarget, runtimeIdentity,
+    ownerVerification: owner?.verification, page: owner?.page };
 }
 
 type FixtureTargetAttestationFactory = (lease: SyntheticFixtureLease, identity: FixtureRuntimeTargetIdentity, challenge: string) => FixtureTargetAttestation;
@@ -93,7 +121,8 @@ function memoryJournal() {
 }
 
 function controller(driver: SyntheticFixtureDriver, journal = memoryJournal(), operationTimeoutMs = 100, fixtureTarget = target, fixtureId = 'fixture-test') {
-  return { instance: new FixtureLifecycleController({ driver, request: { fixtureId, target: fixtureTarget }, runId: 'run-test', journal: journal.journal, operationTimeoutMs }), journal };
+  return { instance: new FixtureLifecycleController({ driver, request: { fixtureId, target: fixtureTarget }, runId: 'run-test', journal: journal.journal, operationTimeoutMs,
+  }), journal };
 }
 
 test('two-stage fake-host lifecycle leases data before runtime creation, then attests exact target before RUN and independently verifies cleanup', async () => {
@@ -111,6 +140,16 @@ test('two-stage fake-host lifecycle leases data before runtime creation, then at
   assert.equal(fixtureCleanupStatusFromEvidence(j.entries), 'VERIFIED');
   assert.ok(j.entries.every((entry, index) => entry.sequence === index + 1));
   assert.equal(JSON.stringify(j.entries).includes('page-private-id'), false);
+});
+
+test('missing owner receipt blocks target attestation and RUN while still allowing owned data cleanup', async () => {
+  const f = createDriver(); const c = controller(f.driver); await c.instance.prepare(); f.createRuntimeTarget();
+  await assert.rejects(c.instance.bindTarget({ ...bindingFor(f), ownerVerification: undefined }), /FIXTURE_TARGET_OWNER_RECEIPT_NOT_VERIFIED/);
+  await assert.rejects(c.instance.startRun(), /FIXTURE_PRECONDITIONS_NOT_VERIFIED/);
+  assert.equal(f.calls.includes('attest'), false);
+  const summary = await c.instance.finish('VERIFIED');
+  assert.equal(summary.targetBindingStatus, 'FAILED');
+  assert.equal(summary.cleanupVerificationStatus, 'VERIFIED');
 });
 
 test('setup, target binding, and cleanup cannot be replayed within one lifecycle controller', async () => {
@@ -194,12 +233,12 @@ test('wrong fixture or mismatched requested target fails closed and never reache
   assert.ok(f.calls.includes('teardown'));
 });
 
-test('a pre-existing foreign page with matching URL/scope and caller identity receives no lease attestation', async () => {
+test('a pre-existing foreign page with matching URL/scope and caller identity receives no target attestation', async () => {
   const f = createDriver(); f.registerPreExistingTarget(pageIdentity); const c = controller(f.driver); await c.instance.prepare();
-  await assert.rejects(c.instance.bindTarget(bindingFor(f)), /FIXTURE_TARGET_ATTESTATION_NOT_VERIFIED/);
+  await assert.rejects(c.instance.bindTarget(bindingFor(f)), /FIXTURE_TARGET_OWNER_RECEIPT_NOT_VERIFIED/);
   await assert.rejects(c.instance.startRun(), /FIXTURE_PRECONDITIONS_NOT_VERIFIED/);
   assert.equal((await c.instance.finish('VERIFIED')).targetBindingStatus, 'FAILED');
-  assert.equal(f.calls.includes('attest'), true);
+  assert.equal(f.calls.includes('attest'), false);
   assert.equal(f.calls.includes('teardown'), true, 'data lease teardown is still independent of the rejected browser target');
 });
 
@@ -210,41 +249,22 @@ test('wrong Playwright page/context identity is rejected by host registry, not U
   ];
   for (const candidate of mismatches) {
     const f = createDriver(); const c = controller(f.driver); await c.instance.prepare(); f.createRuntimeTarget(pageIdentity);
-    await assert.rejects(c.instance.bindTarget({ ...pageBinding, runtimeIdentity: candidate }), /FIXTURE_TARGET_ATTESTATION_NOT_VERIFIED/);
+    await assert.rejects(c.instance.bindTarget({ ...bindingFor(f), runtimeIdentity: candidate }), /FIXTURE_TARGET_OWNER_RECEIPT_NOT_VERIFIED/);
     await assert.rejects(c.instance.startRun(), /FIXTURE_PRECONDITIONS_NOT_VERIFIED/);
     assert.equal((await c.instance.finish('VERIFIED')).runStatus, 'NOT_STARTED');
   }
 });
 
-test('Playwright FRAME binding requires exact context, page, frame, and protocol-frame identity', async () => {
+test('fixture lifecycle rejects FRAME and GAS_OOPIF scopes until independently supported', async () => {
   const frameTarget: SmokeTarget = { pageUrl: target.pageUrl, scope: { kind: 'FRAME', url: 'http://127.0.0.1/synthetic-frame' } };
-  const frameIdentity: FixtureRuntimeTargetIdentity = { backend: 'PLAYWRIGHT', scopeKind: 'FRAME', contextId: 'CONTEXT-0001', pageId: 'PAGE-0001',
-    frameId: 'FRAME-0001', protocolFrameId: 'protocol-frame-exact' };
-  const candidates: FixtureRuntimeTargetIdentity[] = [
-    { ...frameIdentity, contextId: 'CONTEXT-FOREIGN' }, { ...frameIdentity, pageId: 'PAGE-FOREIGN' },
-    { ...frameIdentity, frameId: 'FRAME-FOREIGN' }, { ...frameIdentity, protocolFrameId: 'protocol-frame-other' }
-  ];
-  for (const candidate of candidates) {
-    const f = createDriver({ target: frameTarget }); const c = controller(f.driver, memoryJournal(), 100, frameTarget); await c.instance.prepare(); f.createRuntimeTarget(frameIdentity);
-    await assert.rejects(c.instance.bindTarget({ fixtureId: 'fixture-test', target: frameTarget, runtimeIdentity: candidate }), /FIXTURE_TARGET_ATTESTATION_NOT_VERIFIED/);
-    await assert.rejects(c.instance.startRun(), /FIXTURE_PRECONDITIONS_NOT_VERIFIED/);
-    assert.equal((await c.instance.finish('VERIFIED')).targetBindingStatus, 'FAILED');
-  }
-});
-
-test('GAS OOPIF identity requires exact native target, session, context, and frame identity', async () => {
-  const gasTarget = target;
+  assert.throws(() => controller(createDriver({ target: frameTarget }).driver, memoryJournal(), 100, frameTarget), /FIXTURE_LIFECYCLE_SCOPE_UNSUPPORTED/);
+  const f = createDriver(); const c = controller(f.driver); await c.instance.prepare();
   const gasIdentity: FixtureRuntimeTargetIdentity = { backend: 'GAS_OOPIF', scopeKind: 'PAGE', targetId: 'native-target-1', sessionId: 'native-session-1', executionContextId: 21, frameId: 'native-frame-1' };
-  const mismatches: FixtureRuntimeTargetIdentity[] = [
-    { ...gasIdentity, targetId: 'native-target-2' }, { ...gasIdentity, sessionId: 'native-session-2' },
-    { ...gasIdentity, executionContextId: 22 }, { ...gasIdentity, frameId: 'native-frame-2' }
-  ];
-  for (const candidate of mismatches) {
-    const f = createDriver(); const c = controller(f.driver, memoryJournal(), 100, gasTarget); await c.instance.prepare(); f.createRuntimeTarget(gasIdentity);
-    await assert.rejects(c.instance.bindTarget({ fixtureId: 'fixture-test', target: gasTarget, runtimeIdentity: candidate }), /FIXTURE_TARGET_ATTESTATION_NOT_VERIFIED/);
-    await assert.rejects(c.instance.startRun(), /FIXTURE_PRECONDITIONS_NOT_VERIFIED/);
-    assert.equal((await c.instance.finish('VERIFIED')).runStatus, 'NOT_STARTED');
-  }
+  f.createRuntimeTarget(gasIdentity);
+  await assert.rejects(c.instance.bindTarget({ ...bindingFor(f), runtimeIdentity: gasIdentity }), /FIXTURE_LIFECYCLE_SCOPE_UNSUPPORTED/);
+  await assert.rejects(c.instance.startRun(), /FIXTURE_PRECONDITIONS_NOT_VERIFIED/);
+  assert.equal(f.calls.includes('attest'), false);
+  assert.equal((await c.instance.finish('VERIFIED')).targetBindingStatus, 'FAILED');
 });
 
 test('missing or ambiguous runtime identity fails before driver attestation and leaves actions disabled', async () => {
@@ -260,11 +280,7 @@ test('missing or ambiguous runtime identity fails before driver attestation and 
 
 test('runtime scope kind must exactly match the leased PAGE or FRAME scope', async () => {
   const frameTarget: SmokeTarget = { pageUrl: target.pageUrl, scope: { kind: 'FRAME', url: 'http://127.0.0.1/synthetic-frame' } };
-  const f = createDriver(); const c = controller(f.driver); await c.instance.prepare(); f.createRuntimeTarget();
-  await assert.rejects(c.instance.bindTarget({ ...pageBinding, target: frameTarget }), /FIXTURE_TARGET_BINDING_MISMATCH/);
-  await assert.rejects(c.instance.startRun(), /FIXTURE_PRECONDITIONS_NOT_VERIFIED/);
-  assert.equal(f.calls.includes('attest'), false);
-  assert.equal((await c.instance.finish('VERIFIED')).runStatus, 'NOT_STARTED');
+  assert.throws(() => controller(createDriver({ target: frameTarget }).driver, memoryJournal(), 100, frameTarget), /FIXTURE_LIFECYCLE_SCOPE_UNSUPPORTED/);
 });
 
 test('forged or incomplete driver attestation fails closed before RUN', async () => {
@@ -343,7 +359,8 @@ test('file journal is append-only, bounded, parseable, and omits URLs/resource i
   try {
     process.chdir(root);
     const f = createDriver(); const journal = new FileFixtureLifecycleJournal('run-journal');
-    const c = new FixtureLifecycleController({ driver: f.driver, request: { fixtureId: 'fixture-test', target }, runId: 'run-journal', journal });
+    const c = new FixtureLifecycleController({ driver: f.driver, request: { fixtureId: 'fixture-test', target }, runId: 'run-journal', journal,
+      });
     await c.prepare(); f.createRuntimeTarget(); await c.bindTarget(bindingFor(f)); await c.startRun(); await c.finishRun('PASS');
     const summary = await c.finish('VERIFIED'); assert.equal(summary.overallStatus, 'PASS');
     const entries = await readFixtureLifecycleJournal(journal.path);

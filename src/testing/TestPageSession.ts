@@ -1,5 +1,5 @@
 import type { Frame, Page, Request } from 'playwright';
-import { PlaywrightBrowserDiscovery } from '../browser/PlaywrightBrowserDiscovery.js';
+import { PlaywrightBrowserDiscovery, type RunnerOwnedPageIdentity, type RunnerOwnedPageReceipt } from '../browser/PlaywrightBrowserDiscovery.js';
 import { GasAdapter, type GasTestTargetContext } from '../gas/GasAdapter.js';
 import { GasOopifActionBackend } from './GasOopifActionBackend.js';
 import { PlaywrightActionBackend } from './PlaywrightActionBackend.js';
@@ -130,6 +130,9 @@ export class TestPageSession {
       throw new Error('A valid TEST fixture identity is required before browser navigation');
     }
     if (!target || typeof target.pageUrl !== 'string') throw new Error('A valid TEST target is required before browser navigation');
+    if (options.fixtureLifecycle && (options.backend !== 'PLAYWRIGHT' || target.scope.kind !== 'PAGE')) {
+      throw new Error('FIXTURE_LIFECYCLE_SCOPE_UNSUPPORTED');
+    }
     const authorizedPageOrigin = TestPageSession.originOf(target.pageUrl);
     const authorizedScopeOrigin = target.scope.kind === 'FRAME' ? TestPageSession.originOf(target.scope.url) : authorizedPageOrigin;
     const discovery = options.discovery ?? new PlaywrightBrowserDiscovery(options.endpoint);
@@ -143,10 +146,10 @@ export class TestPageSession {
     }) : undefined;
     let page: Page | undefined;
     try {
-      if (fixtureLifecycle) await fixtureLifecycle.prepare();
+      const fixtureLease = fixtureLifecycle ? await fixtureLifecycle.prepare() : undefined;
       const created = await discovery.createRunnerOwnedPage(target.pageUrl, {
         mode: 'TEST', fixtureId, approvalReference: options.approvalReference
-      });
+      }, fixtureLease?.leaseId);
       page = created.page;
       let selectedScope: Page | Frame = page;
       let selectedTargetId = created.pageId;
@@ -201,9 +204,11 @@ export class TestPageSession {
       }
       if (fixtureLifecycle) {
         if (!runtimeIdentity) throw new Error('FIXTURE_TARGET_RUNTIME_IDENTITY_UNAVAILABLE');
+        const ownerVerification = created.ownerReceipt ? discovery.consumeRunnerOwnedPageReceipt(
+          created.ownerReceipt, fixtureLease!.leaseId, page, runtimeIdentity as RunnerOwnedPageIdentity) ?? undefined : undefined;
         await fixtureLifecycle.bindTarget({ fixtureId, runtimeIdentity, target: {
           pageUrl: page.url(), scope: selectedScope === page ? { kind: 'PAGE' } : { kind: 'FRAME', url: (selectedScope as Frame).url() }
-        } });
+        }, ownerVerification, page });
       }
       return new TestPageSession(discovery, gas, page, backend, authorization, selectedTargetId, selectedScope, authorizedPageOrigin, authorizedScopeOrigin, fixtureLifecycle);
     } catch (error) {

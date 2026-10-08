@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "TEST1E-LOCAL-FIXTURE-LIFECYCLE-PASS",
+  "target": {
+    "pageUrl": "http://127.0.0.1:45731/fixture",
+    "scope": { "kind": "PAGE" }
+  },
+  "steps": [
+    { "stepId": "fixture-ready", "kind": "assert", "operation": "readText", "selector": "#fixture-status", "predicate": "equals", "expected": "Synthetic fixture ready" }
+  ]
+}

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { TestPageSession } from '../../src/testing/TestPageSession.js';
 import { parseSmokeScenario } from '../../src/testing/SmokeScenarioParser.js';
-import { PlaywrightBrowserDiscovery } from '../../src/browser/PlaywrightBrowserDiscovery.js';
+import { PlaywrightBrowserDiscovery, type RunnerOwnedPageReceipt } from '../../src/browser/PlaywrightBrowserDiscovery.js';
 import type { GasAdapter } from '../../src/gas/GasAdapter.js';
 import type { Page, Frame } from 'playwright';
 import { SessionIds } from '../../src/core/SessionIds.js';
@@ -28,10 +28,26 @@ function setup() {
     { frameId: 'FRAME-0001', protocolFrameId: 'p1', url: 'http://127.0.0.1/outer', children: [] },
     { frameId: 'FRAME-0002', protocolFrameId: 'p2', url: 'http://localhost/child', children: [] }
   ], executionContextIds: [] };
-  const discovery = {
-    async createRunnerOwnedPage(_url: string, intent: { mode: string; fixtureId: string; approvalReference: string }) {
+  const ownerReceipt = Object.freeze({}) as RunnerOwnedPageReceipt;
+  const discovery = Object.create(PlaywrightBrowserDiscovery.prototype) as PlaywrightBrowserDiscovery;
+  const ownerContext = { pages: () => [ownedPage] } as unknown as import('playwright').BrowserContext;
+  const discoveryState = discovery as unknown as {
+    browser: import('playwright').Browser;
+    ids: { forContext(value: object): string; forPage(value: object): string };
+    runnerOwnedPages: Set<Page>;
+    runnerOwnedPageReceipts: Map<RunnerOwnedPageReceipt, { leaseId: string; page: Page; context: import('playwright').BrowserContext; contextId: string; pageId: string }>;
+    runnerOwnedFixtureLeases: Set<string>;
+  };
+  discoveryState.browser = { contexts: () => [ownerContext] } as unknown as import('playwright').Browser;
+  discoveryState.ids = { forContext: () => 'CONTEXT-0001', forPage: () => 'PAGE-0001' };
+  discoveryState.runnerOwnedPages = new Set([ownedPage]);
+  discoveryState.runnerOwnedPageReceipts = new Map([[ownerReceipt, { leaseId: 'lease-1', page: ownedPage, context: ownerContext,
+    contextId: 'CONTEXT-0001', pageId: 'PAGE-0001' }]]);
+  discoveryState.runnerOwnedFixtureLeases = new Set(['lease-1']);
+  Object.assign(discovery, {
+    async createRunnerOwnedPage(_url: string, intent: { mode: string; fixtureId: string; approvalReference: string }, leaseId?: string) {
       events.push(`create:owned:${intent.mode}`);
-      return { page: ownedPage, pageId: 'PAGE-0001', discovered };
+      return { page: ownedPage, pageId: 'PAGE-0001', discovered, ...(leaseId ? { ownerReceipt } : {}) };
     },
     async selectRunnerOwnedFrame(_page: Page, url: string) {
       events.push(`select:${url}`);
@@ -40,7 +56,14 @@ function setup() {
     },
     async closeRunnerOwnedPage(page: Page) { events.push(page === ownedPage ? 'owned:close' : 'existing:close'); },
     async disconnect() { events.push('playwright:disconnect'); }
-  } as unknown as PlaywrightBrowserDiscovery;
+  });
+  const consumeOwnerReceipt = discovery.consumeRunnerOwnedPageReceipt.bind(discovery);
+  (discovery as unknown as { consumeRunnerOwnedPageReceipt: (...args: Parameters<typeof consumeOwnerReceipt>) => ReturnType<typeof consumeOwnerReceipt> })
+    .consumeRunnerOwnedPageReceipt = (...args) => {
+      const proof = consumeOwnerReceipt(...args);
+      events.push(proof ? 'owner:receipt-verified' : 'owner:receipt-rejected');
+      return proof;
+    };
   const gasCalls: Array<{ endpoint: string; targetId: string; fixtureId: string }> = [];
   const gas = {
     async connectTestTarget(endpoint: string, authorization: { targetId: string; fixtureId: string }) {
@@ -99,6 +122,7 @@ test('opt-in fixture lifecycle setup and reset verification precede runner-owned
   assert.ok(f.events.indexOf('fixture:setup') < f.events.indexOf('create:owned:TEST'));
   assert.ok(f.events.indexOf('fixture:reset') < f.events.indexOf('create:owned:TEST'));
   assert.ok(f.events.indexOf('create:owned:TEST') < f.events.indexOf('fixture:attest-target'));
+  assert.ok(f.events.indexOf('owner:receipt-verified') < f.events.indexOf('fixture:attest-target'));
   f.events.push('fixture:run-start'); await session.beginFixtureRun(); await session.finishFixtureRun('PASS');
   assert.ok(f.events.indexOf('fixture:attest-target') < f.events.indexOf('fixture:run-start'));
   const summary = await session.close();
@@ -148,21 +172,45 @@ test('same URL and scope cannot make a foreign or pre-existing runtime page atte
   assert.equal(f.events.includes('fixture:run-start'), false);
 });
 
-test('GAS_OOPIF lifecycle attests exact native target/session/context/frame only after raw target attachment', async () => {
+test('missing or rejected owner receipt blocks driver attestation and closes only the runner-owned page', async () => {
+  for (const mode of ['missing', 'rejected'] as const) {
+    const f = setup();
+    if (mode === 'missing') {
+      const discovery = f.discovery as unknown as { createRunnerOwnedPage: (...args: unknown[]) => Promise<Record<string, unknown>> };
+      const create = discovery.createRunnerOwnedPage.bind(f.discovery);
+      discovery.createRunnerOwnedPage = async (...args) => {
+        const created = await create(...args);
+        delete created.ownerReceipt;
+        return created;
+      };
+    } else {
+      (f.discovery as unknown as { consumeRunnerOwnedPageReceipt: (...args: unknown[]) => null }).consumeRunnerOwnedPageReceipt = () => null;
+    }
+    const driver = lifecycleDriver(f, { async attestTargetBinding() { f.events.push('fixture:attest-target'); return null; } });
+    let caught: (Error & { fixtureLifecycle?: { targetBindingStatus: string } }) | undefined;
+    try {
+      await TestPageSession.open({ endpoint: 'http://127.0.0.1:9444', backend: 'PLAYWRIGHT', approvalReference: 'approved', scenario: scenario(),
+        discovery: f.discovery, gasAdapter: f.gas, fixtureLifecycle: { driver, runId: `receipt-${mode}`, journal: lifecycleJournal() } });
+    } catch (error) { caught = error as Error & { fixtureLifecycle?: { targetBindingStatus: string } }; }
+    assert.equal(caught?.message, 'TEST_FIXTURE_LIFECYCLE_OPEN_FAILED');
+    assert.equal(caught?.fixtureLifecycle?.targetBindingStatus, 'FAILED');
+    assert.equal(f.events.includes('fixture:attest-target'), false);
+    assert.equal(f.events.includes('owned:close'), true);
+    assert.equal(f.events.includes('existing:close'), false);
+    assert.equal(f.events.includes('fixture:run-start'), false);
+  }
+});
+
+test('fixture lifecycle explicitly rejects GAS_OOPIF and FRAME before any fixture or browser side effect', async () => {
   const f = setup();
-  const gasIdentity: FixtureRuntimeTargetIdentity = { backend: 'GAS_OOPIF', scopeKind: 'PAGE', targetId: 'native-page-1',
-    sessionId: 'SESSION-1', executionContextId: 31, frameId: 'F-1' };
-  const session = await TestPageSession.open({ endpoint: 'http://127.0.0.1:9444', backend: 'GAS_OOPIF', approvalReference: 'approved', scenario: scenario(),
-    discovery: f.discovery, gasAdapter: f.gas, fetchTargets: async () => [{ type: 'page', targetId: 'native-page-1', url: 'http://127.0.0.1/outer' }],
-    fixtureLifecycle: { driver: lifecycleDriver(f, {}, gasIdentity), runId: 'gas-session-run', journal: lifecycleJournal() } });
-  assert.ok(f.events.indexOf('fixture:setup') < f.events.indexOf('create:owned:TEST'));
-  assert.ok(f.events.indexOf('gas:attach') < f.events.indexOf('fixture:attest-target'));
-  assert.equal(session.backend.targetId, 'native-page-1');
-  f.events.push('fixture:run-start'); await session.beginFixtureRun(); await session.finishFixtureRun('PASS');
-  assert.ok(f.events.indexOf('fixture:attest-target') < f.events.indexOf('fixture:run-start'));
-  const summary = await session.close();
-  assert.equal(summary?.targetBindingStatus, 'VERIFIED');
-  assert.equal(summary?.overallStatus, 'PASS');
+  const driver = lifecycleDriver(f);
+  await assert.rejects(TestPageSession.open({ endpoint: 'http://127.0.0.1:9444', backend: 'GAS_OOPIF', approvalReference: 'approved', scenario: scenario(),
+    discovery: f.discovery, gasAdapter: f.gas, fixtureLifecycle: { driver, runId: 'gas-session-run', journal: lifecycleJournal() } }), /FIXTURE_LIFECYCLE_SCOPE_UNSUPPORTED/);
+  await assert.rejects(TestPageSession.open({ endpoint: 'http://127.0.0.1:9444', backend: 'PLAYWRIGHT', approvalReference: 'approved', scenario: scenario('FRAME'),
+    discovery: f.discovery, gasAdapter: f.gas, fixtureLifecycle: { driver, runId: 'frame-session-run', journal: lifecycleJournal() } }), /FIXTURE_LIFECYCLE_SCOPE_UNSUPPORTED/);
+  assert.equal(f.events.some((item) => item.startsWith('fixture:')), false);
+  assert.equal(f.events.some((item) => item.startsWith('create:owned')), false);
+  assert.equal(f.events.includes('gas:attach'), false);
 });
 
 test('target envelope guard accepts the authorized page/frame origins and rejects navigation or detached frames', async () => {
@@ -298,8 +346,11 @@ test('exact frame identity preserves normalized IDs and assigns stable local OOP
   const normalizedFrame = { url: () => 'http://localhost/child', async waitForLoadState() {} } as unknown as Frame;
   const remoteOnlyFrame = { url: () => 'http://localhost/remote-child', async waitForLoadState() {} } as unknown as Frame;
   const page = { frames: () => [pageFrame, normalizedFrame, remoteOnlyFrame] } as unknown as Page;
-  const state = discovery as unknown as { runnerOwnedPages: Set<Page>; playwrightFrameIds: WeakMap<Frame, string>; nextPlaywrightFrameId: number; sessions: Map<Page, unknown>; executionContextIds: Map<Page, Set<number>>; ids: SessionIds };
+  const state = discovery as unknown as { runnerOwnedPages: Set<Page>; runnerOwnedPageReceipts: Map<object, unknown>; runnerOwnedFixtureLeases: Set<string>;
+    playwrightFrameIds: WeakMap<Frame, string>; nextPlaywrightFrameId: number; sessions: Map<Page, unknown>; executionContextIds: Map<Page, Set<number>>; ids: SessionIds };
   state.runnerOwnedPages = new Set([page]);
+  state.runnerOwnedPageReceipts = new Map();
+  state.runnerOwnedFixtureLeases = new Set();
   state.playwrightFrameIds = new WeakMap();
   state.nextPlaywrightFrameId = 0;
   state.sessions = new Map();
