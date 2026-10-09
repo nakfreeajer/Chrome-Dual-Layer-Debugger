@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { access, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -64,6 +64,7 @@ function setup(overrides: Record<string, unknown> = {}) {
     async readPortFile() { return state.portFile; },
     async fetchVersion() { return state.version; },
     async removeProfile(path: string) { calls.removedProfiles.push(path); await rm(path, { recursive: true, force: true }); },
+    async accessProfile(path: string) { await access(path); },
     async verifyPortReleased() { return state.portFree; },
     async wait() {}
   };
@@ -156,6 +157,56 @@ test('cleanup reports endpoint or profile failures and invalidates the lease', a
     assert.equal(result.processStatus, 'VERIFIED');
     assert.equal(result.profileStatus, 'FAILED');
     assert.equal(result.overallStatus, 'FAILED');
+  });
+  await t.test('profile removal records bounded Node error fields without paths or messages', async () => {
+    let privatePath = '';
+    const f = setup({ async removeProfile(path: string) {
+      privatePath = path;
+      throw Object.assign(new Error(`private cleanup detail ${path}`), { code: 'EBUSY', errno: -16, syscall: 'rmdir', path });
+    } });
+    const lease = await launchOwnedBrowserWithPlatformForTests(f.platform);
+    const result = await lease.close();
+    assert.equal(result.profileStatus, 'FAILED');
+    assert.equal(result.overallStatus, 'FAILED');
+    assert.deepEqual(result.profileDiagnostic, {
+      stage: 'profile_remove', cause: 'filesystem_error', code: 'EBUSY', errno: -16, syscall: 'rmdir'
+    });
+    assert.equal(JSON.stringify(result).includes(privatePath), false);
+    assert.equal(JSON.stringify(result).includes('private cleanup detail'), false);
+  });
+  await t.test('non-Node profile removal error is recorded only as unknown', async () => {
+    const f = setup({ async removeProfile(path: string) { throw { message: `secret ${path}`, code: 'PRIVATE_VALUE', path }; } });
+    const lease = await launchOwnedBrowserWithPlatformForTests(f.platform);
+    const result = await lease.close();
+    assert.equal(result.profileStatus, 'FAILED');
+    assert.equal(result.overallStatus, 'FAILED');
+    assert.deepEqual(result.profileDiagnostic, { stage: 'profile_remove', cause: 'unknown' });
+    assert.equal(JSON.stringify(result).includes('secret'), false);
+    assert.equal(JSON.stringify(result).includes('PRIVATE_VALUE'), false);
+  });
+  await t.test('successful removal that leaves the profile present is distinguished', async () => {
+    const f = setup({ async removeProfile() {} });
+    const lease = await launchOwnedBrowserWithPlatformForTests(f.platform);
+    const result = await lease.close();
+    assert.equal(result.profileStatus, 'FAILED');
+    assert.equal(result.overallStatus, 'FAILED');
+    assert.deepEqual(result.profileDiagnostic, { stage: 'profile_verify', cause: 'profile_still_present' });
+  });
+  await t.test('inaccessible post-removal verification remains UNKNOWN and never passes', async () => {
+    const f = setup({ async accessProfile(path: string) {
+      throw Object.assign(new Error(`private verification detail ${path}`), { code: 'EACCES', errno: -13, syscall: 'access', path });
+    } });
+    const lease = await launchOwnedBrowserWithPlatformForTests(f.platform);
+    const result = await lease.close();
+    assert.equal(result.profileStatus, 'UNKNOWN');
+    assert.equal(result.overallStatus, 'UNKNOWN');
+    const profilePath = f.state.profilePath;
+    assert.ok(profilePath);
+    assert.deepEqual(result.profileDiagnostic, {
+      stage: 'profile_verify', cause: 'inaccessible', code: 'EACCES', errno: -13, syscall: 'access'
+    });
+    assert.equal(JSON.stringify(result).includes(profilePath), false);
+    assert.equal(JSON.stringify(result).includes('private verification detail'), false);
   });
   await t.test('endpoint verification exception remains UNKNOWN', async () => {
     const f = setup({ async verifyPortReleased() { throw new Error('probe unavailable'); } });

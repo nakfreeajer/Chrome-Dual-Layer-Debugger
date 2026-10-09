@@ -14,11 +14,23 @@ const ownedBrowserLeaseBrand: unique symbol = Symbol('CDLD-owned-browser-lease')
 
 export type OwnedResourceStatus = 'VERIFIED' | 'FAILED' | 'UNKNOWN';
 
+export type OwnedProfileCleanupStage = 'profile_remove' | 'profile_verify';
+export type OwnedProfileCleanupCause = 'filesystem_error' | 'profile_still_present' | 'inaccessible' | 'unknown';
+
+export interface OwnedProfileCleanupDiagnostic {
+  readonly stage: OwnedProfileCleanupStage;
+  readonly cause: OwnedProfileCleanupCause;
+  readonly code?: string;
+  readonly errno?: number;
+  readonly syscall?: string;
+}
+
 export interface OwnedBrowserCleanupResult {
   readonly processStatus: OwnedResourceStatus;
   readonly profileStatus: OwnedResourceStatus;
   readonly endpointStatus: OwnedResourceStatus;
   readonly overallStatus: OwnedResourceStatus;
+  readonly profileDiagnostic?: OwnedProfileCleanupDiagnostic;
 }
 
 export interface OwnedBrowserLease {
@@ -58,6 +70,7 @@ interface OwnedBrowserPlatform {
   readPortFile(profilePath: string): Promise<string>;
   fetchVersion(endpoint: string): Promise<VersionEvidence>;
   removeProfile(profilePath: string): Promise<void>;
+  accessProfile(profilePath: string): Promise<void>;
   verifyPortReleased(port: number): Promise<boolean>;
   wait(milliseconds: number): Promise<void>;
 }
@@ -117,13 +130,44 @@ function combinedStatus(statuses: readonly OwnedResourceStatus[]): OwnedResource
   return statuses.every((status) => status === 'VERIFIED') ? 'VERIFIED' : 'UNKNOWN';
 }
 
-async function verifyProfileRemoved(profilePath: string): Promise<OwnedResourceStatus> {
+interface ProfileVerification {
+  readonly status: OwnedResourceStatus;
+  readonly diagnostic?: OwnedProfileCleanupDiagnostic;
+}
+
+function safeNodeErrorFields(error: unknown): Pick<OwnedProfileCleanupDiagnostic, 'code' | 'errno' | 'syscall'> {
+  if (!(error instanceof Error)) return {};
+  const candidate = error as NodeJS.ErrnoException;
+  const fields: { code?: string; errno?: number; syscall?: string } = {};
+  if (typeof candidate.code === 'string' && /^(?:E[A-Z0-9_]{1,30}|ERR_[A-Z0-9_]{1,27})$/.test(candidate.code)) {
+    fields.code = candidate.code;
+  }
+  if (typeof candidate.errno === 'number' && Number.isSafeInteger(candidate.errno) && Math.abs(candidate.errno) <= 1_000_000_000) {
+    fields.errno = candidate.errno;
+  }
+  if (typeof candidate.syscall === 'string' && /^[a-z][a-z0-9_]{0,31}$/.test(candidate.syscall)) {
+    fields.syscall = candidate.syscall;
+  }
+  return fields;
+}
+
+function profileErrorDiagnostic(stage: OwnedProfileCleanupStage, cause: 'filesystem_error' | 'inaccessible' | 'unknown', error: unknown): OwnedProfileCleanupDiagnostic {
+  return { stage, cause, ...safeNodeErrorFields(error) };
+}
+
+async function verifyProfileRemoved(profilePath: string, checkAccess: (path: string) => Promise<void>): Promise<ProfileVerification> {
   try {
-    await access(profilePath);
-    return 'FAILED';
+    await checkAccess(profilePath);
+    return { status: 'FAILED', diagnostic: { stage: 'profile_verify', cause: 'profile_still_present' } };
   } catch (error) {
-    if (typeof error === 'object' && error !== null && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT') return 'VERIFIED';
-    return 'UNKNOWN';
+    if (typeof error === 'object' && error !== null && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return { status: 'VERIFIED' };
+    }
+    const fields = safeNodeErrorFields(error);
+    return {
+      status: 'UNKNOWN',
+      diagnostic: profileErrorDiagnostic('profile_verify', Object.keys(fields).length > 0 ? 'inaccessible' : 'unknown', error)
+    };
   }
 }
 
@@ -187,6 +231,7 @@ function waitForChildExit(state: LeaseState, timeoutMs: number): Promise<boolean
 async function closeOwnedState(state: LeaseState): Promise<OwnedBrowserCleanupResult> {
   let processStatus: OwnedResourceStatus = 'UNKNOWN';
   let profileStatus: OwnedResourceStatus = 'UNKNOWN';
+  let profileDiagnostic: OwnedProfileCleanupDiagnostic | undefined;
   let endpointStatus: OwnedResourceStatus = 'UNKNOWN';
   try {
     if (state.exit || state.process.exitCode !== null || state.process.signalCode !== null) {
@@ -206,14 +251,20 @@ async function closeOwnedState(state: LeaseState): Promise<OwnedBrowserCleanupRe
     try {
       validateProfilePath(state.profilePath);
       await state.platform.removeProfile(state.profilePath);
-      profileStatus = await verifyProfileRemoved(state.profilePath);
-    } catch { profileStatus = 'FAILED'; }
+      const verification = await verifyProfileRemoved(state.profilePath, (path) => state.platform.accessProfile(path));
+      profileStatus = verification.status;
+      profileDiagnostic = verification.diagnostic;
+    } catch (error) {
+      profileStatus = 'FAILED';
+      profileDiagnostic = profileErrorDiagnostic('profile_remove', Object.keys(safeNodeErrorFields(error)).length > 0 ? 'filesystem_error' : 'unknown', error);
+    }
     try { endpointStatus = await state.platform.verifyPortReleased(state.port) ? 'VERIFIED' : 'FAILED'; }
     catch { endpointStatus = 'UNKNOWN'; }
   }
 
   return { processStatus, profileStatus, endpointStatus,
-    overallStatus: combinedStatus([processStatus, profileStatus, endpointStatus]) };
+    overallStatus: combinedStatus([processStatus, profileStatus, endpointStatus]),
+    ...(profileDiagnostic ? { profileDiagnostic } : {}) };
 }
 
 async function cleanupFailedLaunch(platform: OwnedBrowserPlatform, profilePath: string, process?: ChildHandle): Promise<boolean> {
@@ -252,7 +303,7 @@ async function cleanupFailedLaunch(platform: OwnedBrowserPlatform, profilePath: 
   try {
     validateProfilePath(profilePath);
     await platform.removeProfile(profilePath);
-    return await verifyProfileRemoved(profilePath) === 'VERIFIED';
+    return (await verifyProfileRemoved(profilePath, (path) => platform.accessProfile(path))).status === 'VERIFIED';
   } catch { return false; }
 }
 
@@ -344,6 +395,7 @@ function defaultPlatform(): OwnedBrowserPlatform {
       return await response.json() as VersionEvidence;
     },
     async removeProfile(profilePath) { await rm(profilePath, { recursive: true, force: false }); },
+    async accessProfile(profilePath) { await access(profilePath); },
     async verifyPortReleased(port) {
       if (!isSafePort(port)) return false;
       const server = createServer();
