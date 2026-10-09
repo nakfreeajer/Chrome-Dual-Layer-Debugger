@@ -10,6 +10,81 @@ const DRIVER_ID = 'local-synthetic-page-driver-v1';
 export const LOCAL_SYNTHETIC_FIXTURE_ID = 'TEST1E-LOCAL-FIXTURE-LIFECYCLE-PASS';
 const LEASE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 
+export type LocalSyntheticFixtureSetupFailurePhase = 'LISTEN_BIND' | 'BOUND_ADDRESS_VERIFY' | 'HEALTH_CHECK';
+export interface LocalSyntheticFixtureSetupDiagnostic {
+  readonly phase: LocalSyntheticFixtureSetupFailurePhase;
+  readonly causeCategory: 'BIND_ERROR' | 'ADDRESS_MISMATCH' | 'ADDRESS_VERIFICATION_ERROR' | 'HEALTH_RESPONSE_INVALID' | 'HEALTH_REQUEST_ERROR';
+  readonly code?: string;
+  readonly errno?: number;
+  readonly syscall?: string;
+}
+
+interface FixtureSetupDependencies {
+  createServer(listener: (request: IncomingMessage, response: ServerResponse) => void): Server;
+  listen(server: Server, port: number): Promise<void>;
+  close(server: Server): Promise<void>;
+  address(server: Server): AddressInfo | null;
+  checkHealth(url: string): Promise<string>;
+}
+
+const fixtureSetupDiagnostics = new WeakMap<Error, LocalSyntheticFixtureSetupDiagnostic>();
+const safeNodeErrorCodes = new Set(['EADDRINUSE', 'EACCES', 'EPERM', 'EADDRNOTAVAIL', 'ECONNREFUSED', 'ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN']);
+const safeNodeSyscalls = new Set(['listen', 'bind', 'connect', 'read', 'write']);
+
+function ownDataProperty(value: unknown, key: string): unknown {
+  if ((typeof value !== 'object' && typeof value !== 'function') || value === null) return undefined;
+  const descriptor = Object.getOwnPropertyDescriptor(value, key);
+  return descriptor && 'value' in descriptor ? descriptor.value : undefined;
+}
+
+function safeNodeErrorDetails(error: unknown): Pick<LocalSyntheticFixtureSetupDiagnostic, 'code' | 'errno' | 'syscall'> {
+  if (!(error instanceof Error)) return {};
+  const code = ownDataProperty(error, 'code');
+  const errno = ownDataProperty(error, 'errno');
+  const syscall = ownDataProperty(error, 'syscall');
+  return {
+    ...(typeof code === 'string' && safeNodeErrorCodes.has(code) ? { code } : {}),
+    ...(typeof errno === 'number' && Number.isSafeInteger(errno) && Math.abs(errno) <= 1_000_000 ? { errno } : {}),
+    ...(typeof syscall === 'string' && safeNodeSyscalls.has(syscall) ? { syscall } : {})
+  };
+}
+
+class FixtureSetupCheckFailure extends Error {
+  constructor(readonly category: 'ADDRESS_MISMATCH' | 'HEALTH_RESPONSE_INVALID') { super(category); }
+}
+
+function setupDiagnostic(phase: LocalSyntheticFixtureSetupFailurePhase, error: unknown): LocalSyntheticFixtureSetupDiagnostic {
+  let causeCategory: LocalSyntheticFixtureSetupDiagnostic['causeCategory'];
+  if (error instanceof FixtureSetupCheckFailure) causeCategory = error.category;
+  else if (phase === 'LISTEN_BIND') causeCategory = 'BIND_ERROR';
+  else if (phase === 'BOUND_ADDRESS_VERIFY') causeCategory = 'ADDRESS_VERIFICATION_ERROR';
+  else causeCategory = 'HEALTH_REQUEST_ERROR';
+  return Object.freeze({ phase, causeCategory, ...safeNodeErrorDetails(error) });
+}
+
+const defaultFixtureSetupDependencies: FixtureSetupDependencies = {
+  createServer(listener) { return createServer(listener); },
+  listen,
+  close,
+  address(server) { return server.address() as AddressInfo | null; },
+  checkHealth: getText
+};
+
+/** Trusted in-process test observation. Raw Error fields are never exposed or serialized. */
+export function getLocalSyntheticFixtureSetupDiagnostic(error: unknown): LocalSyntheticFixtureSetupDiagnostic | undefined {
+  if (!(error instanceof Error)) return undefined;
+  const diagnostic = fixtureSetupDiagnostics.get(error);
+  return diagnostic ? { ...diagnostic } : undefined;
+}
+
+/** Test-only dependency seam; not exported from the package entry point. */
+export function createLocalSyntheticFixtureDriverForTests(
+  port: number,
+  overrides: Partial<FixtureSetupDependencies>
+): LocalSyntheticFixtureDriver {
+  return new LocalSyntheticFixtureDriver(port, { ...defaultFixtureSetupDependencies, ...overrides });
+}
+
 function json(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
   response.end(JSON.stringify(body));
@@ -98,7 +173,7 @@ export class LocalSyntheticFixtureDriver implements SyntheticFixtureDriver {
   private lastLease?: SyntheticFixtureLease;
   private readonly ownedData = new Map<string, typeof BASELINE>();
 
-  constructor(readonly port: number) {
+  constructor(readonly port: number, private readonly setupDependencies: FixtureSetupDependencies = defaultFixtureSetupDependencies) {
     if (!Number.isSafeInteger(port) || port < 1 || port > 65_535) throw new Error('LOCAL_FIXTURE_PORT_INVALID');
     this.pageUrl = `http://${HOST}:${port}/fixture`;
   }
@@ -116,26 +191,33 @@ export class LocalSyntheticFixtureDriver implements SyntheticFixtureDriver {
       fixtureId: request.fixtureId, driverId: this.driverId, leaseId, target: request.target,
       ownedResourceIds: [serverResourceId, dataResourceId]
     };
-    const server = createServer((incoming, outgoing) => serveFixture(incoming, outgoing, () => this.ownedData.get(dataResourceId)));
+    const server = this.setupDependencies.createServer((incoming, outgoing) => serveFixture(incoming, outgoing, () => this.ownedData.get(dataResourceId)));
     this.server = server;
     this.lease = lease;
     this.ownedData.set(dataResourceId, BASELINE);
+    let phase: LocalSyntheticFixtureSetupFailurePhase = 'LISTEN_BIND';
     try {
-      await listen(server, this.port);
-      const address = server.address() as AddressInfo | null;
-      if (!server.listening || !address || address.address !== HOST || address.port !== this.port
-        || await getText(`http://${HOST}:${this.port}/health`) !== 'CDLD_LOCAL_FIXTURE_OK') {
-        throw new Error('LOCAL_FIXTURE_OWNERSHIP_NOT_VERIFIED');
+      await this.setupDependencies.listen(server, this.port);
+      phase = 'BOUND_ADDRESS_VERIFY';
+      const address = this.setupDependencies.address(server);
+      if (!server.listening || !address || address.address !== HOST || address.port !== this.port) {
+        throw new FixtureSetupCheckFailure('ADDRESS_MISMATCH');
+      }
+      phase = 'HEALTH_CHECK';
+      if (await this.setupDependencies.checkHealth(`http://${HOST}:${this.port}/health`) !== 'CDLD_LOCAL_FIXTURE_OK') {
+        throw new FixtureSetupCheckFailure('HEALTH_RESPONSE_INVALID');
       }
       return lease;
-    } catch {
+    } catch (cause) {
       if (server.listening) {
-        try { await close(server); } catch { /* Only this driver-created server is closed. */ }
+        try { await this.setupDependencies.close(server); } catch { /* Only this driver-created server is closed. */ }
       }
       this.ownedData.delete(dataResourceId);
       this.server = undefined;
       this.lease = undefined;
-      throw new Error('LOCAL_FIXTURE_SETUP_FAILED');
+      const error = new Error('LOCAL_FIXTURE_SETUP_FAILED');
+      fixtureSetupDiagnostics.set(error, setupDiagnostic(phase, cause));
+      throw error;
     }
   }
 
