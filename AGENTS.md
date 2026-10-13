@@ -25,7 +25,9 @@ Rony Finster is the final Human authority. ChatGPT is the current Architect-Cura
 
 No automated dispatch, watcher, doorbell, or relay is authoritative.
 
-For normal Architect -> Executor transport, the Architect provides exact prompt-file bytes and a canonical CDLD-PROMPT-V1 descriptor. The Human imports/authorizes those bytes locally through PromptRelayCli, then sends Executor only:
+For the current normal substantial-task workflow, the Architect stores the complete bounded task in Google Drive and sends a short chat launcher. Rony manually relays the task; the task's authority remains that of its author. The accepted RELAY.1A/1B descriptor tooling remains optional and is used only when specifically chosen; it is not the current default workflow.
+
+When RELAY.1B is specifically used, the Architect provides exact prompt-file bytes and a canonical CDLD-PROMPT-V1 descriptor. The Human imports/authorizes those bytes locally through PromptRelayCli, then sends Executor only:
 
     RELAY:EXECUTE
     <CDLD-PROMPT-V1...>
@@ -58,6 +60,37 @@ Do not duplicate authority. Raw evidence does not become accepted project histor
 One bounded milestone at a time. Every Executor task must define objective, authorized paths, exclusions, acceptance criteria, tests, stop conditions, and withheld authorizations.
 
 New ideas raised during implementation are captured under the idea system and do not change active scope without explicit Human/Architect authorization.
+
+## Project Charter and Objective Lock
+
+`docs/PROJECT_BRIEF.md` is the sole objective authority: Chrome Dual-Layer Debugger — Project Charter v1.0, Human-approved 2026-10-13. A Human approval of an ordinary milestone does not amend the charter. Only the Human Owner may change the objective, mandatory deliverables, Release Definition of Done, or non-goals.
+
+Every Architect -> Executor prompt must carry this alignment record:
+
+```text
+PROJECT=Chrome-Dual-Layer-Debugger
+REPO=nakfreeajer/Chrome-Dual-Layer-Debugger
+CHARTER=docs/PROJECT_BRIEF.md@v1.0
+ALIGNMENT=CORE|BLOCKER|OPTIONAL|DRIFT
+TARGET=CORE-01..CORE-07
+BASELINE=<exact verified HEAD>
+GAP=<measured missing evidence>
+EXPECTED_RESULT=<measurable result>
+ACCEPTANCE_EVIDENCE=<exact source/tests/evidence>
+SUPPORT_STREAK=<count or HISTORICAL_STOP_TRIGGERED>
+AUTHORIZATION=<specific Human-permitted scope>
+STOP=<conditions>
+```
+
+For CORE/BLOCKER work, TARGET identifies the directly supported charter deliverable. If a truthful CORE target cannot be identified, classify the proposal as DRIFT and stop rather than dispatching it. OPTIONAL work requires separate prioritization; DRIFT requires Human charter amendment.
+
+The Executor independently verifies project/repository identity, charter revision, baseline, CORE linkage, evidence gap, and permission before work. Identity mismatch returns `PROJECT_ID_MISMATCH`; objective contradiction or unsupported CORE/BLOCKER linkage returns `BLOCKED_OBJECTIVE_DRIFT`. The Executor does not accept its own work or amend the charter.
+
+Two consecutive BLOCKER milestones without independently verified CORE advancement require STOP/REASSESS. Names, split stages, reclassification, session changes, and chat handovers never reset the support streak. Continue the same investigation only with new evidence, explicit Human permission, and a stopping rule; no automatic continuation exists. After every five milestones, including failures/blocked attempts, the Architect records accepted CORE progress, remaining deliverables, supporting effort, blockers/opportunity cost, and next recommendation. Counters persist across handovers.
+
+The historical F36–F49 sequence has already triggered the governance STOP/REASSESS condition. Record `HISTORICAL_STOP_TRIGGERED` until the Human authorizes a separate bounded exception or independently verified CORE progression closes the stop condition. Do not invent a numeric streak or reset. Approval of this charter-adoption task does not authorize resuming F36–F50, a live trial, or another milestone.
+
+One Architect session covers one repository, charter revision, and evidence scope. Work and evidence from another project never become CDLD authority by implication.
 
 ## Read-first order
 

@@ -97,3 +97,20 @@ Authorize only a bounded implementation of the exact common predicates `truthy`,
 ## D-031 - Accepted TEST.1D assertions and failure artifacts
 
 TEST.1D closes with the exact six predicates `truthy`, `falsy`, `equals`, `notEquals`, `contains`, and `notContains`, shared semantics across PLAYWRIGHT and GAS_OOPIF, normalized assertion Timeline evidence, and `CDLD_TEST1D_FAILURE` schema v1 artifacts. Default evidence is privacy-reduced; synthetic detail and screenshots are bounded and opt-in. DOM/runtime/screenshot diagnostics have a 5-second total deadline, no retries, and cannot continue into later stages after timeout. Target-envelope checks fail closed and omit unsafe diagnostics. GAS readiness requires a live default context for the exact authorized target and attached session. Timeline references use exact `(runId,eventId)` identity; V0.1I remains the sole correlation proof authority. TEST.1E and TEST.1F remain PLANNED / NOT AUTHORIZED.
+
+## D-032 — Human-approved Project Charter v1.0 and Release 1 objective lock
+
+**Date:** 2026-10-13
+**Human decision:** “APPROVE CHARTER”
+**Authority:** Rony Finster, Human Owner
+**Classification:** bounded governance adoption supporting CORE-06 and CORE-07; not product acceptance or a Release declaration.
+
+The Human approved the Project Charter v1.0 in `docs/PROJECT_BRIEF.md`. The permanent objective is reusable cross-layer Chrome/Chromium debugging and controlled testing, including browser/GAS observation, deterministic evidence, authorized smoke/monkey testing, and replayable regression suites. CDLD is not a general cloud-authorization or orchestration platform.
+
+Release 1 requires CORE-01 through CORE-07 and their chartered evidence. CORE-06 and CORE-07 remain release blockers until independent acceptance. CORE-04 requires the existing 19 qualified common operations through both backends; double-click, right-click, drag/drop, file input, and cross-backend screenshot parity remain explicit post-release requirements. Unsupported operations fail clearly. Implementation or a green test alone is not acceptance or release approval; publication requires separate Human authorization.
+
+TEST.1F Replayable Regression Suites implementation is present at `309f451b2edad6e844e8c58ba113c7cadc4ea7f9`, but its formal acceptance remains unresolved. F36 remains INCONCLUSIVE / EXHAUSTED and its cause, ownership, and cleanup uncertainties remain UNKNOWN. F47–F49 are offline/design evidence only and do not authorize live work or make cloud services mandatory.
+
+Only the Human Owner may change the objective, mandatory deliverables, Release Definition of Done, or explicit non-goals. Technical design may evolve within those outcomes. Ordinary milestone approval is not a charter amendment. Manual Human relay remains; no Orchestrator, additional agents, cloud service, automatic dispatch, or automatic execution is authorized.
+
+Every proposed milestone is classified CORE, BLOCKER, OPTIONAL, or DRIFT and uses the charter-required alignment record. Unsupported CORE/BLOCKER linkage returns BLOCKED_OBJECTIVE_DRIFT; repository mismatch returns PROJECT_ID_MISMATCH. Two consecutive blockers without independently verified CORE advancement trigger STOP/REASSESS. The historical F36–F49 support sequence has already triggered that stop; the numeric consecutive streak and five-milestone checkpoint remain unverified and must be reconciled without inventing or resetting them. Five-milestone reviews persist across sessions. Adoption of this governance decision does not authorize resuming that investigation or starting a new milestone.

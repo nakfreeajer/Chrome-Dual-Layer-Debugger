@@ -22,6 +22,8 @@ Rony Finster is final Human authority. ChatGPT is the Architect-Curator for this
 - Repository: `nakfreeajer/Chrome-Dual-Layer-Debugger`
 - Branch: `main`
 - Local root: `C:\Users\nitro\Projects\Chrome-Dual-Remote-Debugger`
+- Project Charter: `docs/PROJECT_BRIEF.md` v1.0, Human-approved 2026-10-13. Charter adoption source commit is reported after publication; this handover is not Architect acceptance.
+- Charter adoption task baseline: `be59c528d585f43a5db5dd298c22ca4a55783e75`.
 - Accepted V0.1A implementation HEAD: `f1cf95158eba7342d627a5526f04766b24c1d5d2`.
 - Accepted V0.1B implementation HEAD: `83ba33d5bb67fc362a1d3e7e5226e5627de2f22e`.
 - Accepted V0.1C implementation HEAD: `21b5f9c30460c38e11c16f04b44fa8ac3a5210f5`.
@@ -31,6 +33,21 @@ Rony Finster is final Human authority. ChatGPT is the Architect-Curator for this
 - Accepted RELAY.1A implementation HEAD: `163b0c008097eb24f1412be31e527f4697d0fc35`.
 - Accepted RELAY.1B implementation HEAD: `85310e450705e1671ef9e6af22eeae6d9dbcc519`.
 - `gas-remote-debug` dependency is pinned to `ac4359aa790af19cafe1a7e9a55ecd50f68e9169`.
+
+## Objective Lock — session carryover
+
+Use only project Chrome-Dual-Layer-Debugger, repository `nakfreeajer/Chrome-Dual-Layer-Debugger`, and charter `docs/PROJECT_BRIEF.md@v1.0`. Verify the exact current baseline and clean worktree for each bounded task. Every proposed milestone needs the required alignment record: classification, CORE target, measured gap, measurable result, exact acceptance evidence, authorization, stop conditions, and persistent support-streak state.
+
+### Current charter-linked gaps
+
+- CORE-06 Replayable Regression Suites source is present at `309f451b2edad6e844e8c58ba113c7cadc4ea7f9`; formal acceptance remains unresolved. Do not label it accepted from source presence alone.
+- CORE-07 remains a Release 1 blocker until authorization, containment, ownership, and cleanup are independently verified for every declared supported execution lifecycle.
+- F36 is INCONCLUSIVE / EXHAUSTED. Cause, ownership and cleanup uncertainties remain UNKNOWN. F47–F49 are offline/design evidence only; they do not create live permission or require cloud authorization work.
+- CORE-04 Release 1 baseline remains 19 common operations. Double-click, right-click, drag/drop, file input, and cross-backend screenshot parity remain tracked post-release requirements.
+
+The F36–F49 history has triggered STOP/REASSESS. Carry `HISTORICAL_STOP_TRIGGERED`; the consecutive numeric count and five-milestone checkpoint are unverified and must be reconciled, never reset or invented. Approval of charter adoption does not authorize resuming F36→F50, starting a live attempt, or continuing the same investigation. Only new evidence plus explicit Human permission and a bounded stop rule can support an exception.
+
+No session, relay, milestone-name, or project switch resets these records. After each five milestones, including failed/blocked work, the Architect documents independently accepted CORE progress, remaining deliverables, supporting effort, blockers/opportunity cost, and a next recommendation.
 
 ## Accepted capability
 V0.1A established low-intrusion Playwright browser discovery. V0.1B established safe coexistence with `gas-remote-debug` and deterministic evidence-backed mapping. V0.1C normalized those observations into appendable read-only JSONL. V0.1D adds explicit debugger-run identity so multiple runs can coexist in one JSONL file without ambiguous event identity.
@@ -76,9 +93,9 @@ Do not repeat these conclusions or approaches:
 ## RELAY.1A durable prompt artifact foundation
 RELAY.1A stores exact prompt bytes under ignored `.agent-work/prompts/<milestoneId>/<promptSha256>.md`, with immutable manifests/lifecycle evidence and a mutable current locator. Schema v1 identity is `(project, milestoneId, promptSha256, promptByteLength)`; no transactionId exists, and debugger runId is not workflow identity. Hash and byte length cover exact Buffer bytes without normalization.
 
-Staging is not authorization. Explicit approval references are required. Active authorization cannot be displaced through direct authorization; supersession is explicit, and revocation/supersession/corrupt state are verified fail-closed from durable evidence. The locator is a recovery pointer, not authority. No automatic dispatch or prompt execution is active; compact descriptor transport is the normal manual handoff after this closure.
+Staging is not authorization. Explicit approval references are required. Active authorization cannot be displaced through direct authorization; supersession is explicit, and revocation/supersession/corrupt state are verified fail-closed from durable evidence. The locator is a recovery pointer, not authority. No automatic dispatch or prompt execution is active. Compact descriptor transport remains accepted optional tooling, not the current default handoff.
 
-The compact Architect -> Executor flow is now the normal operating procedure: Architect creates the exact prompt file and canonical descriptor; Rony imports/authorizes the exact bytes; Rony sends Executor only the descriptor; Executor resolves and follows only the exact verified bytes. For future tasks, provide the exact prompt file, descriptor, short Human import instruction, and short `RELAY:EXECUTE` handoff token; do not place the complete prompt body in the Executor handoff message. Full-prompt chat transport is an explicit fallback only. Executor -> Architect report/evidence relay remains manual. Transport changed; the Human -> Architect-Curator -> bounded Executor authority model did not. No automated dispatch or prompt execution exists.
+Current substantial task transport uses a complete Google Drive task document and a short chat launcher. Rony manually relays the task. RELAY.1B descriptor transport may be used when specifically selected; it is not the default. Executor -> Architect report/evidence relay remains manual. No automated dispatcher or prompt execution exists. Transport choices do not change the Human -> Architect-Curator -> bounded Executor authority model.
 
 ## Workflow note
 Local raw evidence belongs under ignored `.agent-work/`. Because relay is manual, the Human Owner transports bounded Executor reports/evidence to the Architect-Curator. Do not require an automated bridge, watcher, doorbell, or orchestrator state.
