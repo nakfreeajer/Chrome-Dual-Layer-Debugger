@@ -112,7 +112,7 @@ Local raw evidence belongs under ignored `.agent-work/`. Because relay is manual
 ## Accepted V0.1J/V0.1K closure
 The combined producer and raw child/OOPIF marker fusion is accepted and published at `9e6998488b02e5493f4a4b34e6c0b60b8d193465`; validation passed at 178/178 tests. The live Brave diagnostic is complete, cleanup was verified, and no further browser diagnostic is pending. The next work, if any, must come from existing roadmap/governance and a separate bounded authorization; this closure does not invent another milestone.
 
-No automatic dispatch or execution is introduced. RELAY.1B compact prompt transport remains the active manual Architect -> Executor transport; Executor -> Architect evidence return remains manual.
+No automatic dispatch or execution is introduced. The current default is manual Google Drive relay: Architect stores the complete bounded task in Google Drive and sends a short chat launcher; Rony manually relays it to Executor. RELAY.1B compact descriptor transport remains accepted optional tooling and applies only when explicitly selected. Executor -> Architect evidence return remains manual.
 
 Do not jump directly to GUI work, breakpoints, destructive browser controls, broad automation, or unbounded server instrumentation.
 

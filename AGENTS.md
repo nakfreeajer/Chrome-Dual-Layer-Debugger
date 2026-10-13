@@ -25,7 +25,7 @@ Rony Finster is the final Human authority. ChatGPT is the current Architect-Cura
 
 No automated dispatch, watcher, doorbell, or relay is authoritative.
 
-For the current normal substantial-task workflow, the Architect stores the complete bounded task in Google Drive and sends a short chat launcher. Rony manually relays the task; the task's authority remains that of its author. The accepted RELAY.1A/1B descriptor tooling remains optional and is used only when specifically chosen; it is not the current default workflow.
+The current default substantial-task workflow is manual Google Drive relay: the Architect stores the complete bounded task in a Google Drive document and sends a short chat launcher; Rony manually relays the launcher/task context to Executor. The full Drive document is the substantive instruction, and its authority remains that of its author. The accepted RELAY.1A/1B descriptor tooling is optional and applies only when the Human explicitly selects it; it is not the default.
 
 When RELAY.1B is specifically used, the Architect provides exact prompt-file bytes and a canonical CDLD-PROMPT-V1 descriptor. The Human imports/authorizes those bytes locally through PromptRelayCli, then sends Executor only:
 
@@ -37,12 +37,12 @@ The Executor resolves the exact descriptor from verified authorized local state 
 When the Human supplies RELAY:EXECUTE followed by a CDLD-PROMPT-V1 token, treat it as a transport instruction, not the substantive task. Resolve that exact token through PromptRelayCli and require verified authorized local state. Read and execute only the exact resolved prompt bytes. If resolution fails, stop and report failure. Never choose by recency, filename/path similarity, or directory search; never regenerate equivalent instructions; never bypass Human approval or lifecycle evidence.
 
 The Human still manually carries:
-1. Architect prompt file and descriptor to the local importer, then the descriptor handoff to Executor.
+1. The Google Drive task document and short chat launcher in the current default workflow; or, when explicitly selecting RELAY.1B, the exact prompt file and descriptor through local import/authorization and then the descriptor handoff to Executor.
 2. Executor terminal report/evidence back to Architect-Curator.
 3. Architect decision or correction when needed.
 4. Documentation synchronization instruction/closure when required.
 
-A full prompt may be copied into Executor chat only as an explicit fallback when compact relay is unavailable or under repair; do not mix the fallback text with a descriptor-authorized execution.
+Do not confuse the short chat launcher with the substantive task. Follow the complete Google Drive task document in the default workflow. When RELAY.1B is explicitly selected, follow only the exact resolved authorized prompt bytes and do not mix them with a separately pasted full-prompt instruction.
 
 The Human transport role does not change authority: transported content keeps the authority of its author.
 
