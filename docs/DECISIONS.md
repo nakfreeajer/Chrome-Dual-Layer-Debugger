@@ -96,7 +96,7 @@ Authorize only a bounded implementation of the exact common predicates `truthy`,
 
 ## D-031 - Accepted TEST.1D assertions and failure artifacts
 
-TEST.1D closes with the exact six predicates `truthy`, `falsy`, `equals`, `notEquals`, `contains`, and `notContains`, shared semantics across PLAYWRIGHT and GAS_OOPIF, normalized assertion Timeline evidence, and `CDLD_TEST1D_FAILURE` schema v1 artifacts. Default evidence is privacy-reduced; synthetic detail and screenshots are bounded and opt-in. DOM/runtime/screenshot diagnostics have a 5-second total deadline, no retries, and cannot continue into later stages after timeout. Target-envelope checks fail closed and omit unsafe diagnostics. GAS readiness requires a live default context for the exact authorized target and attached session. Timeline references use exact `(runId,eventId)` identity; V0.1I remains the sole correlation proof authority. TEST.1E and TEST.1F remain PLANNED / NOT AUTHORIZED.
+TEST.1D closes with the exact six predicates `truthy`, `falsy`, `equals`, `notEquals`, `contains`, and `notContains`, shared semantics across PLAYWRIGHT and GAS_OOPIF, normalized assertion Timeline evidence, and `CDLD_TEST1D_FAILURE` schema v1 artifacts. Default evidence is privacy-reduced; synthetic detail and screenshots are bounded and opt-in. DOM/runtime/screenshot diagnostics have a 5-second total deadline, no retries, and cannot continue into later stages after timeout. Target-envelope checks fail closed and omit unsafe diagnostics. GAS readiness requires a live default context for the exact authorized target and attached session. Timeline references use exact `(runId,eventId)` identity; V0.1I remains the sole correlation proof authority. At that decision date, TEST.1E and TEST.1F were PLANNED / NOT AUTHORIZED.
 
 ## D-032 — Human-approved Project Charter v1.0 and Release 1 objective lock
 
@@ -114,3 +114,17 @@ TEST.1F Replayable Regression Suites implementation is present at `309f451b2edad
 Only the Human Owner may change the objective, mandatory deliverables, Release Definition of Done, or explicit non-goals. Technical design may evolve within those outcomes. Ordinary milestone approval is not a charter amendment. Manual Human relay remains; no Orchestrator, additional agents, cloud service, automatic dispatch, or automatic execution is authorized.
 
 Every proposed milestone is classified CORE, BLOCKER, OPTIONAL, or DRIFT and uses the charter-required alignment record. Unsupported CORE/BLOCKER linkage returns BLOCKED_OBJECTIVE_DRIFT; repository mismatch returns PROJECT_ID_MISMATCH. Two consecutive blockers without independently verified CORE advancement trigger STOP/REASSESS. The historical F36–F49 support sequence has already triggered that stop; the numeric consecutive streak and five-milestone checkpoint remain unverified and must be reconciled without inventing or resetting them. Five-milestone reviews persist across sessions. Adoption of this governance decision does not authorize resuming that investigation or starting a new milestone.
+
+
+## D-033 - Human-approved CDLD consumer capability layer (Charter v1.1)
+
+**Date:** 2026-10-21
+**Human decision:** approved the complete Charter v1.1 and bounded documentation-only alignment plan.
+**Authority:** Rony Finster, Human Owner.
+**Classification:** charter amendment / governance; no CORE implementation acceptance or Release declaration.
+
+CDLD is the intended single consumer-facing advanced Playwright-based Chrome/Chromium capability layer, combining ordinary browser semantics with supported GAS/OOPIF access through the existing `GasAdapter` and `gas-remote-debug` boundary. Consumer projects own application behavior, fixtures, test cases, and business acceptance. They should not duplicate recursive GAS/OOPIF raw-CDP discovery by default; any exception requires a measured CDLD gap, bounded alternative, and Human permission.
+
+The two internal `PLAYWRIGHT` and `GAS_OOPIF` backends remain peers for the existing common contract. The Release 1 baseline remains 19 qualified operations; double-click, right-click, drag/drop, file input, and cross-backend screenshot parity remain deferred. CORE-06 and CORE-07 remain blockers. TEST.1F source presence and bounded offline qualification do not establish formal acceptance. PAGE.1D remains `INCONCLUSIVE_CLEANUP`; F36 remains `INCONCLUSIVE / EXHAUSTED`, historical STOP remains triggered, and numeric checkpoint state is UNKNOWN.
+
+The package is `private: true`; no stable public SDK/import contract or full Playwright compatibility has been qualified. No source/dependency changes or consumer integration implementation are authorized by this decision.

@@ -63,28 +63,31 @@ New ideas raised during implementation are captured under the idea system and do
 
 ## Project Charter and Objective Lock
 
-`docs/PROJECT_BRIEF.md` is the sole objective authority: Chrome Dual-Layer Debugger — Project Charter v1.0, Human-approved 2026-10-13. A Human approval of an ordinary milestone does not amend the charter. Only the Human Owner may change the objective, mandatory deliverables, Release Definition of Done, or non-goals.
+`docs/PROJECT_BRIEF.md` is the sole objective authority: Chrome Dual-Layer Debugger Project Charter v1.1, Human-approved 2026-10-21. An ordinary milestone approval does not amend the charter. Only the Human Owner may change the objective, mandatory deliverables, Release Definition of Done, or non-goals.
 
 Every Architect -> Executor prompt must carry this alignment record:
 
 ```text
 PROJECT=Chrome-Dual-Layer-Debugger
 REPO=nakfreeajer/Chrome-Dual-Layer-Debugger
-CHARTER=docs/PROJECT_BRIEF.md@v1.0
+CHARTER=docs/PROJECT_BRIEF.md@v1.1
 ALIGNMENT=CORE|BLOCKER|OPTIONAL|DRIFT
 TARGET=CORE-01..CORE-07
 BASELINE=<exact verified HEAD>
 GAP=<measured missing evidence>
-EXPECTED_RESULT=<measurable result>
-ACCEPTANCE_EVIDENCE=<exact source/tests/evidence>
+OUTCOME_TEST=<observable result + exact evidence + pass/fail rule>
+NECESSITY=<why required for the named CORE/BLOCKER>
+SIMPLER_ALTERNATIVE=<considered alternative and why insufficient>
 SUPPORT_STREAK=<count or HISTORICAL_STOP_TRIGGERED>
+FIVE_MILESTONE_CHECKPOINT=<verified state or UNKNOWN>
+AUTHORIZATION_TYPE=READ_ONLY|IMPLEMENTATION|LIVE|CHARTER_AMENDMENT|DOCUMENTATION_ONLY
 AUTHORIZATION=<specific Human-permitted scope>
 STOP=<conditions>
 ```
 
 For CORE/BLOCKER work, TARGET identifies the directly supported charter deliverable. If a truthful CORE target cannot be identified, classify the proposal as DRIFT and stop rather than dispatching it. OPTIONAL work requires separate prioritization; DRIFT requires Human charter amendment.
 
-The Executor independently verifies project/repository identity, charter revision, baseline, CORE linkage, evidence gap, and permission before work. Identity mismatch returns `PROJECT_ID_MISMATCH`; objective contradiction or unsupported CORE/BLOCKER linkage returns `BLOCKED_OBJECTIVE_DRIFT`. The Executor does not accept its own work or amend the charter.
+Before every Executor prompt, the Architect freshly verifies exact GitHub `AGENTS.md`, `docs/PROJECT_BRIEF.md`, and `docs/HANDOVER.md`, plus repository identity and HEAD. The Executor independently verifies project/repository identity, charter revision, baseline, CORE linkage, evidence gap, and permission before work. Identity mismatch returns `PROJECT_ID_MISMATCH`; objective contradiction or unsupported CORE/BLOCKER linkage returns `BLOCKED_OBJECTIVE_DRIFT`. The Executor does not accept its own work or amend the charter.
 
 Two consecutive BLOCKER milestones without independently verified CORE advancement require STOP/REASSESS. Names, split stages, reclassification, session changes, and chat handovers never reset the support streak. Continue the same investigation only with new evidence, explicit Human permission, and a stopping rule; no automatic continuation exists. After every five milestones, including failures/blocked attempts, the Architect records accepted CORE progress, remaining deliverables, supporting effort, blockers/opportunity cost, and next recommendation. Counters persist across handovers.
 
@@ -121,3 +124,7 @@ The local workspace bootstrap at `C:\Users\nitro\Projects\Chrome-Dual-Remote-Deb
 - `gas-remote-debug` owns GAS-specific browser-root/OOPIF runtime discovery; do not duplicate its recursive discovery engine without demonstrated need.
 - Prefer observability before mutation and deterministic evidence before inference.
 - Do not close, navigate, or mutate an existing debug browser unless the active milestone explicitly authorizes it.
+
+## Consumer boundary
+
+CDLD is the intended single consumer-facing Chrome/Chromium automation and debugging contract for ordinary Playwright semantics plus supported GAS/OOPIF capabilities, only where each contract is qualified. Playwright and `gas-remote-debug` are internal components. Consumer projects own their application logic, fixtures, test definitions, and business acceptance; they must not duplicate recursive GAS/OOPIF raw-CDP discovery by default. No full Playwright API compatibility or ready public SDK is claimed: `package.json` remains private and a stable external import contract is not yet qualified. A measured gap, bounded alternative, and Human permission are required before any consumer-side raw-CDP exception.

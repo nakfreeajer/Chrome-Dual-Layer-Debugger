@@ -81,11 +81,9 @@ Accepted implementation HEAD: `b14fda0db3b4d150064c91eab86dfdda19b6cd1f`.
 - Combined validation: `npm run check` PASS; `npm test` 178/178 PASS; `git diff --check` PASS.
 - No browser diagnostic remains pending. Further work must follow existing roadmap governance and receive separate bounded authorization.
 
-## Product objective - Debugger + Active Test System
+## Product objective - Advanced Playwright-based Chrome/GAS-OOPIF capability layer
 
-CDLD is intended to become a cross-layer debugger and active browser/GAS testing system. Passive observation is the safety default, not the final product boundary. Active mutation must run only under an explicitly authorized test mode against a designated test target.
-
-The active-testing track builds on the accepted V0.1 evidence architecture rather than bypassing it. Playwright performs semantic actions; existing Network/RAW-CDP/GAS evidence remains responsible for explaining what each action caused.
+Under the Human-approved Charter v1.1, CDLD is intended as one reusable consumer entry point for ordinary Playwright browser semantics plus qualified GAS/OOPIF access. Playwright and `gas-remote-debug` are internal components; consumer projects own app-specific tests and business acceptance. Active mutation remains limited to explicit authorization and designated test targets. No full Playwright API equivalence or public SDK readiness is claimed.
 
 ## TEST.1A - Dual-Backend Capability Contract and Parity Foundation - ACCEPTED / CLOSED
 
@@ -114,7 +112,7 @@ Published source: `5a05c8e98f0555cca9cf05028dfa31ff20464039` (parent `acb03cae34
 
 Delivered the six shared predicates (`truthy`, `falsy`, `equals`, `notEquals`, `contains`, `notContains`), normalized assertion Timeline evidence, and privacy-reduced `CDLD_TEST1D_FAILURE` v1 artifacts. Optional diagnostics are bounded, session-level evidence with a 5-second total deadline, no retries, and fail-closed target-envelope rechecks before each stage. Late completion cannot start later diagnostic stages. GAS_OOPIF readiness is scoped to the exact authorized target/session and qualifying default execution context. V0.1I remains the sole correlation authority.
 
-Accepted live evidence includes both-backend predicate pass/failure matrices, six isolated repaired GAS cases, privacy-reduced artifact and synthetic screenshot metadata checks, diagnostic timeout preservation, target-envelope omission, unchanged existing target inventory, cleanup, and Brave endpoint responsiveness. This is bounded TEST-target functionality, not production readiness. TEST.1E later closed only for its bounded disposable-browser and synthetic Playwright PAGE scope; TEST.1F remains PLANNED / NOT AUTHORIZED, and no later source milestone is automatically authorized.
+Accepted live evidence includes both-backend predicate pass/failure matrices, six isolated repaired GAS cases, privacy-reduced artifact and synthetic screenshot metadata checks, diagnostic timeout preservation, target-envelope omission, unchanged existing target inventory, cleanup, and Brave endpoint responsiveness. This is bounded TEST-target functionality, not production readiness. TEST.1E later closed only for its bounded disposable-browser and synthetic Playwright PAGE scope; the contemporaneous roadmap record stated TEST.1F was PLANNED / NOT AUTHORIZED, and no later source milestone is automatically authorized.
 
 ## TEST.1E - Test Fixture / Reset / Cleanup Governance - ACCEPTED / CLOSED (bounded scope)
 
@@ -123,14 +121,13 @@ Accepted live evidence includes both-backend predicate pass/failure matrices, si
 - C2B qualified one assertion-only synthetic PLAYWRIGHT PAGE lifecycle using a newly launched task-owned disposable Brave child. Its `browser.close()`/disconnect detached the Playwright connection in that observed process/version; the owner separately stopped the verified child after confirming target preservation and cleanup.
 - C2B deterministic validation: `npm run check` PASS, `npm test` 312/312 PASS, `git diff --check` PASS. The runner-owned page closed, the original `about:blank` target identity remained unchanged, fixture cleanup was independently VERIFIED, and the loopback fixture port was FREE.
 - Scope is not production readiness or generalized browser lifecycle safety. Disconnect behavior for externally owned/shared Brave remains UNQUALIFIED. Existing endpoints 9444 and 9222 were not tested. GAS_OOPIF and FRAME fixture lifecycle remain unsupported and fail closed. The default CLI does not select or load an arbitrary fixture driver.
-- TEST.1F - Replayable Regression Suites remains PLANNED / NOT AUTHORIZED. No subsequent milestone is authorized by this bounded closure.
+- At the time of this TEST.1E closure, TEST.1F was PLANNED / NOT AUTHORIZED. Its later implementation and current formal CORE-06 status are recorded below; this historical closure did not authorize subsequent work.
 
-## TEST.1F - Replayable Regression Suites - PLANNED / NOT AUTHORIZED
+## TEST.1F - Replayable Regression Suites - IMPLEMENTED; BOUNDED OFFLINE QUALIFICATION ACCEPTED; FORMAL CORE-06 PENDING
 
-- Persist deterministic smoke/monkey reproductions as reusable suites.
-- Run the same suite through either eligible backend where parity is declared.
-- Compare expected UI/backend outcomes while tolerating only explicitly defined nondeterministic fields.
-- Produce suite-level and step-level PASS/FAIL evidence.
+Tracked source exists at `309f451b2edad6e844e8c58ba113c7cadc4ea7f9`. The bounded offline qualification was accepted, but formal CORE-06 remains unresolved. The PAGE.1D report records one synthetic PLAYWRIGHT PAGE suite/case and one assertion as passing; the complete qualification is `INCONCLUSIVE_CLEANUP` because the complete final target digest set was not retained. This does not establish full cross-backend replayable-suite acceptance or release readiness. Earlier roadmap entries saying `PLANNED / NOT AUTHORIZED` are preserved as their contemporaneous historical state, not the current source status.
+
+The capability goal remains to persist deterministic smoke/monkey suites, compare declared outcomes, and produce inspectable suite/step results. Formal acceptance requires complete reproducible evidence and independent review; documentation does not upgrade the result.
 
 ## Later, not yet authorized for implementation
 - GAS server-side tracing adapter details beyond the proven `gas-remote-debug` composition boundary.
@@ -152,3 +149,7 @@ Accepted live evidence includes both-backend predicate pass/failure matrices, si
 - The Architect-provided exact prompt file is verified against descriptor SHA-256 and byte length before store mutation; Executor resolution independently checks verified authorization/lifecycle and emits exact prompt bytes only.
 - Validation: `npm run check` PASS; `npm test` 148/148 PASS; `git diff --check` PASS; process-level exact-byte import/resolve and zero-stdout mismatch proof passed.
 - At RELAY.1B acceptance, compact descriptor transport became the normal Architect -> Executor workflow. Current governance later superseded that default with full substantial task documents in Google Drive and short chat launchers. RELAY.1A/1B remains accepted optional tooling. Human relay and Executor -> Architect evidence return remain manual; there is no automatic dispatch or execution.
+
+## Consumer integration outcome - PROPOSED / NOT AUTHORIZED
+
+A bounded future qualification may demonstrate that one independent local browser test project invokes the same documented CDLD contract for an ordinary non-GAS fixture and an authorized synthetic GAS/OOPIF fixture, without implementing its own recursive raw-CDP GAS discovery. It must prove the real selected OOPIF context, a supported action/assertion, ordinary Playwright-path non-regression, and target preservation/cleanup. This is a measurable proposed outcome, not a framework or cloud prerequisite. Human authorization is required before implementation or browser activity.

@@ -2,11 +2,7 @@
 
 ## Core principle
 
-CDLD has two equal browser-control/debugging backends:
-- `PLAYWRIGHT` — semantic browser interaction through Playwright.
-- `GAS_OOPIF` — direct control and inspection of the real GAS/OOPIF runtime through raw CDP and `gas-remote-debug`.
-
-Neither backend is the privileged product surface. CDLD exposes one project-independent capability contract and both backends must satisfy that contract for capabilities declared as supported.
+CDLD has one intended outward consumer contract and two equal internal browser-control/debugging backends. `PLAYWRIGHT` supplies ordinary browser semantics; `GAS_OOPIF` composes the existing `gas-remote-debug` runtime through `GasAdapter` for the GAS-specific extension. Both remain peers for the declared common capability matrix. Consumers should call CDLD rather than implement a parallel raw-CDP GAS/OOPIF discovery stack.
 
 ## Dual-backend capability parity rule
 
@@ -199,7 +195,7 @@ DOM, runtime, and screenshot diagnostics share a total 5-second deadline, have n
 
 GAS_OOPIF readiness is predicate-scoped to the exact authorized `targetId` and attached `sessionId`, and requires a live, default, non-ignored context with a safe integer executionContextId. A globally present default context is not sufficient. This uses the pinned dependency's public predicate-scoped wait and preserves the existing timeout and polling bounds.
 
-V0.1I remains the sole correlation proof authority. A failure artifact may classify a relationship as `PROVEN_BY_EXISTING_EVIDENCE` only when it references an existing proof-complete V0.1I correlation; otherwise the relationship remains `RUN_CONTEXT_ONLY` or `UNKNOWN`. Exact same-run Timeline references to action, assertion, or failure events are diagnostic identity references, not correlation proof. Timing/order, URLs, and frame/page proximity never prove correlation. TEST.1D does not add correlation, generalized production testing, or capabilities outside the accepted matrix. TEST.1E later added a receipt-bound local fixture lifecycle only for synthetic PLAYWRIGHT PAGE runs; disconnect behavior for externally owned/shared browsers and GAS_OOPIF/FRAME fixture lifecycle remain unqualified. TEST.1F remains PLANNED / NOT AUTHORIZED.
+V0.1I remains the sole correlation proof authority. A failure artifact may classify a relationship as `PROVEN_BY_EXISTING_EVIDENCE` only when it references an existing proof-complete V0.1I correlation; otherwise the relationship remains `RUN_CONTEXT_ONLY` or `UNKNOWN`. Exact same-run Timeline references to action, assertion, or failure events are diagnostic identity references, not correlation proof. Timing/order, URLs, and frame/page proximity never prove correlation. TEST.1D does not add correlation, generalized production testing, or capabilities outside the accepted matrix. TEST.1E later added a receipt-bound local fixture lifecycle only for synthetic PLAYWRIGHT PAGE runs; disconnect behavior for externally owned/shared browsers and GAS_OOPIF/FRAME fixture lifecycle remain unqualified. TEST.1F source exists; bounded offline qualification was accepted, but formal CORE-06 acceptance remains pending. The PAGE.1D execution remains INCONCLUSIVE_CLEANUP because the complete final target digest set was not retained.
 
 ## Engineering workflow architecture
 
@@ -225,3 +221,17 @@ Prompt bytes are Buffer-exact: line endings, Unicode, whitespace and trailing ne
 Staging is not authorization. Authorization requires an explicit approval reference and does not cryptographically authenticate the approval. Direct authorization cannot silently replace an active current prompt. Changed decisions use explicit supersession; revocation and supersession are checked against immutable lifecycle evidence. Invalid or corrupt durable state fails closed.
 
 RELAY.1B is accepted and published at `85310e450705e1671ef9e6af22eeae6d9dbcc519`. Its descriptor/import/revoke/supersede/resolve tooling remains valid; governance simplification supersedes it only as the default operating workflow, not as technical implementation. When this optional tooling is used, local hashing proves byte identity, not authorship; a descriptor is identity, not authorization; verified RELAY.1A lifecycle state plus exact identity and bytes remain required. Resolve is byte delivery, not execution. There is no automatic dispatcher, network service, or auto-execution.
+
+## Consumer architecture and qualification boundary
+
+```text
+Independent application test project
+  -> one documented CDLD CLI/API contract (when qualified)
+      -> backend selector
+          -> PLAYWRIGHT for ordinary Chrome semantics
+          -> GAS_OOPIF via GasAdapter -> existing gas-remote-debug
+      -> privacy-reduced Timeline / trace / result evidence
+  -> Chrome / Chromium
+```
+
+The consuming project owns business logic, test cases, fixtures, data, schedules, and application acceptance. CDLD owns the reusable browser/GAS capability boundary and its conformance evidence. Do not claim a complete Playwright API replacement. `package.json` is currently `private: true` and has no supported public export map; internal modules or CLI presence do not establish a stable third-party integration. Before external use is called qualified, demonstrate the supported installation/invocation path, a versioned contract, ordinary Playwright-path non-regression, authentic GAS OOPIF context selection, and target-safe cleanup. Independent consumer integration remains unqualified and requires separate bounded authorization.

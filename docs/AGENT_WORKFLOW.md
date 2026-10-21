@@ -22,14 +22,15 @@ Before implementation, the Architect should be able to explain:
 - evidence that will prove the milestone complete.
 
 ## Execution loop
-1. Architect freezes one complete bounded milestone as exact prompt bytes and supplies the prompt file plus canonical descriptor.
-2. Human imports and authorizes those exact bytes locally using PromptRelayCli and the explicit approval reference.
-3. Human transports only the unchanged descriptor to Executor using RELAY:EXECUTE followed by the CDLD-PROMPT-V1 token.
-4. Executor resolves the descriptor against fully verified RELAY.1A authorized state; resolution failure means stop. Executor performs only the exact resolved bounded prompt.
-5. Executor validates and writes structured terminal report/evidence locally under `.agent-work/`.
-6. Human manually returns the report/evidence to Architect-Curator.
-7. Architect independently verifies against GitHub and evidence and classifies `ACCEPTED`, `BLOCKED`, `INCONCLUSIVE`, or `NO_NEW_REPORT`.
-8. Documentation/publication remain separate authorizations when applicable.
+1. Architect freezes one complete bounded milestone as a Google Drive task document and sends a short chat launcher. The Drive document is the substantive instruction.
+2. Human manually relays the launcher/task context to Executor. RELAY.1B descriptor transport may be used only when explicitly selected; it is not the default.
+3. Executor verifies repository, baseline, and authorization, then follows the complete task document (or, only when explicitly selected, resolves the exact authorized descriptor bytes). Resolution failure means stop.
+4. Executor performs only bounded authorized work and writes structured terminal report/evidence locally under ignored `.agent-work/`.
+5. Human manually returns report/evidence to Architect-Curator.
+6. Architect independently verifies against GitHub and evidence and classifies `ACCEPTED`, `BLOCKED`, `INCONCLUSIVE`, or `NO_NEW_REPORT`.
+7. Documentation synchronization/publication remain separate authorizations when applicable.
+
+The default is the complete Google Drive task document plus a short manual chat launcher. RELAY.1A/1B remain accepted optional tooling. No automatic dispatch or execution exists.
 
 ## Accepted bootstrap checkpoint
 The initial local workspace bootstrap is closed and accepted:
@@ -89,7 +90,7 @@ Created locally by `tools/setup-agent-work.ps1` and ignored by Git:
 └── private/
 ```
 
-The `prompts/` store may be created lazily by relay tooling; workspace bootstrap does not need to be rerun. Prompt bytes live at `.agent-work/prompts/<milestoneId>/<promptSha256>.md`, with immutable manifests and lifecycle records alongside them; `.agent-work/current/executor-prompt.json` is only a mutable recovery locator, not authority. The `bridge/` folder remains only a manual staging/redaction boundary, not authority; no automated synchronization is assumed.
+Optional RELAY.1A/1B tooling may create `.agent-work/prompts/` lazily; workspace bootstrap does not need to be rerun. If used, prompt bytes live at `.agent-work/prompts/<milestoneId>/<promptSha256>.md`, with immutable manifests/lifecycle records; `.agent-work/current/executor-prompt.json` is a recovery locator, not authority. The `bridge/` folder is a manual staging/redaction boundary, not authority. The current default remains a Google Drive task document plus short chat launcher.
 
 ## Documentation closure
 There is no automated documentation doorbell. When accepted work materially changes current state, decisions, history, architecture, workflow, validation, lessons, roadmap or handover state, the Architect-Curator performs the bounded documentation synchronization directly after acceptance.

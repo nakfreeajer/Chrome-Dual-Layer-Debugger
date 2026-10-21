@@ -297,7 +297,7 @@ Regression contracts:
 - Recheck target-envelope safety before each target-content diagnostic; omit later target-content evidence after violation.
 - Require a qualifying default execution context on the exact authorized GAS target and attached session.
 - Screenshot remains session-level diagnostic evidence, not a GAS ActionOperation capability.
-- TEST.1E is closed only for its separately qualified disposable-browser and synthetic PLAYWRIGHT PAGE lifecycle scope; TEST.1F remains PLANNED / NOT AUTHORIZED.
+- TEST.1E is closed only for its separately qualified disposable-browser and synthetic PLAYWRIGHT PAGE lifecycle scope; at that historical point, TEST.1F was PLANNED / NOT AUTHORIZED.
 
 ## Accepted PUBLIC.1A-SAFETY.1A GAS evidence redaction
 
@@ -310,7 +310,7 @@ Accepted validation reported:
 
 Focused tests cover the supported `/macros/s/{id}/exec`, `/a/macros/{domain}/s/{id}/exec`, and `/macros/d/{id}/usercodeapp` route layouts; case variants; relative and malformed route-like strings; embedded HTTP(S) URLs; and whole-input parseable absolute URLs, including WSS. They also cover userinfo, all parsed-URL query values, non-empty fragments, deterministic/idempotent output, unrelated-path false positives, and GAS discovery target URL, frame URL, and context origin output. The context-origin case is supplied through `listRuntimeContexts()`.
 
-Regression boundary: redaction statements apply to these covered URL forms and the audited `GasAdapter` discovery evidence fields. They do not assert universal leakage prevention across unrelated output sinks. Do not regress the project wrapper on whole-input absolute URL schemes, bypass it for returned target/frame/context URL fields, or broaden known-route matching to unrelated paths. TEST.1D and the bounded TEST.1E scope are closed; TEST.1F remains PLANNED / NOT AUTHORIZED, and no later PUBLIC safety slice is authorized here.
+Regression boundary: redaction statements apply to these covered URL forms and the audited `GasAdapter` discovery evidence fields. They do not assert universal leakage prevention across unrelated output sinks. Do not regress the project wrapper on whole-input absolute URL schemes, bypass it for returned target/frame/context URL fields, or broaden known-route matching to unrelated paths. TEST.1D and the bounded TEST.1E scope are closed; at that historical point, TEST.1F was PLANNED / NOT AUTHORIZED, and no later PUBLIC safety slice is authorized here.
 
 ## Accepted TEST.1E fixture lifecycle evidence (bounded scope)
 
@@ -318,4 +318,16 @@ Stage B source publication: `9cc7ec7d4024487fda0350f32cf4dfc91fdefaea`. C2A acce
 
 C2B qualified one assertion-only synthetic PAGE lifecycle against a newly launched, task-owned disposable Brave child. In that observed child/version/session, Playwright disconnect detached without exiting the browser process. The owner then stopped only the verified child. Evidence confirmed the pre-existing `about:blank` target identity was unchanged, the runner page was closed, fixture cleanup was independently VERIFIED, and the loopback port was FREE. C2B reported `npm run check` PASS, `npm test` 312/312 PASS, and `git diff --check` PASS; it made no source changes.
 
-Regression boundary: this does not qualify disconnect for an externally owned/shared browser, and no existing Brave 9444 or Chrome 9222 endpoint was tested. GAS_OOPIF and FRAME fixture lifecycle remain unsupported and fail closed. Do not infer generalized browser compatibility, production readiness, or capability parity outside this observed PAGE scenario. TEST.1F remains PLANNED / NOT AUTHORIZED.
+Regression boundary: this does not qualify disconnect for an externally owned/shared browser, and no existing Brave 9444 or Chrome 9222 endpoint was tested. GAS_OOPIF and FRAME fixture lifecycle remain unsupported and fail closed. Do not infer generalized browser compatibility, production readiness, or capability parity outside this observed PAGE scenario. at that historical point, TEST.1F was PLANNED / NOT AUTHORIZED.
+
+
+## Charter v1.1 consumer-contract qualification method (not yet executed)
+
+This is an acceptance method, not a reported result. A future separately authorized qualification must show an independent consumer using the same supported CDLD entry contract for (1) an ordinary non-GAS Chrome fixture and (2) an authorized synthetic GAS/OOPIF fixture. Retain actual consumer invocation, normalized supported action/assertion result, authentic selected OOPIF context evidence, ordinary Playwright-path non-regression, pre/post target identity evidence, and independently verified cleanup. A mock or outer-page-only result does not establish GAS/OOPIF integration. Unsupported fixture lifecycle remains a blocker for that scope. Do not report this method as performed until matching evidence exists.
+
+## Charter v1.1 evidence pointers and preserved status
+
+- PAGE.1D Executor report: https://docs.google.com/document/d/1arQ_AMt2c0KjB3GUMjUtZvzUNVeo0E6jjmMg2dtSgYo/edit . The report records one synthetic PLAYWRIGHT PAGE suite/case and one non-mutating `readText` equality assertion as passing, while classifying the complete qualification `INCONCLUSIVE_CLEANUP` because the complete final target digest set was not retained. The case PASS is not CORE-06 or full-suite acceptance.
+- Shared Brave 9444 inventory report: https://docs.google.com/document/d/1lneY3IH30BjYq9JeRldf2fAfh0DV70mtuTfW7PiywzU/edit . It records two read-only GET observations (`/json/version` and `/json/list`) and one target digest; it does not establish before/after stability, shared-browser lifecycle safety, or regression-suite execution. The approved alignment plan calls it a baseline reference; the underlying Executor report states `OBSERVED_READONLY_BASELINE_AWAITING_ARCHITECT_REVIEW`.
+- Historical cumulative test total: UNKNOWN. Per-run test totals and evidence status are kept in `docs/TEST_EVIDENCE_LEDGER.md`; no cumulative count is inferred.
+- CORE-06 / CORE-07 remain Release 1 blockers. F36 remains `INCONCLUSIVE / EXHAUSTED`; cause, ownership, and cleanup remain UNKNOWN; `HISTORICAL_STOP_TRIGGERED` remains, with numeric checkpoint UNKNOWN.

@@ -22,8 +22,7 @@ Rony Finster is final Human authority. ChatGPT is the Architect-Curator for this
 - Repository: `nakfreeajer/Chrome-Dual-Layer-Debugger`
 - Branch: `main`
 - Local root: `C:\Users\nitro\Projects\Chrome-Dual-Remote-Debugger`
-- Project Charter: `docs/PROJECT_BRIEF.md` v1.0, Human-approved 2026-10-13. Charter adoption source commit is reported after publication; this handover is not Architect acceptance.
-- Charter adoption task baseline: `be59c528d585f43a5db5dd298c22ca4a55783e75`.
+- Project Charter v1.1 was Human-approved 2026-10-21. Alignment baseline: `31a31a4b05fbe46d7d8806ac0fd5e12227fb1583`.
 - Accepted V0.1A implementation HEAD: `f1cf95158eba7342d627a5526f04766b24c1d5d2`.
 - Accepted V0.1B implementation HEAD: `83ba33d5bb67fc362a1d3e7e5226e5627de2f22e`.
 - Accepted V0.1C implementation HEAD: `21b5f9c30460c38e11c16f04b44fa8ac3a5210f5`.
@@ -32,11 +31,11 @@ Rony Finster is final Human authority. ChatGPT is the Architect-Curator for this
 - Accepted combined V0.1J/V0.1K implementation HEAD: `9e6998488b02e5493f4a4b34e6c0b60b8d193465`.
 - Accepted RELAY.1A implementation HEAD: `163b0c008097eb24f1412be31e527f4697d0fc35`.
 - Accepted RELAY.1B implementation HEAD: `85310e450705e1671ef9e6af22eeae6d9dbcc519`.
-- `gas-remote-debug` dependency is pinned to `ac4359aa790af19cafe1a7e9a55ecd50f68e9169`.
+- Current `package.json` pins `gas-remote-debug` to `75462b81c55c6c113e552dcd5544949bd765e90a`; older historical documentation names a different pin and is not authority for current dependency state.
 
 ## Objective Lock — session carryover
 
-Use only project Chrome-Dual-Layer-Debugger, repository `nakfreeajer/Chrome-Dual-Layer-Debugger`, and charter `docs/PROJECT_BRIEF.md@v1.0`. Verify the exact current baseline and clean worktree for each bounded task. Every proposed milestone needs the required alignment record: classification, CORE target, measured gap, measurable result, exact acceptance evidence, authorization, stop conditions, and persistent support-streak state.
+Use only project Chrome-Dual-Layer-Debugger, repository `nakfreeajer/Chrome-Dual-Layer-Debugger`, and the Human-approved Charter `docs/PROJECT_BRIEF.md@v1.1`; verify the exact current baseline and clean worktree for each bounded task. Every proposed milestone needs the required alignment record: classification, CORE target, measured gap, measurable result, exact acceptance evidence, authorization, stop conditions, and persistent support-streak state.
 
 ### Current charter-linked gaps
 
@@ -121,3 +120,10 @@ Do not jump directly to GUI work, breakpoints, destructive browser controls, bro
 - Raw child/OOPIF Runtime owns exact cooperative completion-marker observation only.
 - The existing V0.1I recognizer remains the only correlation proof authority; Page console is diagnostic, not proof.
 - Collection is opt-in with `--observe-v1-ms`. Do not correlate by timing, order or frame proximity.
+
+## Charter v1.1 consumer boundary
+CDLD is intended as one consumer-facing advanced Playwright-based Chrome/Chromium automation and debugging layer, adding supported GAS/OOPIF access through the existing adapter. Consumer projects own app-specific tests, fixtures, and acceptance. `gas-remote-debug` remains the GAS discovery engine behind `GasAdapter`; consumer projects should not duplicate it without a measured gap and bounded Human-approved exception. The current package is private and has no verified public import/export contract; do not claim drop-in Playwright replacement.
+
+The intended consumer entry point is not yet independently qualified. Existing source/CLI presence is not independent-consumer evidence. Consumer integration qualification and formal CORE-06/CORE-07 acceptance remain pending. The 19 common Release 1 operations and five deferred capabilities are unchanged.
+
+Latest evidence pointers: the PAGE.1D Executor report classifies the overall run `INCONCLUSIVE_CLEANUP` because the complete final target digest set was not retained, despite the reported single PAGE case and assertion passing. The shared Brave 9444 snapshot report says `OBSERVED_READONLY_BASELINE_AWAITING_ARCHITECT_REVIEW`; the approved alignment plan treats it as a baseline reference. It does not prove lifecycle stability or authorize use. F36 remains `INCONCLUSIVE / EXHAUSTED`, with cause/ownership/cleanup uncertainties `UNKNOWN`; `HISTORICAL_STOP_TRIGGERED` remains and numeric checkpoint state is `UNKNOWN`.

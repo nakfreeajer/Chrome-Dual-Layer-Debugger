@@ -163,3 +163,10 @@ The next bounded integration, if separately authorized, should evaluate a privac
 - C2B reported `npm run check` PASS, `npm test` 312/312 PASS, and `git diff --check` PASS. C2B changed no source.
 - Closure is limited to the delivered/observed synthetic PAGE scope. Externally owned/shared browser disconnect behavior remains UNQUALIFIED; existing endpoints 9444 and 9222 were not tested; GAS_OOPIF and FRAME fixture lifecycle remain unsupported and fail closed. No generalized browser compatibility or production readiness is claimed.
 - TEST.1F remains PLANNED / NOT AUTHORIZED. No later milestone was authorized by this closure.
+
+
+## 2026-10-21 - Charter v1.1 consumer-boundary amendment
+- The Human Owner approved the complete Project Charter v1.1 and its bounded documentation-only alignment plan. Verified baseline and locally recorded `origin/main`: `31a31a4b05fbe46d7d8806ac0fd5e12227fb1583`.
+- The approved objective clarifies CDLD as one intended consumer-facing Playwright-based Chrome capability layer with supported GAS/OOPIF extension through existing internal dependencies; consumer projects own their application tests and requirements. It does not claim public SDK readiness or complete Playwright API compatibility.
+- The charter amendment preserves prior acceptances, CORE-06/07 blockers, the 19-operation baseline, five deferred capabilities, PAGE.1D `INCONCLUSIVE_CLEANUP`, and F36 `INCONCLUSIVE / EXHAUSTED` with `HISTORICAL_STOP_TRIGGERED`. Earlier PLANNED / NOT AUTHORIZED statements in dated history entries record the status at those historical points; subsequent entries record later milestones.
+- The amendment changes product purpose and consumer boundary, not implementation status: it makes no CORE acceptance, Release declaration, source/test/dependency change, or authorization for browser/CDP/GAS work. The evidence ledger records source artifact dates separately from execution dates when the latter are not established.

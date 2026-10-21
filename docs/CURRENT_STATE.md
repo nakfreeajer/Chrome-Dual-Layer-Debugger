@@ -2,7 +2,13 @@
 
 ## Status
 
-TEST.1D Assertions and Failure Artifacts is ACCEPTED / CLOSED at source commit `5a05c8e98f0555cca9cf05028dfa31ff20464039` (parent `acb03cae34199bb5dd4c4bd7e89e4093f8d30e91`; accepted source patch SHA-256 `7464b9bb90fdd190374c69cb3a2adf740d88f97c4c835e0312141b5d7a0b5c3a`). Final deterministic validation passed `npm run check`, `npm test` 263/263, and `git diff --check`. Both backends passed the six-predicate assertion contract and deliberate failure matrix. The live qualification included six isolated repaired GAS cases, privacy-reduced failure artifacts, bounded synthetic screenshot metadata verification, diagnostic timeout/no-late-continuation, target-envelope fail-closed omission, cleanup, and Brave endpoint responsiveness. Assertions share semantics across PLAYWRIGHT and GAS_OOPIF; diagnostics are bounded session-level evidence, not backend capability parity. V0.1I remains the sole correlation authority; timing/order never prove identity. TEST.1E is ACCEPTED / CLOSED only for the bounded disposable-browser and synthetic PLAYWRIGHT PAGE lifecycle described below; TEST.1F remains PLANNED / NOT AUTHORIZED. No next TEST source milestone is automatically authorized. Passive observation remains the default outside explicit TEST authorization. Executor-to-Architect evidence return remains manual; no Orchestrator, watcher, dispatcher, or automatic execution exists.
+Project Charter v1.1 was Human-approved on 2026-10-21. This charter clarification does not itself accept a CORE deliverable or declare Release 1.
+
+CDLD is intended as the single consumer-facing advanced Playwright-based Chrome/Chromium capability layer, with supported GAS/OOPIF access composed through `GasAdapter` and the existing `gas-remote-debug` dependency. Consumer projects own application logic, fixtures, and tests. Current source/CLI capabilities exist, but `package.json` remains private and a stable public import/export contract or drop-in Playwright compatibility has not been qualified.
+
+Release 1 retains CORE-01 through CORE-07, the 19-operation common backend baseline, and the five deferred capabilities. CORE-06 and CORE-07 remain blockers. TEST.1F source exists and bounded offline qualification was accepted; the PAGE.1D report records one synthetic PLAYWRIGHT PAGE case and assertion passing, but the overall qualification is `INCONCLUSIVE_CLEANUP` because the complete final target digest set was not retained. The shared Brave 9444 snapshot is one read-only inventory only: the approved plan treats it as a baseline reference, while its executor report says `OBSERVED_READONLY_BASELINE_AWAITING_ARCHITECT_REVIEW`; it proves neither before/after stability nor a test lifecycle.
+
+F36 remains `INCONCLUSIVE / EXHAUSTED`; its cause, ownership, and cleanup uncertainties remain `UNKNOWN`. The F36-F49 sequence retains `HISTORICAL_STOP_TRIGGERED`; do not invent/reset a numeric streak or checkpoint (`UNKNOWN`). No browser, cloud, implementation, or next milestone is authorized by this documentation alignment. Human relay remains manual; no Orchestrator, watcher, dispatcher, or automatic execution exists.
 
 ## Repository
 - Repository: `nakfreeajer/Chrome-Dual-Layer-Debugger`
@@ -113,7 +119,7 @@ TEST.1A closed the evidence-backed capability contract and parity foundation. TE
 - Accepted live Brave 9444 qualification: safe parity passed on PLAYWRIGHT and GAS_OOPIF with identical plan digest/ordered entries and equal synthetic fixture effect; PLAYWRIGHT replay passed with the same plan. Selected-frame escape and FRAME-scoped top-level PAGE escape failed closed on both backends with `TARGET_ENVELOPE_VIOLATION`, generated=2/executed=1, only `MONKEY-000001` started, and no later action started.
 - Pre-existing Brave target inventory was unchanged; runner-owned pages and fixture resources were cleaned up; Brave remained responsive. No external GAS deployment or business/user target was used.
 - Repair 1 established independent main-frame and selected-frame origin checks on every navigation request. GAS_OOPIF FRAME scope retains a fixed 50 ms event-delivery drain before final containment recheck; it is bounded safety synchronization, not correlation authority.
-- TEST.1E and TEST.1F remain PLANNED / NOT AUTHORIZED.
+- At the time of the earlier record, TEST.1E and TEST.1F were PLANNED / NOT AUTHORIZED.
 
 ## TEST.1D - Assertions and Failure Artifacts - ACCEPTED / CLOSED
 
@@ -127,7 +133,7 @@ Optional diagnostics are bounded to DOM/runtime/screenshot evidence with a total
 
 The GAS_OOPIF backend waits for a live, default, non-ignored execution context on the exact authorized targetId and attached sessionId, including a safe integer executionContextId. This uses the pinned dependency's predicate-scoped public wait; global context presence is insufficient. The existing 5000 ms timeout and 100 ms poll remain.
 
-Reuse existing runner/session ownership, TEST.1B authorization-before-navigation, and TEST.1C containment. Failure artifacts remain under ignored `.agent-work/artifacts/`; default CLI behavior and exit semantics remain backward compatible. V0.1I remains the sole correlation proof authority. Relationships are `PROVEN_BY_EXISTING_EVIDENCE`, `RUN_CONTEXT_ONLY`, or `UNKNOWN`; timing, order, URLs, and frame/page proximity never prove correlation. TEST.1E is now closed for its bounded scope; TEST.1F remains PLANNED / NOT AUTHORIZED, with no automatic authorization of later work.
+Reuse existing runner/session ownership, TEST.1B authorization-before-navigation, and TEST.1C containment. Failure artifacts remain under ignored `.agent-work/artifacts/`; default CLI behavior and exit semantics remain backward compatible. V0.1I remains the sole correlation proof authority. Relationships are `PROVEN_BY_EXISTING_EVIDENCE`, `RUN_CONTEXT_ONLY`, or `UNKNOWN`; timing, order, URLs, and frame/page proximity never prove correlation. TEST.1E is now closed for its bounded scope; the earlier record stated TEST.1F was PLANNED / NOT AUTHORIZED, with no automatic authorization of later work.
 
 ## TEST.1E - Test Fixture / Reset / Cleanup Governance - ACCEPTED / CLOSED (bounded scope)
 
@@ -135,7 +141,7 @@ Stage B published the trusted one-use runner-page receipt and loopback-only synt
 
 C2B ran an assertion-only scenario against a newly launched task-owned disposable Brave child and one synthetic PAGE. In that specific browser/version/session, `PlaywrightBrowserDiscovery.disconnect()` detached without exiting the child; the owner separately terminated the verified child during cleanup. The original `about:blank` target ID was unchanged, the runner page was closed, fixture cleanup was independently VERIFIED, and the loopback port was FREE. C2B validation was `npm run check` PASS, `npm test` 312/312 PASS, and `git diff --check` PASS; C2B changed no source.
 
-The result does not qualify disconnect behavior for externally owned/shared browsers; existing Brave 9444 and Chrome 9222 endpoints were not tested. GAS_OOPIF and FRAME fixture lifecycle remain unsupported and fail closed. These limits do not imply parity or generalized browser compatibility. TEST.1F remains PLANNED / NOT AUTHORIZED.
+The result does not qualify disconnect behavior for externally owned/shared browsers; existing Brave 9444 and Chrome 9222 endpoints were not tested. GAS_OOPIF and FRAME fixture lifecycle remain unsupported and fail closed. These limits do not imply parity or generalized browser compatibility. The earlier closure record stated TEST.1F was PLANNED / NOT AUTHORIZED.
 
 ## Unresolved items
 - Historical V0.1C JSONL lacks `runId`; it remains valid historical evidence and is not migrated by V0.1D.
@@ -171,4 +177,9 @@ The result does not qualify disconnect behavior for externally owned/shared brow
 - Public review identified a privacy defect in GAS URL evidence redaction. The bounded fix was published at `9fdc9a4300252e8bae0ef280e3758dd699bf5a3d`.
 - `GasAdapter` applies the project redactor to retained target URLs, frame URLs, and runtime-context origins. It covers the supported Apps Script deployment, Workspace-domain, and usercodeapp route forms, plus URL userinfo, query values, and non-empty fragments for parseable absolute URLs; whole-input absolute URLs are handled regardless of scheme.
 - Relative and malformed route-like strings receive bounded best-effort handling. Matching is case-insensitive and deterministic/idempotent, with tests for unrelated-path false positives. These statements apply to the covered redaction paths, not universally to unrelated sinks.
-- Accepted validation: `npm run check` PASS, `npm test` 267/267 PASS, and `git diff --check` PASS. TEST.1D remains closed; TEST.1E was subsequently closed only for its bounded disposable-browser and synthetic PLAYWRIGHT PAGE scope; TEST.1F remains PLANNED / NOT AUTHORIZED. No later PUBLIC safety slice is authorized by this closure.
+- Accepted validation: `npm run check` PASS, `npm test` 267/267 PASS, and `git diff --check` PASS. TEST.1D remains closed; TEST.1E was subsequently closed only for its bounded disposable-browser and synthetic PLAYWRIGHT PAGE scope; the earlier record stated TEST.1F was PLANNED / NOT AUTHORIZED. No later PUBLIC safety slice is authorized by this closure.
+
+## Charter v1.1 consumer boundary
+The full Human-approved charter is in `docs/PROJECT_BRIEF.md`. It adds a measurable independent-consumer outcome without changing CORE IDs, the 19-operation baseline, five deferred requirements, release blockers, or historical acceptance classifications.
+
+Consumer integration is proposed, not authorized: one independent consumer should exercise the same documented CDLD entry-point contract for ordinary Chrome and a synthetic GAS/OOPIF case without implementing its own raw-CDP GAS discovery. This is not a completed outcome or public SDK claim.

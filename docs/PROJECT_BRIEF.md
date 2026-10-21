@@ -1,135 +1,168 @@
-# Chrome Dual-Layer Debugger — Project Charter v1.0
+# Chrome Dual-Layer Debugger (CDLD) — Project Charter v1.1
+STATUS: HUMAN-APPROVED 2026-10-21
+HUMAN APPROVAL DATE: 21 October 2026
+AUTHORITY: Human Owner
+CANONICAL PROJECT: Chrome-Dual-Layer-Debugger
+CANONICAL REPOSITORY: nakfreeajer/Chrome-Dual-Layer-Debugger
+ALIGNMENT BASELINE: 31a31a4b05fbe46d7d8806ac0fd5e12227fb1583
+SUPERSEDED CHARTER: docs/PROJECT_BRIEF.md v1.0, Human-approved 13 October 2026
+SOURCE FOR THIS CLARIFICATION: Human's direct statement that future Chrome-based web-app development must use CDLD in place of raw Playwright as the standard consumer entry point, to avoid separate projects rebuilding GAS/OOPIF raw-CDP implementations.
 
-**Authority:** Human Owner
-**Status:** APPROVED (2026-10-13)
-**Human decision:** “APPROVE CHARTER”
-**Canonical project:** Chrome-Dual-Layer-Debugger
-**Canonical repository:** nakfreeajer/Chrome-Dual-Layer-Debugger
-**Approved baseline:** be59c528d585f43a5db5dd298c22ca4a55783e75
 
-This is the single authoritative project objective and Release 1 boundary. Adoption records the already approved charter; it does not accept product work, claim Release 1 completion, or authorize a new implementation/live milestone.
+HUMAN DECISION: The Human Owner approved the complete Charter v1.1 content and documentation-only alignment boundary on 2026-10-21. This charter amendment authorizes no product implementation, tests, shared-browser access, cloud provisioning, retries, or release.
 
-## 1. Permanent Project Objective
 
-Build reusable Chrome/Chromium cross-layer debugging and controlled testing for ordinary browser and Google Apps Script web applications, producing deterministic, privacy-reduced evidence of browser actions, supported backend interaction, callbacks, and test outcomes.
+## 1. Origin and permanent product purpose
 
-The product combines read-only-first browser/GAS observation, deterministic cross-layer correlation, authorized smoke and monkey/exploratory testing, replayable regression suites, and safe bounded execution. It is a usable debugger/testing tool, not a general cloud authorization or orchestration platform.
 
-Passive observation is the default. Mutating behavior requires explicit TEST-mode authorization against a designated test target. Human authority and manual relay remain in force; no automated Orchestrator or automatic execution is authorized.
+Ordinary Chrome web apps were already debuggable and testable with Playwright. In the Human Owner's Google Apps Script web-app work, the existing Playwright workflow failed to reliably detect/access a relevant GAS/OOPIF runtime layer. GAS Remote Debugger was built to close that particular gap. CDLD is the project-independent, advanced Playwright-based Chrome debugging/testing capability layer that combines Playwright's ordinary browser semantics with existing GAS Remote Debugger functionality when the specific GAS runtime requires it.
 
-## 2. Mandatory Deliverables
 
-### CORE-01 — Browser Observation
+CDLD shall be the preferred consumer-facing Chrome/Chromium debugging and controlled-testing entry point for the Human Owner's future web-app projects, once each relevant integration interface/capability is independently qualified. A consuming project should use CDLD's documented public contract rather than independently inventing raw browser-root CDP, recursive GAS/OOPIF discovery, context ownership, or duplicate cross-layer correlation.
 
-Low-intrusion Chrome/Chromium attachment, page/frame discovery, browser/CDP observation, stable identity, and nondestructive disconnect within the explicitly qualified scope.
 
-### CORE-02 — GAS Integration
+CDLD is not a fork of Playwright merely by virtue of extending its available capabilities. Playwright remains an underlying execution dependency and the first choice for ordinary semantic browser actions; gas-remote-debug remains the existing GAS-specific raw-CDP/OOPIF runtime dependency. CDLD is a unified, reusable capability boundary above those implementations.
 
-BROWSER_PLUS_GAS mode uses the exact documented URL-prefix rule and the existing gas-remote-debug dependency for GAS/OOPIF runtime discovery.
 
-For v0.1, a URL beginning with `https://script.google.com/macros/` selects BROWSER_PLUS_GAS; otherwise select BROWSER_ONLY. Do not add heuristic GAS detection without evidence.
+The purpose is to let a consuming project use one CDLD Chrome-automation interface across ordinary browser and supported GAS/OOPIF application surfaces. Any capability not yet implemented, exposed, or qualified must be described honestly; the project must not claim drop-in compatibility with the entire Playwright API or universal GAS detection without supporting evidence.
 
-### CORE-03 — Cross-Layer Evidence
 
-Run-scoped, normalized, privacy-reduced JSONL evidence and deterministic browser/GAS/callback correlation. Unsupported relationships remain explicitly uncorrelated; timing, ordering, URL similarity, or other guesses are not correlation authority.
+## 2. Users and division of responsibility
 
-### CORE-04 — Dual-Backend Testing Contract
 
-The common Playwright/GAS_OOPIF action/assertion contract is mandatory.
+Primary users: the Human Owner and authorized AI coding/testing agents working on independent Chrome-hosted web applications, including Google Apps Script applications.
 
-**Release 1 requirement:** all 19 existing qualified common operations must produce equivalent outcomes through both backends.
 
-**Tracked post-release backlog:** double-click, right-click, drag/drop, file input, and cross-backend screenshot parity. These five requirements are deferred from Release 1, not deleted or silently promoted. Existing separately qualified backend-specific screenshot evidence may remain within its stated limitations.
+CDLD owns: documented consumer entry-point API/CLI and packaging/usage contract; Chrome/Chromium browser discovery; Playwright and GAS/OOPIF backend selection; accurate page/frame/target/session/runtime identity mapping; authorized target-scoped actions/assertions within supported capability matrix; privacy-reduced deterministic cross-layer traces and error evidence; supported runner/fixture contracts and safe connection/cleanup behavior; regression/conformance tests for CDLD itself.
 
-### CORE-05 — Smoke and Monkey Testing
 
-Authorized bounded scenario execution, seeded deterministic exploratory generation, reproducible replay, supported assertions, and privacy-reduced failure evidence.
+A CONSUMING WEB-APP PROJECT owns: the specific web application's product logic, its test cases and selectors/expected outcomes, business/user workflows, test data, test scheduling, business-specific fixtures, assertions of product requirements, and application release decisions. It may call CDLD as an automation/debugging dependency, but its own app-testing framework is not part of CDLD's scope.
 
-### CORE-06 — Replayable Regression Suites
 
-Persist, execute, and compare reproducible smoke/monkey suites against declared expected outcomes, with deterministic comparison and suite-level and step-level results.
+Consumer non-duplication boundary: no independent new raw-CDP GAS/OOPIF discovery stack in consuming projects by default. If CDLD lacks a needed capability, record the exact consumer use case and reproduce the gap; address it in CDLD's qualified contract, or allow a bounded, explicitly authorized exception in the consumer project. This is a policy goal, not a claim that every consuming repository has already migrated.
 
-The tracked TEST.1F implementation exists at commit `309f451b2edad6e844e8c58ba113c7cadc4ea7f9`; its formal acceptance remains unresolved. Charter adoption does not upgrade its status.
 
-### CORE-07 — Safe Testing and Lifecycle Governance
+## 3. Mandatory CORE deliverables (preserved and clarified)
 
-Explicit OBSERVE/TEST separation, target-scoped authorization, containment, resource ownership, bounded execution, and verified cleanup within every declared supported Release 1 execution scope. UNKNOWN or FAILED cleanup is never VERIFIED.
 
-## 3. Release 1 Definition of Done
+CORE-01 — Chrome/Chromium Browser Observation
+Low-intrusion Playwright/Chrome attachment and ordinary browser page/frame discovery, read-only observation, stable identities and non-destructive disconnect within proven and explicitly authorized scopes. Consumers must not lose ordinary Playwright semantics on non-GAS pages.
 
-- **CORE-01 evidence:** demonstrated low-intrusion attach/discovery, stable identity, and nondestructive disconnect within supported scope.
-- **CORE-02 evidence:** verified GAS detection, runtime discovery, and proof-backed mapping.
-- **CORE-03 evidence:** valid JSONL, run identity, redaction, and fail-closed proof-based correlation.
-- **CORE-04 evidence:** all 19 approved common operations PASS through both backends with documented equivalent normalized behavior, without narrowing or substitution.
-- **CORE-05 evidence:** verified bounded smoke/monkey execution, seed replay, assertions, and failure evidence.
-- **CORE-06 evidence:** independently accepted regression-suite source, execution, comparisons, and result artifacts.
-- **CORE-07 evidence:** independently verified authorization, containment, ownership, and cleanup for each release-supported execution lifecycle.
 
-### Release rules
+CORE-02 — GAS/OOPIF Capability Extension
+Compose gas-remote-debug for GAS-specific browser-root recursive OOPIF/session/runtime discovery, target/context selection and authorized access without rediscovering or copying its engine. Current v0.1 mode rule remains EXACT: active URL beginning with https://script.google.com/macros/ => BROWSER_PLUS_GAS; otherwise BROWSER_ONLY. This URL rule alone does not prove universal recognition of all GAS deployment/frame forms. Additional detection requires documented evidence and separate approval.
 
-1. Implementation is not acceptance; a green test alone is not product release approval.
-2. CORE-06 and CORE-07 are Release blockers until independently accepted.
-3. The four named CORE-04 operations plus screenshot parity remain explicitly tracked for post-release; they are not erased by deferral.
-4. Unsupported operations must fail clearly, not report PASS.
-5. The Architect cannot narrow the 19-operation baseline or waive CORE-06/CORE-07.
-6. Lifecycle may be qualified for a declared scope only when exclusions are truthful, evidence-backed, Human-approved, and do not secretly remove a mandatory Release 1 workflow.
-7. F36 remains INCONCLUSIVE / EXHAUSTED. Paperwork or unrelated testing cannot reclassify it as PASS. If a proposed release workflow depends on its unresolved lifecycle, that workflow remains blocked until new evidence or a separately approved Human release-boundary amendment.
-8. Publication requires separate Human release authorization after mandatory acceptance.
 
-## 4. Explicit Release 1 Non-Goals
+CORE-03 — Cross-Layer Evidence
+One deterministic, run-scoped, privacy-reduced JSONL chronology and proof-backed browser/GAS/callback correlation, preserving the existing exact identity rules. Where a causal relationship cannot be proven, mark it UNCORRELATED/UNKNOWN rather than joining by timing, ordering or URL similarity.
 
-- Firestore/Cloud Run authorization platform or independent cloud Human issuer.
-- Automated Orchestrator, additional AI agents, watcher, dispatcher, or automatic execution.
-- Generalized production/business-site tests.
-- Unqualified shared-browser lifecycle.
-- New backend integrations or visual dashboards.
-- The five expressly deferred CORE-04 capabilities listed above.
 
-These exclusions do not erase post-release requirements or waive safety. Technical implementation libraries and approaches may change without charter amendment only when mandatory objectives and Definition of Done remain intact.
+CORE-04 — Shared Browser Interaction Contract AND Consumer Integration Surface
+Maintain the common PLAYWRIGHT/GAS_OOPIF action-and-assertion contract and both qualified backend implementations; reuse mature Playwright primitives for ordinary browser actions, and use raw-CDP/GAS implementation only where its special capabilities are necessary. Release 1 retains the existing mandatory 19 qualified common operations and equivalent normalized outcomes through both backends, without waiver or substitution.
+Define and demonstrate a documented, stable CDLD consumer-facing entry point (supported CLI and/or exported Node/TypeScript interface) usable by an independent project's runner. A "preferred replacement for invoking Playwright directly" means consumers target the CDLD contract; it is NOT a claim of full Playwright API compatibility.
+The four explicit operation gaps — double-click, right-click, drag/drop, file input — and cross-backend screenshot parity remain tracked post-release requirements, not silently deleted.
 
-## 5. Project Objective Lock — Six Controls
 
-### 5.1 Classify each proposed milestone
+CORE-05 — Bounded Smoke/Monkey Capabilities
+Provide safe authorized, deterministic, replayable smoke and exploratory action primitives so consuming projects can exercise the CDLD interaction layer without hardcoding separate browser/GAS engines. Consumer projects own application-specific test definitions, acceptance policy and app regression inventories. Internal scenarios and fixtures remain compatibility/conformance evidence, not a new general test-management business.
 
-Classify each proposal as CORE (direct deliverable), BLOCKER (evidenced necessity to unblock a deliverable), OPTIONAL (useful but nonessential), or DRIFT (changes the product objective). DRIFT stops pending Human charter amendment. OPTIONAL requires separate prioritization.
 
-### 5.2 Required alignment record
+CORE-06 — Regression/Conformance Evidence for CDLD Contract
+Persist and validate reproducible smoke/monkey regression suites, deterministic comparisons, and suite/step results for CDLD's declared contracts. A representative consuming-project integration shall demonstrate invocation through CDLD, not duplicated raw-CDP operations. Preserve tracked TEST.1F source at 309f451b2edad6e844e8c58ba113c7cadc4ea7f9 and its history, but FORMAL ACCEPTANCE remains unresolved. Do not turn this into universal business-app regression management.
 
-Every CORE/BLOCKER Executor prompt records project/repository, charter revision, target CORE ID, measured missing evidence, measurable expected result, exact acceptance evidence, permissions/stop conditions, and current consecutive blocker count. Example: `ALIGNMENT=CORE | TARGET=CORE-06 | EXPECTED_RESULT=Regression-suite comparison qualification`. If the claimed relationship is absent or contradicted, return BLOCKED_OBJECTIVE_DRIFT.
 
-### 5.3 Two-blocker stop; no reset
+CORE-07 — Targeted Safety, Authorization and Lifecycle
+Maintain explicit OBSERVE/TEST distinction, designated target and backend authorization, safe browser attachment/cleanup, owned page/fixture lifetime and preservation of user-owned browsers. Independently verify cleanup/containment for each explicitly declared Release 1 supported scope. UNKNOWN or FAILED is never VERIFIED. Do not turn these safeguards into a standalone cloud Human issuer, distributed authorization platform or orchestration service.
 
-Two consecutive BLOCKER milestones without independently verified CORE advancement trigger mandatory STOP/REASSESS. Continuing the same investigation requires NEW EVIDENCE, explicit Human permission, and a stopping rule. Renaming, splitting, reclassifying, or moving work between sessions never resets the count. There is no automatic continuation.
 
-### 5.4 Independent Executor check
+## 4. Release 1 user outcomes and measurable Definition of Done
 
-The Executor independently checks the charter, CORE linkage, and exact repository. A project identity mismatch returns PROJECT_ID_MISMATCH; contradiction returns BLOCKED_OBJECTIVE_DRIFT. The Executor never accepts its own work or amends the charter.
 
-### 5.5 Project isolation
+OUTCOME A — Ordinary Chrome path: An independent representative consumer invokes CDLD on a non-GAS local web-app fixture and completes one declared supported Playwright-equivalent action/assertion without writing its own CDP connection. Evidence: the versioned CDLD consumer contract, actual consumer call, normalized result, preserved target inventory and safe disconnect.
 
-One Architect session covers one repository, charter revision, and evidence scope. Evidence from another project cannot silently become CDLD authority.
 
-### 5.6 Five-milestone review
+OUTCOME B — GAS/OOPIF extended path: An independent representative consumer invokes the SAME CDLD entry-point contract against an explicitly authorized synthetic GAS/OOPIF fixture, observes accurate GAS classification and verified child target/session/execution-context mapping, performs one supported in-scope action or inspection that exercises the GAS-specific extension, and receives deterministically attributable result evidence. Evidence must establish real OOPIF context selection rather than merely an outer Playwright page. If this scenario is not yet supported by the currently proven fixture lifecycle, release remains blocked for that declared scope; no fake or mock evidence substitutes.
 
-After every five milestones, including failed and blocked attempts, the Architect records independently accepted CORE progress, remaining deliverables, supporting efforts, blockers/opportunity cost, and the next recommendation. Counters and decisions persist across chat handovers.
 
-## 6. Human Authority
+OUTCOME C — Non-regression/qualified parity: All 19 Release 1 common operations have independently accepted equivalent normalized behavior through PLAYWRIGHT and GAS_OOPIF within their declared test envelope. The five deferred capabilities remain explicit gaps.
 
-Only the Human Owner may change the product objective, mandatory deliverables, Release completion requirements, or explicit non-goals. Approval of an ordinary milestone is not a charter amendment. Technical design may evolve within approved outcomes.
 
-CDLD retains manual Human relay. No automated Orchestrator, cloud service, or new governance agent is authorized.
+OUTCOME D — CDLD evidence and reproducibility: A supported regression/conformance suite can be run and compared according to the accepted contract and produces independently inspectable suite- and step-level results plus accurate privacy-reduced browser/GAS evidence. Fixture ownership, missing evidence and unsupported comparisons fail closed.
 
-## 7. Verified Baseline and Outstanding Qualifications
 
-Approved baseline: `be59c528d585f43a5db5dd298c22ca4a55783e75`. The baseline references `docs/PROJECT_BRIEF.md`, `docs/ROADMAP.md`, `docs/ARCHITECTURE.md`, `docs/CURRENT_STATE.md`, `docs/VALIDATION.md`, `docs/PROJECT_HISTORY.md`, and `docs/DECISIONS.md`.
+OUTCOME E — Safe consumer lifecycle: In each included shared-browser and/or disposable-browser release workflow, the consuming runner can close its runner-owned PAGE/fixture resources and detach without closing another page or the Human's Brave process; relevant pre/post identities and cleanup states are retained sufficiently for independent verification. Exclusions are explicit and must not silently remove a mandatory consumer workflow.
 
-- Preserve V0.1A–K and TEST.1A–1E as historically accepted only within their recorded bounded scopes.
-- TEST.1F Replayable Regression Suites implementation is present at `309f451b2edad6e844e8c58ba113c7cadc4ea7f9`, but FORMAL ACCEPTANCE IS UNRESOLVED. This adoption does not upgrade TEST.1F. Ignored local Stage F36–F49 artifacts are a separate sequence; the name overlap is not authority.
-- F36 remains INCONCLUSIVE / EXHAUSTED; cause, root cause, ownership, and cleanup uncertainties remain UNKNOWN. F47–F49 are offline/design artifacts only, not live permission or mandatory cloud work.
-- Release 1 includes the 19 qualified common operations. Four other operations and screenshot parity remain tracked post-release requirements.
 
-## 8. Technical Design Baseline
+Release rules:
+1. Existing accepted V0.1A–K and TEST.1A–1E evidence remains accepted only within its documented scopes. No previously accepted feature is reopened absent direct regression evidence.
+2. CORE-06 and CORE-07 continue to block Release 1 until accepted. Source presence, an offline simulated run or one passing synthetic PAGE assertion is not full acceptance.
+3. 19 common operations, five post-release gaps, F36 INCONCLUSIVE / EXHAUSTED and historical governance STOP are retained unchanged.
+4. Current package.json is private:true and does not expose a versioned public exports contract. CDLD is therefore NOT YET VERIFIED as a reusable drop-in module; public consumption method, package contract and independent consumer proof require separate bounded work and acceptance.
+5. Release publication requires separate Human approval after all mandatory scoped evidence is accepted.
+6. Unsupported GAS/OOPIF coverage, page/FRAME fixture lifecycle or shared-browser disconnect must fail closed or be documented as not yet qualified; no inferred PASS.
 
-The project remains TypeScript on Node.js. Keep modular adapters and observability before automation. Playwright owns semantic browser interaction and should reuse its primitives when they satisfy the common contract. CDP remains the low-level observation and verification layer; Playwright-backed CDP and raw CDP may be composed where evidence shows that is needed.
 
-GAS/OOPIF runtime discovery uses raw CDP through the existing pinned `gas-remote-debug` dependency for exact target/session/context ownership. Do not copy its recursive discovery engine without demonstrated need. JSONL remains the initial unified timeline format. Playwright and GAS/OOPIF are equal execution backends for the declared common contract; implementation may differ, while normalized behavior must remain equivalent for capabilities claimed common. Extensible backend adapters may be considered later, but are not a v0.1 deliverable.
+## 5. Explicit non-goals and anti-drift boundaries
+
+
+- Building a standalone replacement for Playwright's full API or a speculative upstream Playwright fork.
+- Creating a general consumer-project UI-test authoring platform, dashboard, scheduler, test management SaaS or business application's regression catalog inside CDLD.
+- Duplicating gas-remote-debug's recursive target/session discovery engine or inventing project-local raw-CDP GAS engines without a measured CDLD gap and separate owner approval.
+- Generalized business-site/production testing outside separately authorized targets.
+- Firestore/Cloud Run Human issuer, general approval infrastructure, independent cloud governance service, automated Orchestrator, watcher or additional AI agent.
+- Unqualified shared-browser lifecycle and generalized claims from narrowly scoped fixtures.
+- Additional browser backends, visual dashboard or the five explicitly deferred CORE-04 capabilities as Release 1 prerequisites.
+
+
+Do not make safer-sounding tooling, a new service, another harness or a longer approval chain mandatory unless it demonstrably and proportionately enables one named CORE user outcome. Supporting infrastructure without CORE advancement is a bounded blocker, not the product.
+
+
+## 6. Objective lock, AMO governance, and role authority
+
+
+The Human Owner alone decides product purpose, consumer scope, mandatory release boundaries and changes to this charter. Architect-Curator interprets charter intent, verifies the exact repository/approved charter/AGENTS.md/HANDOVER.md freshly before EVERY Executor prompt, constructs measurable milestones, independently reviews evidence and curates official documentation. Codex Executor performs bounded authorized work and challenges source contradictions; it never self-accepts. Human manual relay remains in place; no automatic Orchestrator is installed for CDLD.
+
+
+Mandatory alignment fields per proposed milestone: PROJECT, REPO, verified HEAD, CHARTER, ALIGNMENT=CORE|BLOCKER|OPTIONAL|DRIFT, TARGET, originalObjective, gap, user-visible OUTCOME_TEST (actual result + exact evidence + pass/fail rule), necessity and simpler alternative, SUPPORT_STREAK, five-milestone checkpoint status, exact Human authorization type (READ_ONLY|IMPLEMENTATION|LIVE|CHARTER_AMENDMENT), allowed changes, STOP. If missing or contradictory: HOLD; do not issue an executable prompt.
+
+
+After one support-only/blocker milestone without measurable CORE progress, no automatic continuation absent an exact Human-approved finite batch with its own attempt budget and fallback. Five-milestone value reviews apply even to failed/inconclusive runs. Historical F36–F49 stop status remains HISTORICAL_STOP_TRIGGERED and must not be reset by renaming, handover or project-switch.
+
+
+No separate project may silently send work into CDLD's Executor, and CDLD may not modify AFFOTECH or another consumer repository without a separate Human-authorized integration milestone.
+
+
+## 7. Preserved evidence and unresolved qualifications
+
+
+Source baseline: GitHub main and local origin/main were verified at `31a31a4b05fbe46d7d8806ac0fd5e12227fb1583` for this documentation-only alignment on 2026-10-21.
+
+
+- Earlier V0.1A–K and TEST.1A–1E retain recorded bounded acceptance.
+- TEST.1F implementation exists, offline source/tests qualified in bounded scope. PAGE.1D genuine synthetic PLAYWRIGHT PAGE suite execution reportedly PASS, but complete milestone INCONCLUSIVE_CLEANUP owing to missing durable final target digest set; it must not be rewritten as full PASS.
+- Human-owned Brave 9444 read-only baseline snapshot accepted 15 October 2026. One snapshot does not establish preserved targets or safe attached-browser test lifecycle; new test requires separate explicit authorization.
+- CORE-06 and CORE-07 formal Release 1 acceptance remains pending.
+- F36 remains INCONCLUSIVE / EXHAUSTED; F37–F49 cloud-issuer/authorization investigation is historical drift or support-only evidence, not a mandatory implementation path.
+- Existing pinned gas-remote-debug dependency and package manifest should be reconciled from exact repository source: historical documentation references one pin, package.json currently contains a different pin. Do not silently claim a version or change it in a docs-only task.
+- Keep technical Test Evidence Ledger, source docs, accepted evidence hashes and historical classifications intact. If no append-only ledger exists, report its absence rather than claiming it is complete.
+
+
+## 8. Architecture of consumption
+
+
+INDIRECT DEPENDENCY MODEL:
+Consuming app's test runner / Codex Executor
+    -> documented CDLD API or CLI (when qualified)
+        -> ordinary Chrome/Page path: Playwright semantic primitives
+        -> GAS-specific runtime path: GasAdapter -> existing gas-remote-debug -> target/session/context CDP
+        -> normalized evidence and target-scoped safety
+    -> Chrome/Chromium
+
+
+Current implementation has a CLI and internal modules. Production-quality consuming-project module/package exposure must be independently confirmed and versioned before declaring the external integration usable. No code, export map or upstream Playwright behavior is changed or authorized by this documentation alignment.
+
+
+## 9. Formal amendment control
+
+
+This v1.1 document is the Human-approved clarification of the permanent product purpose and consumer boundary. It preserves existing CORE IDs and historical acceptance while adding a measurable independent-consumer outcome to the Definition of Done. This is documentation authority only; it does not accept CORE work, declare Release 1, or authorize implementation or live browser tests. Historical event records remain append-only.
