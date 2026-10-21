@@ -1,11 +1,16 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join, resolve, relative, isAbsolute } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { parseRegressionSuiteCliOptions, resolveRegressionSuiteArtifactPath, runRegressionSuiteCli, type RegressionSuiteCliDependencies } from '../../src/cli/main.js';
 import { Timeline } from '../../src/trace/Timeline.js';
 import type { ActionBackend, ActionOutcome } from '../../src/testing/ActionContract.js';
 import type { RegressionSuiteResultArtifact } from '../../src/testing/RegressionSuite.js';
 import type { SyntheticFixtureDriver } from '../../src/testing/FixtureLifecycle.js';
+import { parseRegressionSuite, regressionSuiteSha256 } from '../../src/testing/RegressionSuiteParser.js';
 
 const suiteInput = JSON.parse(readFileSync('tests/fixtures/testing/regression-suite-v1.json', 'utf8')) as unknown;
 const runArgs = ['run', '--suite', 'suite.json', '--backend', 'PLAYWRIGHT', '--endpoint', 'http://127.0.0.1:9444', '--approval-reference', 'synthetic-approval', '--result-artifact', '.agent-work/artifacts/test1f-result.json'];
@@ -115,4 +120,93 @@ test('suite compare returns NOT_COMPARABLE unless fixture state and cleanup were
   const code = await runRegressionSuiteCli(compare, f.deps);
   assert.equal(code, 2);
   assert.match(f.outputs.at(-1)!, /NOT_COMPARABLE/);
+});
+
+test('independent consumer process invokes the compiled offline compare CLI and fails closed safely', () => {
+  const repositoryRoot = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
+  const consumerScript = resolve(repositoryRoot, 'examples', 'consumer-cli', 'run.mjs');
+  const cliEntry = resolve(repositoryRoot, 'dist', 'src', 'cli', 'main.js');
+  assert.equal(isAbsolute(cliEntry), true);
+  assert.equal(readFileSync(cliEntry).length > 0, true);
+
+  const consumerRoot = mkdtempSync(join(tmpdir(), 'cdld-consumer-cli-'));
+  assert.equal(relative(repositoryRoot, consumerRoot).startsWith('..'), true);
+  const artifactDir = join(consumerRoot, '.agent-work', 'artifacts');
+  mkdirSync(artifactDir, { recursive: true });
+  writeFileSync(join(consumerRoot, 'suite.json'), JSON.stringify(suiteInput));
+
+  const suite = parseRegressionSuite(suiteInput);
+  const passingArtifact = (backend: 'PLAYWRIGHT' | 'GAS_OOPIF'): RegressionSuiteResultArtifact => ({
+    kind: 'CDLD_TEST1F_SUITE_RESULT', schemaVersion: 1, suiteId: suite.suiteId,
+    suiteSha256: regressionSuiteSha256(suite), backend, suiteStatus: 'PASS', comparableFixtureState: 'VERIFIED',
+    caseResults: suite.cases.map((testCase) => {
+      let actual;
+      if (testCase.kind === 'SMOKE') {
+        const expected = testCase.expected;
+        actual = { status: expected.status,
+          stopReason: expected.status === 'PASS' ? 'ALL_STEPS_COMPLETED' : expected.steps.find((step) => step.state === 'FAIL')!.errorCode!,
+          generatedCount: expected.steps.length, executedCount: expected.steps.filter((step) => step.state !== 'NOT_RUN').length,
+          steps: expected.steps.map((step, index) => ({ stepId: step.stepId, operation: testCase.scenario.steps[index].operation,
+            state: step.state, ...(step.errorCode ? { errorCode: step.errorCode } : {}) })) };
+      } else {
+        const expected = testCase.expected;
+        actual = { status: expected.status, stopReason: expected.stopReason, generatedCount: expected.generatedCount,
+          executedCount: expected.executedCount, steps: expected.steps.map((step) => ({ stepId: step.stepId,
+            operation: step.operation, state: step.state, candidateId: step.candidateId,
+            ...(step.errorCode ? { errorCode: step.errorCode } : {}) })) };
+      }
+      return { caseId: testCase.caseId, runId: `synthetic-${backend}-${testCase.caseId}`, comparisonStatus: 'PASS' as const,
+        actual, fixtureCleanupStatus: 'VERIFIED' as const };
+    })
+  });
+  const failingClosedArtifact = (backend: 'PLAYWRIGHT' | 'GAS_OOPIF'): RegressionSuiteResultArtifact => ({
+    kind: 'CDLD_TEST1F_SUITE_RESULT', schemaVersion: 1, suiteId: suite.suiteId,
+    suiteSha256: regressionSuiteSha256(suite), backend, suiteStatus: 'FAIL', comparableFixtureState: 'NOT_PROVEN',
+    caseResults: suite.cases.map((testCase, index) => index === 0
+      ? { caseId: testCase.caseId, comparisonStatus: 'FAIL' as const, errorCode: 'ASSERTION_FAILED', fixtureCleanupStatus: 'UNKNOWN' as const }
+      : { caseId: testCase.caseId, comparisonStatus: 'NOT_RUN' as const, fixtureCleanupStatus: 'UNKNOWN' as const })
+  });
+
+  const writeArtifact = (name: string, artifact: RegressionSuiteResultArtifact) =>
+    writeFileSync(join(artifactDir, name), JSON.stringify(artifact));
+  const runConsumer = (cliPath: string, leftName: string, rightName: string) => spawnSync(process.execPath, [consumerScript,
+    cliPath, 'suite.json', `.agent-work/artifacts/${leftName}`, `.agent-work/artifacts/${rightName}`], {
+    cwd: consumerRoot, encoding: 'utf8', shell: false, windowsHide: true, timeout: 20_000
+  });
+
+  try {
+    writeArtifact('pass-left.json', passingArtifact('PLAYWRIGHT'));
+    writeArtifact('pass-right.json', passingArtifact('GAS_OOPIF'));
+    const pass = runConsumer(cliEntry, 'pass-left.json', 'pass-right.json');
+    assert.equal(pass.error, undefined);
+    assert.equal(pass.status, 0);
+    assert.deepEqual(JSON.parse(pass.stdout), { status: 'PASS', exitCode: 0 });
+    assert.equal(pass.stdout.includes('127.0.0.1'), false);
+    assert.equal(pass.stdout.includes('suiteId'), false);
+
+    writeArtifact('blocked-left.json', failingClosedArtifact('PLAYWRIGHT'));
+    writeArtifact('blocked-right.json', failingClosedArtifact('GAS_OOPIF'));
+    const blocked = runConsumer(cliEntry, 'blocked-left.json', 'blocked-right.json');
+    assert.equal(blocked.error, undefined);
+    assert.equal(blocked.status, 2);
+    assert.deepEqual(JSON.parse(blocked.stdout), { status: 'FAIL', comparisonStatus: 'NOT_COMPARABLE', exitCode: 2 });
+    assert.equal(blocked.stdout.includes('ASSERTION_FAILED'), false);
+    assert.equal(blocked.stdout.includes(consumerRoot), false);
+
+    writeFileSync(join(artifactDir, 'malformed.json'), '{');
+    const unexpected = runConsumer(cliEntry, 'malformed.json', 'pass-right.json');
+    assert.equal(unexpected.error, undefined);
+    assert.equal(unexpected.status, 1);
+    assert.equal(unexpected.stdout, '');
+    assert.equal(unexpected.stderr.trim(), 'CDLD_CLI_RESULT_UNEXPECTED');
+
+    const missingCli = runConsumer(join(consumerRoot, 'missing-cli.js'), 'pass-left.json', 'pass-right.json');
+    assert.equal(missingCli.error, undefined);
+    assert.equal(missingCli.status, 1);
+    assert.equal(missingCli.stdout, '');
+    assert.equal(missingCli.stderr.trim(), 'CDLD_CLI_PATH_INVALID');
+  } finally {
+    rmSync(consumerRoot, { recursive: true, force: true });
+  }
+  assert.equal(existsSync(consumerRoot), false);
 });
