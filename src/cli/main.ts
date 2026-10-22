@@ -30,6 +30,11 @@ import type { ActionBackend } from '../testing/ActionContract.js';
 
 const MAX_V1_OBSERVATION_MS = 300_000;
 
+export const SMOKE_CLI_CONTRACT = Object.freeze({
+  contractId: 'cdld.smoke-cli',
+  contractVersion: 1
+} as const);
+
 interface CliOptions { endpoint: string; timelinePath: string; observeV1Ms?: number; }
 
 export function parseCliOptions(args: string[]): CliOptions {
@@ -61,12 +66,17 @@ export function parseCliOptions(args: string[]): CliOptions {
 }
 
 export async function runCli(args: string[]): Promise<number> {
+  if (args[0] === 'contract') {
+    if (args.length !== 1) throw new Error('Usage: node dist/src/cli/main.js contract');
+    console.log(JSON.stringify(SMOKE_CLI_CONTRACT));
+    return 0;
+  }
   if (args[0] === 'suite') return runRegressionSuiteCli(args.slice(1));
   if (args[0] === 'monkey') return runMonkeyCli(args.slice(1));
   if (args[0] === 'smoke') {
     return runSmokeCli(args.slice(1));
   }
-  if (args[0] !== 'discover') throw new Error('Usage: node dist/src/cli/main.js discover [--endpoint URL] [--timeline PATH] [--observe-v1-ms N] | smoke --scenario FILE --backend PLAYWRIGHT|GAS_OOPIF --endpoint URL --approval-reference TEXT [--timeline PATH] | monkey --profile FILE --seed UINT32 --backend PLAYWRIGHT|GAS_OOPIF --endpoint URL --approval-reference TEXT [--timeline PATH] [--replay-artifact PATH]');
+  if (args[0] !== 'discover') throw new Error('Usage: node dist/src/cli/main.js contract | discover [--endpoint URL] [--timeline PATH] [--observe-v1-ms N] | smoke --scenario FILE --backend PLAYWRIGHT|GAS_OOPIF --endpoint URL --approval-reference TEXT [--timeline PATH] | monkey --profile FILE --seed UINT32 --backend PLAYWRIGHT|GAS_OOPIF --endpoint URL --approval-reference TEXT [--timeline PATH] [--replay-artifact PATH]');
   const { endpoint, timelinePath, observeV1Ms } = parseCliOptions(args.slice(1));
   const discovery = new PlaywrightBrowserDiscovery(endpoint);
   const gasAdapter = new GasAdapter();
@@ -480,6 +490,8 @@ export async function runSmokeCli(args: string[], dependencies: SmokeCliDependen
   if (!result) throw new Error('Smoke runner produced no result');
   await dependencies.writeTimeline(options.timelinePath, timeline);
   const output = {
+    contractId: SMOKE_CLI_CONTRACT.contractId,
+    contractVersion: SMOKE_CLI_CONTRACT.contractVersion,
     scenarioId: result.scenarioId,
     backend: result.backend,
     status: (!options.fixtureLifecycle || fixtureLifecycleSummary?.overallStatus === 'PASS') ? result.status : 'FAIL',

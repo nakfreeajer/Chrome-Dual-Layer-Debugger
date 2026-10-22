@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Timeline } from '../../src/trace/Timeline.js';
 import type { ActionBackend, ActionOutcome, ActionStep, TestTargetAuthorization } from '../../src/testing/ActionContract.js';
-import { runSmokeCli, parseSmokeCliOptions, parseCliOptions, type SmokeCliDependencies } from '../../src/cli/main.js';
+import { runSmokeCli, parseSmokeCliOptions, parseCliOptions, SMOKE_CLI_CONTRACT, type SmokeCliDependencies } from '../../src/cli/main.js';
 import type { SmokeScenario } from '../../src/testing/SmokeScenario.js';
 import type { FixtureLifecycleSummary, SyntheticFixtureDriver } from '../../src/testing/FixtureLifecycle.js';
 
@@ -39,6 +41,45 @@ function deps(ok: boolean, record: { opened: number; closed: number; output: str
 }
 
 const cliArgs = ['--scenario', 'scenario.json', '--backend', 'PLAYWRIGHT', '--endpoint', 'http://127.0.0.1:9444', '--approval-reference', 'approval-private', '--timeline', 'timeline.jsonl'];
+
+test('versioned contract is discoverable from an independent Node process outside the repository', async () => {
+  const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+  const cliPath = resolve(repositoryRoot, 'dist/src/cli/main.js');
+  const childCwd = await mkdtemp(join(tmpdir(), 'cdld-consumer-contract-'));
+  try {
+    const relativeChildPath = relative(repositoryRoot, childCwd);
+    assert.ok(isAbsolute(cliPath));
+    assert.ok(relativeChildPath === '..' || relativeChildPath.startsWith(`..${sep}`) || isAbsolute(relativeChildPath), 'child working directory must be outside the checkout');
+    const child = spawnSync(process.execPath, [cliPath, 'contract'], {
+      cwd: childCwd, encoding: 'utf8', shell: false, windowsHide: true, timeout: 5_000
+    });
+    assert.ifError(child.error);
+    assert.equal(child.signal, null);
+    assert.equal(child.status, 0);
+    assert.equal(child.stdout, '{"contractId":"cdld.smoke-cli","contractVersion":1}\n');
+    assert.equal(child.stderr, '');
+  } finally {
+    await rm(childCwd, { recursive: true, force: false });
+  }
+});
+
+test('contract discovery rejects unexpected arguments without browser activity', async () => {
+  const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+  const cliPath = resolve(repositoryRoot, 'dist/src/cli/main.js');
+  const childCwd = await mkdtemp(join(tmpdir(), 'cdld-consumer-contract-error-'));
+  try {
+    const child = spawnSync(process.execPath, [cliPath, 'contract', 'unexpected'], {
+      cwd: childCwd, encoding: 'utf8', shell: false, windowsHide: true, timeout: 5_000
+    });
+    assert.ifError(child.error);
+    assert.equal(child.signal, null);
+    assert.equal(child.status, 1);
+    assert.equal(child.stdout, '');
+    assert.match(child.stderr, /Usage:.*contract/);
+  } finally {
+    await rm(childCwd, { recursive: true, force: false });
+  }
+});
 
 test('smoke CLI requires arguments and rejects unknown, duplicate, malformed and positional flags', () => {
   assert.deepEqual(parseSmokeCliOptions(cliArgs), { scenarioPath: 'scenario.json', backend: 'PLAYWRIGHT', endpoint: 'http://127.0.0.1:9444', approvalReference: 'approval-private', timelinePath: 'timeline.jsonl' });
@@ -141,6 +182,19 @@ test('smoke CLI FAIL returns 2, records ASSERTION_FAILED and still closes page',
   const output = JSON.parse(record.output[0]) as { status: string; failedStepId: string };
   assert.equal(output.status, 'FAIL');
   assert.equal(output.failedStepId, 'check-label');
+});
+
+test('completed PASS and FAIL results declare the smoke CLI contract version', async () => {
+  assert.deepEqual(SMOKE_CLI_CONTRACT, { contractId: 'cdld.smoke-cli', contractVersion: 1 });
+  for (const ok of [true, false]) {
+    const record = { opened: 0, closed: 0, output: [] as string[] };
+    const code = await runSmokeCli(cliArgs, deps(ok, record));
+    assert.equal(code, ok ? 0 : 2);
+    const output = JSON.parse(record.output[0]) as { contractId: string; contractVersion: number; status: string };
+    assert.equal(output.contractId, 'cdld.smoke-cli');
+    assert.equal(output.contractVersion, 1);
+    assert.equal(output.status, ok ? 'PASS' : 'FAIL');
+  }
 });
 
 test('the whole scenario is validated before opening a browser session', async () => {
