@@ -27,6 +27,7 @@ import { compareRegressionSuiteResults, regressionOutcomeMatches, safeRegression
 import { normalizeRegressionOutcome, runRegressionSuite } from '../testing/RegressionSuiteRunner.js';
 import { validateTestAuthorization } from '../testing/ActionContract.js';
 import type { ActionBackend } from '../testing/ActionContract.js';
+import { runDiscoveryContractCli } from './DiscoveryContract.js';
 
 const MAX_V1_OBSERVATION_MS = 300_000;
 
@@ -76,7 +77,8 @@ export async function runCli(args: string[]): Promise<number> {
   if (args[0] === 'smoke') {
     return runSmokeCli(args.slice(1));
   }
-  if (args[0] !== 'discover') throw new Error('Usage: node dist/src/cli/main.js contract | discover [--endpoint URL] [--timeline PATH] [--observe-v1-ms N] | smoke --scenario FILE --backend PLAYWRIGHT|GAS_OOPIF --endpoint URL --approval-reference TEXT [--timeline PATH] | monkey --profile FILE --seed UINT32 --backend PLAYWRIGHT|GAS_OOPIF --endpoint URL --approval-reference TEXT [--timeline PATH] [--replay-artifact PATH]');
+  if (args[0] !== 'discover') throw new Error('Usage: node dist/src/cli/main.js contract | discover [--endpoint URL] [--timeline PATH] [--observe-v1-ms N] [--format json] | smoke --scenario FILE --backend PLAYWRIGHT|GAS_OOPIF --endpoint URL --approval-reference TEXT [--timeline PATH] | monkey --profile FILE --seed UINT32 --backend PLAYWRIGHT|GAS_OOPIF --endpoint URL --approval-reference TEXT [--timeline PATH] [--replay-artifact PATH]');
+  if (args.slice(1).includes('--format')) return runDiscoveryContractCli(args.slice(1));
   const { endpoint, timelinePath, observeV1Ms } = parseCliOptions(args.slice(1));
   const discovery = new PlaywrightBrowserDiscovery(endpoint);
   const gasAdapter = new GasAdapter();
