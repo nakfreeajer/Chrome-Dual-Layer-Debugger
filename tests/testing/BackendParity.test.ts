@@ -49,17 +49,17 @@ function makeGas() {
   return { gas, calls };
 }
 
-test('authorization is target- and backend-bound; mutations fail closed without it', async () => {
+test('approval-reference metadata is not trusted mutation authorization; mutation is denied before backend effects', async () => {
   assert.throws(() => validateTestAuthorization('PLAYWRIGHT', 'target-fixture', authorization), /TARGET_MISMATCH/);
   const page = makePage();
   const backend = new PlaywrightActionBackend('target-fixture', page);
-  const denied = await backend.execute({ stepId: 's1', operation: 'click', selector: '#button' });
+  const denied = await backend.execute({ stepId: 's1', operation: 'click', selector: '#button' }, { ...authorization, backend: 'PLAYWRIGHT' });
   assert.equal(denied.ok, false);
-  assert.equal(denied.errorCode, 'AUTHORIZATION_REQUIRED');
+  assert.equal(denied.errorCode, 'TRUSTED_TEST_MUTATION_AUTHORIZATION_UNAVAILABLE');
   assert.deepEqual((page as unknown as { __events: string[] }).__events, []);
 });
 
-test('same declared read/action scenario has matching normalized outcomes through both adapter contracts', async () => {
+test('same declared read scenario has matching normalized outcomes through both adapter contracts', async () => {
   const page = makePage();
   const { gas, calls } = makeGas();
   const playwright = new PlaywrightActionBackend('target-fixture', page);
@@ -72,9 +72,6 @@ test('same declared read/action scenario has matching normalized outcomes throug
     { stepId: 'text', operation: 'readText', selector: '#label' },
     { stepId: 'value', operation: 'readValue', selector: '#input' },
     { stepId: 'visible', operation: 'visible', selector: '#input' },
-    { stepId: 'fill', operation: 'fill', selector: '#input', value: 'synthetic' },
-    { stepId: 'check', operation: 'check', selector: '#check' },
-    { stepId: 'select', operation: 'select', selector: '#select', value: 'synthetic' }
   ];
   for (const step of scenario) {
     const [pw, cdp] = await Promise.all([
@@ -88,7 +85,16 @@ test('same declared read/action scenario has matching normalized outcomes throug
     if (['ready', 'exists', 'readText', 'readValue', 'visible', 'select'].includes(step.operation)) assert.deepEqual(pw.value, cdp.value);
   }
   assert.ok(calls.some((call) => call.method === 'Runtime.evaluate'));
-  assert.ok((page as unknown as { __events: string[] }).__events.includes('fill:synthetic'));
+  assert.deepEqual((page as unknown as { __events: string[] }).__events, []);
+});
+
+test('GAS/OOPIF mutation fails closed before any scoped CDP command without trusted authority', async () => {
+  const { gas, calls } = makeGas();
+  const backend = new GasOopifActionBackend('target-fixture', 'session-fixture', 31, gas);
+  const result = await backend.execute({ stepId: 'blocked-fill', operation: 'fill', selector: '#input', value: 'synthetic' }, authorization);
+  assert.equal(result.ok, false);
+  assert.equal(result.errorCode, 'TRUSTED_TEST_MUTATION_AUTHORIZATION_UNAVAILABLE');
+  assert.deepEqual(calls, []);
 });
 
 test('Timeline action/assertion helpers emit privacy-reduced lifecycle evidence', async () => {

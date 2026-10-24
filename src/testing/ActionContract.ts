@@ -4,7 +4,7 @@ import { isDeepStrictEqual } from 'node:util';
 export type TestingBackendId = 'PLAYWRIGHT' | 'GAS_OOPIF';
 export type TestMode = 'OBSERVE' | 'TEST';
 
-/** Explicit Human/Architect authorization bound to exactly one designated fixture target. */
+/** Audit metadata bound to one TEST target; approvalReference is not authorization proof. */
 export interface TestTargetAuthorization {
   mode: 'TEST';
   backend: TestingBackendId;
@@ -78,6 +78,16 @@ export function validateTestAuthorization(
   if (!authorization || authorization.mode !== 'TEST') throw new Error('AUTHORIZATION_REQUIRED');
   if (authorization.backend !== backend || authorization.targetId !== targetId) throw new Error('TARGET_MISMATCH');
   if (!authorization.fixtureId.trim() || !authorization.approvalReference.trim()) throw new Error('AUTHORIZATION_REQUIRED');
+}
+
+/** No trusted Human-authorization verifier is wired into TEST execution, so mutations stay denied. */
+export function requireTrustedTestMutationAuthorization(
+  backend: TestingBackendId,
+  targetId: string,
+  authorization: TestTargetAuthorization | undefined
+): never {
+  validateTestAuthorization(backend, targetId, authorization);
+  throw new Error('TRUSTED_TEST_MUTATION_AUTHORIZATION_UNAVAILABLE');
 }
 
 const MUTATING_OPERATIONS = new Set<ActionOperation>([

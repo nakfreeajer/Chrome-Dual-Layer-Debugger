@@ -1,5 +1,6 @@
 import type { Frame, Page, Request } from 'playwright';
 import { PlaywrightBrowserDiscovery, type RunnerOwnedPageIdentity, type RunnerOwnedPageReceipt } from '../browser/PlaywrightBrowserDiscovery.js';
+import { validateTestCdpEndpoint } from '../browser/ConnectOptions.js';
 import { GasAdapter, type GasTestTargetContext } from '../gas/GasAdapter.js';
 import { GasOopifActionBackend } from './GasOopifActionBackend.js';
 import { PlaywrightActionBackend } from './PlaywrightActionBackend.js';
@@ -119,6 +120,7 @@ export class TestPageSession {
   }
 
   static async open(options: TestPageSessionOptions): Promise<TestPageSession> {
+    validateTestCdpEndpoint(options.endpoint);
     if (options.backend !== 'PLAYWRIGHT' && options.backend !== 'GAS_OOPIF') throw new Error('A supported TEST backend is required');
     if (typeof options.approvalReference !== 'string' || !options.approvalReference.trim()
       || options.approvalReference.length > 512 || options.approvalReference.includes('\0')) {

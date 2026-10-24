@@ -6,7 +6,7 @@ import { parseSmokeScenario } from './SmokeScenarioParser.js';
 import type { ExpectedMonkeyOutcome, ExpectedRegressionStep, ExpectedSmokeOutcome, RegressionSuite, RegressionSuiteCase, RegressionTerminalStatus } from './RegressionSuite.js';
 import type { ActionOperation, TestingBackendId } from './ActionContract.js';
 
-const SAFE_ERROR_CODES = new Set(['ACTION_FAILED', 'ASSERTION_FAILED', 'AUTHORIZATION_REQUIRED', 'TARGET_MISMATCH', 'TIMEOUT', 'REPLAY_PLAN_MISMATCH', 'TARGET_ENVELOPE_VIOLATION', 'OBSERVER_LIFECYCLE_FAILED', 'DURATION_EXHAUSTED', 'RUNNER_FAILED']);
+const SAFE_ERROR_CODES = new Set(['ACTION_FAILED', 'ASSERTION_FAILED', 'AUTHORIZATION_REQUIRED', 'TARGET_MISMATCH', 'TRUSTED_TEST_MUTATION_AUTHORIZATION_UNAVAILABLE', 'TIMEOUT', 'REPLAY_PLAN_MISMATCH', 'TARGET_ENVELOPE_VIOLATION', 'OBSERVER_LIFECYCLE_FAILED', 'DURATION_EXHAUSTED', 'RUNNER_FAILED']);
 const ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;
 const ROOT_FIELDS = new Set(['schemaVersion', 'suiteId', 'eligibleBackends', 'nondeterministicFields', 'cases']);
 const CASE_FIELDS = {

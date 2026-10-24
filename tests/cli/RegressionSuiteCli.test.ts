@@ -13,6 +13,7 @@ import type { SyntheticFixtureDriver } from '../../src/testing/FixtureLifecycle.
 import { parseRegressionSuite, regressionSuiteSha256 } from '../../src/testing/RegressionSuiteParser.js';
 
 const suiteInput = JSON.parse(readFileSync('tests/fixtures/testing/regression-suite-v1.json', 'utf8')) as unknown;
+const safeSuiteInput = { ...(suiteInput as Record<string, unknown>), cases: [((suiteInput as { cases: unknown[] }).cases[0])] };
 const runArgs = ['run', '--suite', 'suite.json', '--backend', 'PLAYWRIGHT', '--endpoint', 'http://127.0.0.1:9444', '--approval-reference', 'synthetic-approval', '--result-artifact', '.agent-work/artifacts/test1f-result.json'];
 
 test('strict suite CLI parser rejects missing, unknown, duplicate and unexpected arguments', () => {
@@ -22,6 +23,8 @@ test('strict suite CLI parser rejects missing, unknown, duplicate and unexpected
   assert.throws(() => parseRegressionSuiteCliOptions(['compare', '--suite', 's', '--left-result', 'a']), /required/);
   assert.throws(() => parseRegressionSuiteCliOptions(['run', ...runArgs.slice(1), 'positional']), /Unknown/);
   assert.throws(() => resolveRegressionSuiteArtifactPath('.agent-work/artifacts/../../outside.json'), /inside/);
+  const remoteArgs = [...runArgs]; remoteArgs[remoteArgs.indexOf('http://127.0.0.1:9444')] = 'http://192.0.2.4:9222';
+  assert.throws(() => parseRegressionSuiteCliOptions(remoteArgs), /TEST_CDP_ENDPOINT/);
 });
 
 function dependencies(options: { mismatchFirst?: boolean; fixtureDriver?: SyntheticFixtureDriver } = {}) {
@@ -30,7 +33,7 @@ function dependencies(options: { mismatchFirst?: boolean; fixtureDriver?: Synthe
   const artifacts: RegressionSuiteResultArtifact[] = [];
   let timelineIndex = 0;
   const deps: RegressionSuiteCliDependencies = {
-    async readJsonFile(path) { assert.equal(path, 'suite.json'); return suiteInput; },
+    async readJsonFile(path) { assert.equal(path, 'suite.json'); return safeSuiteInput; },
     async openSession(sessionOptions) {
       calls.push(sessionOptions.scenario.scenarioId);
       const scenarioId = sessionOptions.scenario.scenarioId;
@@ -59,14 +62,14 @@ function dependencies(options: { mismatchFirst?: boolean; fixtureDriver?: Synthe
   return { deps, calls, outputs, artifacts };
 }
 
-test('suite run reuses current smoke/monkey runners and writes one privacy-reduced result', async () => {
+test('read-only suite case uses the current smoke runner and writes one privacy-reduced result', async () => {
   const f = dependencies();
   const code = await runRegressionSuiteCli(runArgs, f.deps);
   assert.equal(code, 0);
-  assert.deepEqual(f.calls, ['readiness-pass', 'assertion-fail', 'seeded-monkey-pass']);
+  assert.deepEqual(f.calls, ['readiness-pass']);
   assert.equal(f.artifacts.length, 1);
   assert.equal(f.artifacts[0].suiteStatus, 'PASS');
-  assert.deepEqual(f.artifacts[0].caseResults.map((item) => item.comparisonStatus), ['PASS', 'PASS', 'PASS']);
+  assert.deepEqual(f.artifacts[0].caseResults.map((item) => item.comparisonStatus), ['PASS']);
   const serialized = JSON.stringify(f.artifacts[0]) + f.outputs.join('\n');
   for (const secret of ['wrong-synthetic-text', 'expected-synthetic-text', '#synthetic-label', 'http://127.0.0.1', 'synthetic-approval']) assert.equal(serialized.includes(secret), false);
 });
@@ -76,7 +79,15 @@ test('suite CLI fails fast on unexpected outcome and records later cases NOT_RUN
   const code = await runRegressionSuiteCli(runArgs, f.deps);
   assert.equal(code, 2);
   assert.deepEqual(f.calls, ['readiness-pass']);
-  assert.deepEqual(f.artifacts[0].caseResults.map((item) => item.comparisonStatus), ['FAIL', 'NOT_RUN', 'NOT_RUN']);
+  assert.deepEqual(f.artifacts[0].caseResults.map((item) => item.comparisonStatus), ['FAIL']);
+});
+
+test('suite with any mutating case is denied before opening a browser session', async () => {
+  const f = dependencies();
+  f.deps.readJsonFile = async () => suiteInput;
+  await assert.rejects(runRegressionSuiteCli(runArgs, f.deps), /TRUSTED_TEST_MUTATION_AUTHORIZATION_UNAVAILABLE/);
+  assert.deepEqual(f.calls, []);
+  assert.deepEqual(f.artifacts, []);
 });
 
 test('fixture lifecycle is explicit and unsupported/default-untrusted requests fail before a session opens', async () => {

@@ -1,6 +1,7 @@
 import { createRequire } from 'node:module';
 import { detectLayer } from '../core/LayerDetector.js';
 import type { DiscoveredPage } from '../browser/BrowserDiscovery.js';
+import { validateTestCdpEndpoint } from '../browser/ConnectOptions.js';
 
 const require = createRequire(import.meta.url);
 
@@ -317,6 +318,7 @@ export class GasAdapter {
 
   /** Attach an already-existing explicitly authorized synthetic TEST target by native targetId. */
   async connectTestTarget(endpoint: string, authorization: GasTestTargetAuthorization): Promise<GasTestTargetContext[]> {
+    validateTestCdpEndpoint(endpoint, true);
     if (authorization.mode !== 'TEST' || !authorization.targetId.trim() || !authorization.fixtureId.trim() || !authorization.approvalReference.trim()) {
       throw new Error('A target-bound TEST authorization is required');
     }

@@ -1,5 +1,6 @@
 import { pathToFileURL } from 'node:url';
 import { PlaywrightBrowserDiscovery } from '../browser/PlaywrightBrowserDiscovery.js';
+import { validateTestCdpEndpoint } from '../browser/ConnectOptions.js';
 import { GasAdapter, redactGasSecrets, type GasDiscoveryResult } from '../gas/GasAdapter.js';
 import { mapCrossLayerIdentities } from '../core/CrossLayerMapper.js';
 import { Timeline } from '../trace/Timeline.js';
@@ -10,7 +11,7 @@ import { access, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { runSmokeScenario } from '../testing/SmokeRunner.js';
 import { parseSmokeScenario } from '../testing/SmokeScenarioParser.js';
 import type { SmokeScenario, SmokeScenarioResult, SmokeTarget } from '../testing/SmokeScenario.js';
-import type { TestingBackendId } from '../testing/ActionContract.js';
+import { isMutatingOperation, type TestingBackendId } from '../testing/ActionContract.js';
 import { TestPageSession } from '../testing/TestPageSession.js';
 import { basename, dirname, extname, isAbsolute, relative, resolve } from 'node:path';
 import { parseExploratoryProfile } from '../testing/ExploratoryProfileParser.js';
@@ -200,9 +201,7 @@ export function parseMonkeyCliOptions(args: string[]): MonkeyCliOptions {
   const backend = values.get('--backend');
   if (backend !== 'PLAYWRIGHT' && backend !== 'GAS_OOPIF') throw new Error('--backend must be PLAYWRIGHT or GAS_OOPIF');
   const endpoint = values.get('--endpoint')!;
-  let parsedEndpoint: URL;
-  try { parsedEndpoint = new URL(endpoint); } catch { throw new Error('--endpoint must be an absolute HTTP(S) URL'); }
-  if (!['http:', 'https:'].includes(parsedEndpoint.protocol) || parsedEndpoint.username || parsedEndpoint.password) throw new Error('--endpoint must be an HTTP(S) URL without credentials');
+  validateTestCdpEndpoint(endpoint);
   const approvalReference = values.get('--approval-reference')!;
   if (!approvalReference.trim() || approvalReference.length > 512 || approvalReference.includes('\0')) throw new Error('--approval-reference must be non-empty and bounded');
   if (syntheticFailureDetails && !values.has('--failure-artifact')) throw new Error('--synthetic-failure-details requires --failure-artifact');
@@ -261,6 +260,7 @@ export async function runMonkeyCli(args: string[], dependencies: MonkeyCliDepend
   resolveMonkeyArtifactPath(options.replayArtifactPath);
   const profile = parseExploratoryProfile(await dependencies.readProfileFile(options.profilePath));
   if (options.fixtureLifecycle && !dependencies.fixtureDriver) throw new Error('FIXTURE_LIFECYCLE_DRIVER_UNAVAILABLE');
+  if (profile.candidates.some((candidate) => isMutatingOperation(candidate.operation))) throw new Error('TRUSTED_TEST_MUTATION_AUTHORIZATION_UNAVAILABLE');
   if (options.failureArtifactPath) await validateFailureArtifactDestination(options.failureArtifactPath, options.syntheticFailureDetails === true, profile.target);
   const plan: GeneratedExploratoryPlan = generateExploratoryPlan(profile, options.seed);
   const timeline = dependencies.createTimeline();
@@ -382,9 +382,7 @@ export function parseSmokeCliOptions(args: string[]): SmokeCliOptions {
   const backend = values.get('--backend');
   if (backend !== 'PLAYWRIGHT' && backend !== 'GAS_OOPIF') throw new Error('--backend must be PLAYWRIGHT or GAS_OOPIF');
   const endpoint = values.get('--endpoint')!;
-  let parsedEndpoint: URL;
-  try { parsedEndpoint = new URL(endpoint); } catch { throw new Error('--endpoint must be an absolute HTTP(S) URL'); }
-  if (!['http:', 'https:'].includes(parsedEndpoint.protocol) || parsedEndpoint.username || parsedEndpoint.password) throw new Error('--endpoint must be an HTTP(S) URL without credentials');
+  validateTestCdpEndpoint(endpoint);
   const approvalReference = values.get('--approval-reference')!;
   if (!approvalReference.trim() || approvalReference.length > 512 || approvalReference.includes('\0')) throw new Error('--approval-reference must be non-empty and bounded');
   if (syntheticFailureDetails && !values.has('--failure-artifact')) throw new Error('--synthetic-failure-details requires --failure-artifact');
@@ -401,7 +399,7 @@ export function parseSmokeCliOptions(args: string[]): SmokeCliOptions {
 
 export interface SmokeCliDependencies {
   readScenarioFile(path: string): Promise<unknown>;
-  openSession(options: { endpoint: string; backend: TestingBackendId; approvalReference: string; scenario: SmokeScenario; fixtureLifecycle?: { driver: SyntheticFixtureDriver; runId: string; journal?: FixtureLifecycleJournal } }): Promise<Pick<TestPageSession, 'backend' | 'authorization' | 'close'> & Partial<Pick<TestPageSession, 'captureFailureDiagnostics' | 'beginFixtureRun' | 'finishFixtureRun'>>>;
+  openSession(options: { endpoint: string; backend: TestingBackendId; approvalReference: string; scenario: SmokeScenario; fixtureLifecycle?: { driver: SyntheticFixtureDriver; runId: string; journal?: FixtureLifecycleJournal } }): Promise<Pick<TestPageSession, 'backend' | 'authorization' | 'close' | 'assertTargetEnvelope'> & Partial<Pick<TestPageSession, 'captureFailureDiagnostics' | 'beginFixtureRun' | 'finishFixtureRun'>>>;
   fixtureDriver?: SyntheticFixtureDriver;
   writeTimeline(path: string, timeline: Timeline): Promise<void>;
   writeOutput(line: string): void;
@@ -424,6 +422,7 @@ const defaultSmokeCliDependencies: SmokeCliDependencies = {
 export async function runSmokeCli(args: string[], dependencies: SmokeCliDependencies = defaultSmokeCliDependencies): Promise<number> {
   const options = parseSmokeCliOptions(args);
   const scenario = parseSmokeScenario(await dependencies.readScenarioFile(options.scenarioPath));
+  if (scenario.steps.some((step) => isMutatingOperation(step.operation))) throw new Error('TRUSTED_TEST_MUTATION_AUTHORIZATION_UNAVAILABLE');
   if (options.fixtureLifecycle && !dependencies.fixtureDriver) throw new Error('FIXTURE_LIFECYCLE_DRIVER_UNAVAILABLE');
   if (options.failureArtifactPath) await validateFailureArtifactDestination(options.failureArtifactPath, options.syntheticFailureDetails === true, scenario.target);
   const timeline = dependencies.createTimeline();
@@ -446,7 +445,8 @@ export async function runSmokeCli(args: string[], dependencies: SmokeCliDependen
       try { await session.beginFixtureRun!(); fixtureRunStarted = true; }
       catch (error) { fixtureLifecycleUnknown = true; throw error; }
     }
-    result = await runSmokeScenario({ backend: session.backend, scenario, timeline, authorization: session.authorization });
+    result = await runSmokeScenario({ backend: session.backend, scenario, timeline, authorization: session.authorization,
+      assertTargetEnvelope: () => session.assertTargetEnvelope() });
     if (fixtureRunStarted) {
       fixtureRunFinalized = true;
       try { await session.finishFixtureRun!(result.status === 'PASS' ? 'PASS' : 'FAIL'); }
@@ -663,9 +663,7 @@ export function parseRegressionSuiteCliOptions(args: string[]): RegressionSuiteC
   const backend = values.get('--backend');
   if (backend !== 'PLAYWRIGHT' && backend !== 'GAS_OOPIF') throw new Error('--backend must be PLAYWRIGHT or GAS_OOPIF');
   const endpoint = values.get('--endpoint')!;
-  let parsedEndpoint: URL;
-  try { parsedEndpoint = new URL(endpoint); } catch { throw new Error('--endpoint must be an absolute HTTP(S) URL'); }
-  if (!['http:', 'https:'].includes(parsedEndpoint.protocol) || parsedEndpoint.username || parsedEndpoint.password) throw new Error('--endpoint must be an HTTP(S) URL without credentials');
+  validateTestCdpEndpoint(endpoint);
   const approvalReference = values.get('--approval-reference')!;
   if (!approvalReference.trim() || approvalReference.length > 512 || approvalReference.includes('\0')) throw new Error('--approval-reference must be non-empty and bounded');
   return { command, suitePath: values.get('--suite')!, backend, endpoint, approvalReference,
@@ -753,6 +751,11 @@ export async function runRegressionSuiteCli(args: string[], dependencies: Regres
     return comparison.status === 'PASS' ? 0 : 2;
   }
   if (!parsed.eligibleBackends.includes(options.backend)) throw new Error('BACKEND_NOT_SUITE_ELIGIBLE');
+  if (parsed.cases.some((testCase) => testCase.kind === 'SMOKE'
+    ? testCase.scenario.steps.some((step) => isMutatingOperation(step.operation))
+    : testCase.profile.candidates.some((candidate) => isMutatingOperation(candidate.operation)))) {
+    throw new Error('TRUSTED_TEST_MUTATION_AUTHORIZATION_UNAVAILABLE');
+  }
   const resultPath = resolveRegressionSuiteArtifactPath(options.resultPath);
   if (options.fixtureLifecycle) {
     if (!dependencies.fixtureDriver) throw new Error('FIXTURE_LIFECYCLE_DRIVER_UNAVAILABLE');
@@ -782,7 +785,8 @@ export async function runRegressionSuiteCli(args: string[], dependencies: Regres
       }
       await session.assertTargetEnvelope();
       if (testCase.kind === 'SMOKE') {
-        const result = await runSmokeScenario({ backend: session.backend, scenario: testCase.scenario, timeline, authorization: session.authorization });
+        const result = await runSmokeScenario({ backend: session.backend, scenario: testCase.scenario, timeline, authorization: session.authorization,
+          assertTargetEnvelope: () => session!.assertTargetEnvelope() });
         actual = normalizeRegressionOutcome(testCase, result);
       } else {
         const plan = generateExploratoryPlan(testCase.profile, testCase.seed);

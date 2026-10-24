@@ -333,11 +333,21 @@ test('missing, malformed and unsupported TEST authorization preconditions fail b
   assert.equal(f.events.some((item) => item.startsWith('create:owned')), false);
 });
 
+test('TEST session endpoint rejects remote, ambiguous and malformed CDP endpoints before discovery or GAS access', async () => {
+  for (const endpoint of ['http://192.0.2.10:9222', 'http://localhost:9222', 'http://127.0.0.1:65536', 'http://127.0.0.1/path']) {
+    const f = setup();
+    await assert.rejects(TestPageSession.open({ endpoint, backend: 'PLAYWRIGHT', approvalReference: 'approved', scenario: scenario(), discovery: f.discovery, gasAdapter: f.gas }), /TEST_CDP_ENDPOINT/);
+    assert.deepEqual(f.events, []);
+  }
+});
+
 test('public runner-page creation requires TEST intent before connecting or navigating', async () => {
   const discovery = new PlaywrightBrowserDiscovery('http://127.0.0.1:1');
   const create = discovery.createRunnerOwnedPage.bind(discovery) as (url: string, intent?: unknown) => Promise<unknown>;
   await assert.rejects(create('https://example.invalid/', undefined), /TEST authorization intent/);
   await assert.rejects(create('https://example.invalid/', { mode: 'OBSERVE', fixtureId: 'fixture', approvalReference: 'approval' }), /TEST authorization intent/);
+  const remote = new PlaywrightBrowserDiscovery('http://192.0.2.10:9222');
+  await assert.rejects(remote.createRunnerOwnedPage('http://127.0.0.1/app', { mode: 'TEST', fixtureId: 'fixture', approvalReference: 'audit-only' }), /TEST_CDP_ENDPOINT_NOT_LOOPBACK/);
 });
 
 test('exact frame identity preserves normalized IDs and assigns stable local OOPIF IDs without inventing protocol IDs', async () => {

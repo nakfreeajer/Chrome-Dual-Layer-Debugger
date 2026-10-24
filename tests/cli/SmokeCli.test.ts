@@ -32,7 +32,8 @@ function deps(ok: boolean, record: { opened: number; closed: number; output: str
       record.opened += 1;
       const scenario = options.scenario as SmokeScenario;
       assert.equal(scenario.scenarioId, 'cli-synthetic');
-      return { backend: makeBackend(ok), authorization: { mode: 'TEST', backend: 'PLAYWRIGHT', targetId: 'cli-page', fixtureId: scenario.scenarioId, approvalReference: options.approvalReference } as TestTargetAuthorization, async close() { record.closed += 1; } };
+      return { backend: makeBackend(ok), authorization: { mode: 'TEST', backend: 'PLAYWRIGHT', targetId: 'cli-page', fixtureId: scenario.scenarioId, approvalReference: options.approvalReference } as TestTargetAuthorization,
+        async assertTargetEnvelope() {}, async close() { record.closed += 1; } };
     },
     async writeTimeline(_path, timeline) { record.timeline = timeline; },
     writeOutput(line) { record.output.push(line); },
@@ -88,6 +89,10 @@ test('smoke CLI requires arguments and rejects unknown, duplicate, malformed and
   assert.throws(() => parseSmokeCliOptions([...cliArgs, '--failure-artifact', 'x', '--synthetic-failure-details', '--synthetic-failure-details']), /Duplicate/);
   assert.equal(parseSmokeCliOptions([...cliArgs, '--fixture-lifecycle']).fixtureLifecycle, true);
   assert.throws(() => parseSmokeCliOptions([...cliArgs, '--fixture-lifecycle', '--fixture-lifecycle']), /Duplicate/);
+  for (const endpoint of ['http://192.0.2.10:9222', 'http://localhost:9222', 'http://127.0.0.1:65536']) {
+    const bad = [...cliArgs]; bad[bad.indexOf('http://127.0.0.1:9444')] = endpoint;
+    assert.throws(() => parseSmokeCliOptions(bad), /TEST_CDP_ENDPOINT/);
+  }
 });
 
 const noOpFixtureDriver: SyntheticFixtureDriver = { driverId: 'synthetic-fixture-driver', async setup() { return {}; }, async verifyOwnership() { return false; },
@@ -109,6 +114,7 @@ test('fixture cleanup failure keeps test result separate and prevents CLI PASS',
     async openSession(options) { assert.equal(options.fixtureLifecycle?.runId, 'cli-run-test'); record.opened += 1;
       const scenario = options.scenario as SmokeScenario;
       return { backend: makeBackend(true), authorization: { mode: 'TEST', backend: 'PLAYWRIGHT', targetId: 'cli-page', fixtureId: scenario.scenarioId, approvalReference: options.approvalReference } as TestTargetAuthorization,
+        async assertTargetEnvelope() {},
         async beginFixtureRun() { gates.push('begin'); }, async finishFixtureRun() { gates.push('finish'); }, async close() { record.closed += 1; return failedCleanup; } }; } };
   const code = await runSmokeCli([...cliArgs, '--fixture-lifecycle'], dependencies);
   assert.equal(code, 2);
@@ -127,7 +133,7 @@ test('smoke lifecycle opt-in rejects a session missing run gates before scenario
       record.opened += 1;
       const scenario = options.scenario as SmokeScenario;
       return { backend: makeBackend(true, actions), authorization: { mode: 'TEST', backend: 'PLAYWRIGHT', targetId: 'cli-page', fixtureId: scenario.scenarioId,
-        approvalReference: options.approvalReference } as TestTargetAuthorization, async close() { record.closed += 1; } };
+        approvalReference: options.approvalReference } as TestTargetAuthorization, async assertTargetEnvelope() {}, async close() { record.closed += 1; } };
     } };
   await assert.rejects(runSmokeCli([...cliArgs, '--fixture-lifecycle'], dependencies), (error: Error & { fixtureLifecycle?: FixtureLifecycleSummary }) => {
     assert.equal(error.message, 'FIXTURE_LIFECYCLE_SESSION_METHODS_UNAVAILABLE');
@@ -147,6 +153,7 @@ test('smoke lifecycle start or finish errors close the session and report UNKNOW
         record.opened += 1; const scenario = options.scenario as SmokeScenario;
         return { backend: makeBackend(true, actions), authorization: { mode: 'TEST', backend: 'PLAYWRIGHT', targetId: 'cli-page', fixtureId: scenario.scenarioId,
           approvalReference: options.approvalReference } as TestTargetAuthorization,
+          async assertTargetEnvelope() {},
           async beginFixtureRun() { if (failedGate === 'begin') throw new Error('begin failed'); },
           async finishFixtureRun() { if (failedGate === 'finish') throw new Error('finish failed'); }, async close() { record.closed += 1; } };
       } };
@@ -156,6 +163,17 @@ test('smoke lifecycle start or finish errors close the session and report UNKNOW
     });
     assert.equal(record.closed, 1); assert.equal(actions.count, failedGate === 'begin' ? 0 : 1); assert.equal(record.output.length, 0);
   }
+});
+
+test('mutating smoke plans fail before opening a session when trusted authorization is unavailable', async () => {
+  const record = { opened: 0, closed: 0, output: [] as string[] };
+  const base = deps(true, record);
+  const dependencies: SmokeCliDependencies = { ...base, async readScenarioFile() { return { ...scenarioInput, steps: [
+    { stepId: 'mutate', kind: 'action', operation: 'click', selector: '#button' }
+  ] }; } };
+  await assert.rejects(runSmokeCli(cliArgs, dependencies), /TRUSTED_TEST_MUTATION_AUTHORIZATION_UNAVAILABLE/);
+  assert.equal(record.opened, 0);
+  assert.equal(record.output.length, 0);
 });
 
 test('smoke CLI PASS returns 0, closes the runner page and writes sanitized Timeline', async () => {

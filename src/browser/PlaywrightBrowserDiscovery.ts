@@ -1,7 +1,7 @@
 import { chromium, type Browser, type BrowserContext, type CDPSession, type Frame, type Page } from 'playwright';
 import { detectLayer } from '../core/LayerDetector.js';
 import { SessionIds } from '../core/SessionIds.js';
-import { connectOverCDPOptions } from './ConnectOptions.js';
+import { connectOverCDPOptions, validateTestCdpEndpoint } from './ConnectOptions.js';
 import { V1CorrelationObserver, V1ObserverScopeIds } from './V1CorrelationObserver.js';
 import type { Timeline } from '../trace/Timeline.js';
 import type { BrowserDiscovery, DiscoveryResult, DiscoveredFrame, DiscoveredPage, PageDiscoveryInput } from './BrowserDiscovery.js';
@@ -174,6 +174,7 @@ export class PlaywrightBrowserDiscovery implements BrowserDiscovery {
     page: Page; pageId: string; discovered: DiscoveredPage; ownerReceipt?: RunnerOwnedPageReceipt
   }> {
     validateRunnerPageTestIntent(intent);
+    validateTestCdpEndpoint(this.endpoint);
     if (fixtureLeaseId !== undefined && (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(fixtureLeaseId)
       || this.runnerOwnedFixtureLeases.has(fixtureLeaseId))) {
       throw new Error('Fixture target receipt lease is invalid or already registered');

@@ -1,5 +1,5 @@
 import type { GasAdapter } from '../gas/GasAdapter.js';
-import { boundedTimeoutMs, evaluateAssertionPredicate, isMutatingOperation, validateTestAuthorization, type ActionBackend, type ActionOutcome, type ActionStep, type AssertionPredicate, type TestTargetAuthorization } from './ActionContract.js';
+import { boundedTimeoutMs, evaluateAssertionPredicate, isMutatingOperation, requireTrustedTestMutationAuthorization, validateTestAuthorization, type ActionBackend, type ActionOutcome, type ActionStep, type AssertionPredicate, type TestTargetAuthorization } from './ActionContract.js';
 
 interface CdpResult { result?: { value?: unknown }; exceptionDetails?: unknown; }
 
@@ -51,8 +51,7 @@ export class GasOopifActionBackend implements ActionBackend {
   async execute(step: ActionStep, authorization?: TestTargetAuthorization): Promise<ActionOutcome> {
     try {
       if (isMutatingOperation(step.operation)) {
-        if (!authorization) throw new Error('AUTHORIZATION_REQUIRED');
-        validateTestAuthorization(this.backend, this.targetId, authorization);
+        requireTrustedTestMutationAuthorization(this.backend, this.targetId, authorization);
       }
       const selector = jsArg(step.selector ?? '');
       const value = jsArg(step.value ?? '');
@@ -139,6 +138,7 @@ export class GasOopifActionBackend implements ActionBackend {
       const message = error instanceof Error ? error.message : '';
       const errorCode = message === 'AUTHORIZATION_REQUIRED' ? 'AUTHORIZATION_REQUIRED'
         : message === 'TARGET_MISMATCH' ? 'TARGET_MISMATCH'
+          : message === 'TRUSTED_TEST_MUTATION_AUTHORIZATION_UNAVAILABLE' ? message
           : message === 'TIMEOUT' ? 'TIMEOUT' : 'ACTION_FAILED';
       return { stepId: step.stepId, operation: step.operation, backend: this.backend, ok: false, errorCode };
     }

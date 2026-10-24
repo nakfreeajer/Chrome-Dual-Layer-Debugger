@@ -1,5 +1,5 @@
 import type { Frame, Page } from 'playwright';
-import { boundedTimeoutMs, evaluateAssertionPredicate, isMutatingOperation, validateTestAuthorization, type ActionBackend, type ActionOutcome, type ActionStep, type AssertionPredicate, type TestTargetAuthorization } from './ActionContract.js';
+import { boundedTimeoutMs, evaluateAssertionPredicate, isMutatingOperation, requireTrustedTestMutationAuthorization, type ActionBackend, type ActionOutcome, type ActionStep, type AssertionPredicate, type TestTargetAuthorization } from './ActionContract.js';
 
 function requiredSelector(step: ActionStep): string {
   if (!step.selector?.trim()) throw new Error('ACTION_FAILED');
@@ -15,7 +15,7 @@ export class PlaywrightActionBackend implements ActionBackend {
 
   async execute(step: ActionStep, authorization?: TestTargetAuthorization): Promise<ActionOutcome> {
     try {
-      if (isMutatingOperation(step.operation)) validateTestAuthorization(this.backend, this.targetId, authorization);
+      if (isMutatingOperation(step.operation)) requireTrustedTestMutationAuthorization(this.backend, this.targetId, authorization);
       const timeout = boundedTimeoutMs(step.timeoutMs);
       const locator = step.selector ? this.page.locator(`css=${step.selector}`) : undefined;
       const needLocator = () => { if (!locator) throw new Error('ACTION_FAILED'); return locator; };
@@ -56,6 +56,7 @@ export class PlaywrightActionBackend implements ActionBackend {
       const message = error instanceof Error ? error.message : '';
       const errorCode = message === 'AUTHORIZATION_REQUIRED' ? 'AUTHORIZATION_REQUIRED'
         : message === 'TARGET_MISMATCH' ? 'TARGET_MISMATCH'
+          : message === 'TRUSTED_TEST_MUTATION_AUTHORIZATION_UNAVAILABLE' ? message
           : message === 'TIMEOUT' || /Timeout/i.test(message) ? 'TIMEOUT' : 'ACTION_FAILED';
       return { stepId: step.stepId, operation: step.operation, backend: this.backend, ok: false, errorCode };
     }

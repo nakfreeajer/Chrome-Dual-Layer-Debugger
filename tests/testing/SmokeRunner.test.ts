@@ -30,11 +30,12 @@ function backend(failStep?: string, events: string[] = []): ActionBackend {
 }
 
 const authorization = { mode: 'TEST' as const, backend: 'PLAYWRIGHT' as const, targetId: 'runner-page-1', fixtureId: 'runner-fixture', approvalReference: 'private-approval-reference' };
+const assertTargetEnvelope = async () => undefined;
 
 test('executes actions and assertions in declared order and emits scenario PASS lifecycle', async () => {
   const events: string[] = [];
   const timeline = new Timeline({ runId: 'smoke-pass-test' });
-  const result = await runSmokeScenario({ backend: backend(undefined, events), scenario, timeline, authorization });
+  const result = await runSmokeScenario({ backend: backend(undefined, events), scenario, timeline, authorization, assertTargetEnvelope });
   assert.equal(result.status, 'PASS');
   assert.equal(result.runId, timeline.runId);
   assert.deepEqual(events, ['execute:first', 'execute:second', 'execute:third']);
@@ -45,7 +46,7 @@ test('executes actions and assertions in declared order and emits scenario PASS 
 test('stops at first failed step and returns stable FAIL result with failedStepId', async () => {
   const events: string[] = [];
   const timeline = new Timeline({ runId: 'smoke-fail-test' });
-  const result = await runSmokeScenario({ backend: backend('second', events), scenario, timeline, authorization });
+  const result = await runSmokeScenario({ backend: backend('second', events), scenario, timeline, authorization, assertTargetEnvelope });
   assert.equal(result.status, 'FAIL');
   assert.equal(result.failedStepId, 'second');
   assert.equal(result.stepResults.length, 2);
@@ -57,7 +58,7 @@ test('starts optional V1 observer before steps and always stops it after success
   const events: string[] = [];
   const observer = { async start() { events.push('observer:start'); }, async stop() { events.push('observer:stop'); return {}; } };
   const timeline = new Timeline({ runId: 'smoke-observer-test' });
-  const result = await runSmokeScenario({ backend: backend(undefined, events), scenario, timeline, authorization, observer });
+  const result = await runSmokeScenario({ backend: backend(undefined, events), scenario, timeline, authorization, observer, assertTargetEnvelope });
   assert.equal(result.status, 'PASS');
   assert.equal(events[0], 'observer:start');
   assert.equal(events.at(-1), 'observer:stop');
@@ -68,6 +69,7 @@ test('observer cleanup is attempted after a failed step and cleanup errors fail 
   const timeline = new Timeline({ runId: 'smoke-observer-cleanup-test' });
   const result = await runSmokeScenario({
     backend: backend('first'), scenario, timeline, authorization,
+    assertTargetEnvelope,
     observer: { async start() {}, async stop() { stopCalls += 1; throw new Error('private details'); } }
   });
   assert.equal(stopCalls, 1);
@@ -77,7 +79,7 @@ test('observer cleanup is attempted after a failed step and cleanup errors fail 
 
 test('Timeline omits selectors, input/expected values, approval reference and runtime errors', async () => {
   const timeline = new Timeline({ runId: 'smoke-privacy-test' });
-  await runSmokeScenario({ backend: backend('second'), scenario, timeline, authorization });
+  await runSmokeScenario({ backend: backend('second'), scenario, timeline, authorization, assertTargetEnvelope });
   const serialized = JSON.stringify(timeline.snapshot());
   for (const secret of ['#private-input', '#private-result', 'sensitive-synthetic-value', 'private-approval-reference', 'private details']) assert.equal(serialized.includes(secret), false);
   assert.ok(serialized.includes('runner-fixture'));
@@ -89,7 +91,7 @@ test('normalized assertion event preserves identity and type metadata without va
   const wrongValueBackend: ActionBackend = { ...base, async execute(step) {
     return { stepId: step.stepId, operation: step.operation, backend: 'PLAYWRIGHT', ok: true, ...(step.operation === 'readText' ? { value: 'wrong-value' } : {}) };
   } };
-  const result = await runSmokeScenario({ backend: wrongValueBackend, scenario, timeline, authorization });
+  const result = await runSmokeScenario({ backend: wrongValueBackend, scenario, timeline, authorization, assertTargetEnvelope });
   const failed = timeline.snapshot().find((event) => event.type === 'ASSERTION_FAILED')!;
   const data = failed.data as Record<string, unknown>;
   const resultRef = result.stepResults.find((step) => step.stepId === 'second')?.assertionEvent;
@@ -105,4 +107,25 @@ test('normalized assertion event preserves identity and type metadata without va
   assert.equal(JSON.stringify(data).includes('wrong'), false);
   assert.equal(data.actual, undefined);
   assert.equal(data.expected, undefined);
+});
+
+test('smoke envelope is checked before and after each step and stops after a containment violation', async () => {
+  const events: string[] = [];
+  let checks = 0;
+  const timeline = new Timeline({ runId: 'smoke-envelope-test' });
+  const result = await runSmokeScenario({ backend: backend(undefined, events), scenario, timeline, authorization,
+    async assertTargetEnvelope() { checks += 1; if (checks === 4) throw new Error('synthetic envelope violation'); } });
+  assert.equal(result.status, 'FAIL');
+  assert.equal(result.failedStepId, 'second');
+  assert.deepEqual(events, ['execute:first', 'execute:second']);
+  assert.equal(checks, 4);
+  assert.equal(result.stepResults[1].errorCode, 'TARGET_ENVELOPE_VIOLATION');
+  assert.equal(result.stepResults.length, 2, 'no later step is executed after a failed post-check');
+
+  const preEvents: string[] = [];
+  const preFailure = await runSmokeScenario({ backend: backend(undefined, preEvents), scenario, timeline: new Timeline({ runId: 'smoke-envelope-pre-test' }), authorization,
+    async assertTargetEnvelope() { throw new Error('pre-action violation'); } });
+  assert.equal(preFailure.status, 'FAIL');
+  assert.deepEqual(preEvents, [], 'a failed pre-check prevents the step from being sent to the backend');
+  assert.equal(preFailure.stepResults[0].errorCode, 'TARGET_ENVELOPE_VIOLATION');
 });

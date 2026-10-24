@@ -217,6 +217,17 @@ test('TEST-only target attachment requires explicit target authorization and ret
   assert.equal(calls.browserClose, 0);
 });
 
+test('TEST GAS adapter rejects non-loopback endpoints before its CDP dependency is called', async () => {
+  for (const endpoint of ['http://192.0.2.12:9222', 'http://localhost:9222', 'http://127.0.0.1:65536', 'ws://user@127.0.0.1:9222']) {
+    const { calls, api } = makeFixture();
+    const adapter = new GasAdapter(api);
+    await assert.rejects(adapter.connectTestTarget(endpoint, {
+      mode: 'TEST', targetId: 'target-native', fixtureId: 'synthetic-fixture', approvalReference: 'audit-only'
+    }), /TEST_CDP_ENDPOINT/);
+    assert.equal(calls.connect, 0);
+  }
+});
+
 test('TEST target readiness ignores unrelated contexts until the exact target and attached session appear', async () => {
   const { calls, api, contexts, page } = makeFixture();
   const unrelated = { ...contexts[0], targetId: 'unrelated-target', sessionId: 'unrelated-session', executionContextId: 12 };
