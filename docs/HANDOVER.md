@@ -8,6 +8,11 @@ Human Owner -> Architect-Curator -> bounded Executor -> evidence back to Archite
 
 Rony Finster is final Human authority. ChatGPT is the Architect-Curator for this project. There is **no automated Orchestrator**. Rony manually relays bounded prompts, Executor reports, correction instructions, and documentation-closure requests.
 
+
+## External review action register — read on every handover (2026-10-24)
+
+The persistent external-review backlog is [docs/EXTERNAL_REVIEW_ACTION_REGISTER.md](EXTERNAL_REVIEW_ACTION_REGISTER.md) and its nine tracked GitHub Issues [#1–#9](https://github.com/nakfreeajer/Chrome-Dual-Layer-Debugger/issues). **P0:** [#1 TEST authorization](https://github.com/nakfreeajer/Chrome-Dual-Layer-Debugger/issues/1) and [#2 remote CDP mutation endpoints](https://github.com/nakfreeajer/Chrome-Dual-Layer-Debugger/issues/2) require a full read-only source audit; the reviews and parser spot-checks do not prove complete downstream failure. The next proposed task, `CDLD.TEST.AUTHORIZATION.ENDPOINT.BOUNDARY.AUDIT.1A`, is **not automatically authorized**. Check unresolved issue state before proposing or starting any milestone; preserve the original Charter and do not let tracking artifacts reset F36 INCONCLUSIVE/EXHAUSTED, HISTORICAL_STOP_TRIGGERED, CORE-04 live acceptance, CORE-06/07 or Release 1. Closure requires evidence and an explicit Architect disposition; do not close findings simply because the register exists.
+
 ## Read first
 1. `AGENTS.md`
 2. `docs/PROJECT_BRIEF.md`
