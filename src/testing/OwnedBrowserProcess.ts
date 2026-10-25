@@ -17,6 +17,23 @@ export type OwnedResourceStatus = 'VERIFIED' | 'FAILED' | 'UNKNOWN';
 export type OwnedProfileCleanupStage = 'profile_remove' | 'profile_verify';
 export type OwnedProfileCleanupCause = 'filesystem_error' | 'profile_still_present' | 'inaccessible' | 'unknown';
 
+export type OwnedBrowserStartupDiagnosticStage =
+  | 'PORT_FILE_READ' | 'PORT_FILE_PARSE' | 'VERSION_ENDPOINT' | 'BROWSER_IDENTITY'
+  | 'WEBSOCKET_IDENTITY' | 'CHILD_PROCESS' | 'STARTUP_DEADLINE' | 'FAILED_LAUNCH_CLEANUP';
+export type OwnedBrowserStartupDiagnosticReason =
+  | 'UNAVAILABLE' | 'INVALID' | 'UNSUPPORTED_PRODUCT' | 'IDENTITY_MISMATCH'
+  | 'NOT_RUNNING' | 'NO_RELIABLE_FAILURE_STAGE' | 'CLEANUP_UNVERIFIED';
+
+export interface OwnedBrowserStartupDiagnostic {
+  readonly stage: OwnedBrowserStartupDiagnosticStage;
+  readonly reason: OwnedBrowserStartupDiagnosticReason;
+  readonly lastObservedFailure?: {
+    readonly stage: OwnedBrowserStartupDiagnosticStage;
+    readonly reason: OwnedBrowserStartupDiagnosticReason;
+    readonly observation: 'LAST_RETRY_ONLY';
+  };
+}
+
 export interface OwnedProfileCleanupDiagnostic {
   readonly stage: OwnedProfileCleanupStage;
   readonly cause: OwnedProfileCleanupCause;
@@ -61,6 +78,39 @@ interface PortFileEvidence {
 interface VersionEvidence {
   readonly Browser?: unknown;
   readonly webSocketDebuggerUrl?: unknown;
+}
+
+class StartupProbeFailure extends Error {
+  constructor(readonly diagnostic: Pick<OwnedBrowserStartupDiagnostic, 'stage' | 'reason'>) {
+    super('OWNED_BROWSER_STARTUP_PROBE_FAILED');
+  }
+}
+
+interface StartupDiagnosticError extends Error {
+  readonly startupDiagnostic?: OwnedBrowserStartupDiagnostic;
+}
+
+function startupDiagnosticError(
+  message: string,
+  diagnostic: OwnedBrowserStartupDiagnostic,
+  cause?: unknown
+): Error {
+  const error = new Error(message, cause === undefined ? undefined : { cause });
+  const lastObservedFailure = diagnostic.lastObservedFailure
+    ? Object.freeze({ ...diagnostic.lastObservedFailure }) : undefined;
+  const frozen = Object.freeze({
+    stage: diagnostic.stage,
+    reason: diagnostic.reason,
+    ...(lastObservedFailure ? { lastObservedFailure } : {})
+  });
+  Object.defineProperty(error, 'startupDiagnostic', { value: frozen, enumerable: true, writable: false, configurable: false });
+  return error;
+}
+
+/** Reads only the fixed, privacy-safe diagnostic attached by the owned-launch path. */
+export function getOwnedBrowserStartupDiagnostic(error: unknown): OwnedBrowserStartupDiagnostic | undefined {
+  if (!(error instanceof Error)) return undefined;
+  return (error as StartupDiagnosticError).startupDiagnostic;
 }
 
 interface OwnedBrowserPlatform {
@@ -179,7 +229,7 @@ function parsePortFile(value: string): PortFileEvidence {
   const lines = value.trimEnd().split(/\r?\n/);
   if (lines.length !== 2 || !/^\d{1,5}$/.test(lines[0]) || !isSafePort(Number(lines[0]))
     || !/^\/devtools\/browser\/[A-Za-z0-9_-]+$/.test(lines[1])) {
-    throw new Error('OWNED_BROWSER_PORT_FILE_INVALID');
+    throw new StartupProbeFailure({ stage: 'PORT_FILE_PARSE', reason: 'INVALID' });
   }
   return { port: Number(lines[0]), browserWebSocketPath: lines[1] };
 }
@@ -192,18 +242,21 @@ function validateProfilePath(profilePath: string): void {
 }
 
 function parseWebSocketUrl(value: unknown, port: number, expectedPath: string): void {
-  if (typeof value !== 'string') throw new Error('OWNED_BROWSER_ENDPOINT_MISMATCH');
+  if (typeof value !== 'string') throw new StartupProbeFailure({ stage: 'WEBSOCKET_IDENTITY', reason: 'IDENTITY_MISMATCH' });
   let url: URL;
-  try { url = new URL(value); } catch { throw new Error('OWNED_BROWSER_ENDPOINT_MISMATCH'); }
+  try { url = new URL(value); } catch { throw new StartupProbeFailure({ stage: 'WEBSOCKET_IDENTITY', reason: 'IDENTITY_MISMATCH' }); }
   if (url.protocol !== 'ws:' || url.hostname !== LOOPBACK_HOST || Number(url.port) !== port
     || url.pathname !== expectedPath || url.search || url.hash || url.username || url.password) {
-    throw new Error('OWNED_BROWSER_ENDPOINT_MISMATCH');
+    throw new StartupProbeFailure({ stage: 'WEBSOCKET_IDENTITY', reason: 'IDENTITY_MISMATCH' });
   }
 }
 
 function validateVersionEvidence(value: VersionEvidence, portFile: PortFileEvidence): void {
+  if (typeof value !== 'object' || value === null) {
+    throw new StartupProbeFailure({ stage: 'VERSION_ENDPOINT', reason: 'INVALID' });
+  }
   if (typeof value.Browser !== 'string' || !/^(?:Chrome|Chromium|HeadlessChrome|Brave)\//.test(value.Browser)) {
-    throw new Error('OWNED_BROWSER_IDENTITY_AMBIGUOUS');
+    throw new StartupProbeFailure({ stage: 'BROWSER_IDENTITY', reason: 'UNSUPPORTED_PRODUCT' });
   }
   parseWebSocketUrl(value.webSocketDebuggerUrl, portFile.port, portFile.browserWebSocketPath);
 }
@@ -309,25 +362,58 @@ async function cleanupFailedLaunch(platform: OwnedBrowserPlatform, profilePath: 
 
 async function waitForReady(state: LeaseState, startupTimeoutMs: number): Promise<void> {
   const deadline = Date.now() + startupTimeoutMs;
-  let lastError: unknown;
+  let hadRetryFailure = false;
+  let lastObservedFailure: Pick<OwnedBrowserStartupDiagnostic, 'stage' | 'reason'> | undefined;
+  const retry = async (failure: Pick<OwnedBrowserStartupDiagnostic, 'stage' | 'reason'>) => {
+    hadRetryFailure = true;
+    lastObservedFailure = failure;
+    await state.platform.wait(50);
+  };
+  const childNotRunning = () => startupDiagnosticError('OWNED_BROWSER_PROCESS_EXITED_DURING_STARTUP', {
+    stage: 'CHILD_PROCESS', reason: 'NOT_RUNNING'
+  });
   while (Date.now() <= deadline) {
-    if (!childIsRunning(state.process, state)) throw new Error('OWNED_BROWSER_PROCESS_EXITED_DURING_STARTUP');
+    if (!childIsRunning(state.process, state)) throw childNotRunning();
+    let portFileText: string;
     try {
-      const portFile = parsePortFile(await state.platform.readPortFile(state.profilePath));
-      const endpoint = `http://${LOOPBACK_HOST}:${portFile.port}`;
-      const evidence = await state.platform.fetchVersion(endpoint);
-      if (!childIsRunning(state.process, state)) throw new Error('OWNED_BROWSER_PROCESS_EXITED_DURING_STARTUP');
+      portFileText = await state.platform.readPortFile(state.profilePath);
+    } catch {
+      await retry({ stage: 'PORT_FILE_READ', reason: 'UNAVAILABLE' });
+      continue;
+    }
+    let portFile: PortFileEvidence;
+    try {
+      portFile = parsePortFile(portFileText);
+    } catch {
+      await retry({ stage: 'PORT_FILE_PARSE', reason: 'INVALID' });
+      continue;
+    }
+    const endpoint = `http://${LOOPBACK_HOST}:${portFile.port}`;
+    let evidence: VersionEvidence;
+    try {
+      evidence = await state.platform.fetchVersion(endpoint);
+    } catch {
+      await retry({ stage: 'VERSION_ENDPOINT', reason: 'UNAVAILABLE' });
+      continue;
+    }
+    if (!childIsRunning(state.process, state)) throw childNotRunning();
+    try {
       validateVersionEvidence(evidence, portFile);
       state.endpoint = endpoint;
       state.port = portFile.port;
       return;
     } catch (error) {
-      if (error instanceof Error && error.message === 'OWNED_BROWSER_PROCESS_EXITED_DURING_STARTUP') throw error;
-      lastError = error;
-      await state.platform.wait(50);
+      const diagnostic = error instanceof StartupProbeFailure
+        ? error.diagnostic
+        : { stage: 'VERSION_ENDPOINT' as const, reason: 'INVALID' as const };
+      await retry(diagnostic);
     }
   }
-  throw new Error(lastError instanceof Error ? 'OWNED_BROWSER_ENDPOINT_UNVERIFIED' : 'OWNED_BROWSER_STARTUP_TIMEOUT');
+  throw startupDiagnosticError(hadRetryFailure ? 'OWNED_BROWSER_ENDPOINT_UNVERIFIED' : 'OWNED_BROWSER_STARTUP_TIMEOUT', {
+    stage: 'STARTUP_DEADLINE',
+    reason: 'NO_RELIABLE_FAILURE_STAGE',
+    ...(lastObservedFailure ? { lastObservedFailure: { ...lastObservedFailure, observation: 'LAST_RETRY_ONLY' as const } } : {})
+  });
 }
 
 /**
@@ -375,7 +461,9 @@ async function launchOwnedBrowserWithPlatform(platform: OwnedBrowserPlatform, st
   } catch (error) {
     if (profilePath) {
       const cleanupVerified = await cleanupFailedLaunch(platform, profilePath, process);
-      if (!cleanupVerified) throw new Error('OWNED_BROWSER_LAUNCH_FAILED_CLEANUP_UNKNOWN', { cause: error });
+      if (!cleanupVerified) throw startupDiagnosticError('OWNED_BROWSER_LAUNCH_FAILED_CLEANUP_UNKNOWN', {
+        stage: 'FAILED_LAUNCH_CLEANUP', reason: 'CLEANUP_UNVERIFIED'
+      }, error);
     }
     throw error instanceof Error ? error : new Error('OWNED_BROWSER_LAUNCH_FAILED');
   }

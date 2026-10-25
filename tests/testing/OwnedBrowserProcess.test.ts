@@ -4,7 +4,7 @@ import { access, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { isActiveOwnedBrowserLease, launchOwnedBrowser, launchOwnedBrowserWithPlatformForTests } from '../../src/testing/OwnedBrowserProcess.js';
+import { getOwnedBrowserStartupDiagnostic, isActiveOwnedBrowserLease, launchOwnedBrowser, launchOwnedBrowserWithPlatformForTests } from '../../src/testing/OwnedBrowserProcess.js';
 
 const PORT = 43179;
 const SOCKET_PATH = '/devtools/browser/test-owned-browser';
@@ -104,9 +104,115 @@ test('spawn failure removes only the just-created profile and does not signal a 
 
 test('premature child exit during endpoint discovery fails closed without signalling another process', async () => {
   const f = setup({ async readPortFile() { f.child.exitUnexpectedly(); return f.state.portFile; } });
-  await assert.rejects(launchOwnedBrowserWithPlatformForTests(f.platform), /OWNED_BROWSER_PROCESS_EXITED_DURING_STARTUP/);
+  await assert.rejects(launchOwnedBrowserWithPlatformForTests(f.platform), (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.equal(error.message, 'OWNED_BROWSER_PROCESS_EXITED_DURING_STARTUP');
+    assert.deepEqual(getOwnedBrowserStartupDiagnostic(error), { stage: 'CHILD_PROCESS', reason: 'NOT_RUNNING' });
+    return true;
+  });
   assert.equal(f.calls.killed, 0);
   assert.deepEqual(f.calls.removedProfiles, [f.state.profilePath]);
+});
+
+test('startup deadline preserves only the fixed last-observed retry stage, never raw errors', async () => {
+  const f = setup({ async readPortFile(path: string) { throw new Error(`private read failure ${path}`); } });
+  await assert.rejects(launchOwnedBrowserWithPlatformForTests(f.platform, 5), (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.equal(error.message, 'OWNED_BROWSER_ENDPOINT_UNVERIFIED');
+    const diagnostic = getOwnedBrowserStartupDiagnostic(error);
+    assert.deepEqual(diagnostic, {
+      stage: 'STARTUP_DEADLINE',
+      reason: 'NO_RELIABLE_FAILURE_STAGE',
+      lastObservedFailure: { stage: 'PORT_FILE_READ', reason: 'UNAVAILABLE', observation: 'LAST_RETRY_ONLY' }
+    });
+    assert.equal(JSON.stringify(diagnostic).includes('private read failure'), false);
+    assert.equal(JSON.stringify(diagnostic).includes(f.state.profilePath ?? 'missing-profile'), false);
+    return true;
+  });
+  assert.equal(f.calls.killed, 1);
+  assert.deepEqual(f.calls.removedProfiles, [f.state.profilePath]);
+});
+
+test('startup diagnostics distinguish port, version, browser, and WebSocket observations', async (t) => {
+  const cases = [
+    { name: 'invalid port file', configure(f: ReturnType<typeof setup>) { f.state.portFile = 'invalid'; }, stage: 'PORT_FILE_PARSE', reason: 'INVALID' },
+    { name: 'unavailable version endpoint', configure(f: ReturnType<typeof setup>) { Object.assign(f.platform, { async fetchVersion() { throw new Error('private endpoint failure'); } }); }, stage: 'VERSION_ENDPOINT', reason: 'UNAVAILABLE' },
+    { name: 'unsupported browser identity', configure(f: ReturnType<typeof setup>) { f.state.version = { Browser: 'Unknown/1', webSocketDebuggerUrl: `ws://127.0.0.1:${PORT}${SOCKET_PATH}` }; }, stage: 'BROWSER_IDENTITY', reason: 'UNSUPPORTED_PRODUCT' },
+    { name: 'mismatched WebSocket identity', configure(f: ReturnType<typeof setup>) { f.state.version = { Browser: 'Chrome/130', webSocketDebuggerUrl: 'ws://127.0.0.1:43180/devtools/browser/other' }; }, stage: 'WEBSOCKET_IDENTITY', reason: 'IDENTITY_MISMATCH' }
+  ] as const;
+  for (const item of cases) {
+    await t.test(item.name, async () => {
+      const f = setup();
+      item.configure(f);
+      await assert.rejects(launchOwnedBrowserWithPlatformForTests(f.platform, 5), (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.equal(error.message, 'OWNED_BROWSER_ENDPOINT_UNVERIFIED');
+        assert.deepEqual(getOwnedBrowserStartupDiagnostic(error)?.lastObservedFailure, {
+          stage: item.stage, reason: item.reason, observation: 'LAST_RETRY_ONLY'
+        });
+        return true;
+      });
+      assert.equal(f.calls.killed, 1);
+      assert.deepEqual(f.calls.removedProfiles, [f.state.profilePath]);
+    });
+  }
+});
+
+test('version request timeout rejection is normalized and cleans only the owned launch resources', async () => {
+  const f = setup({
+    async fetchVersion() {
+      throw Object.assign(new Error('private timeout detail'), { name: 'TimeoutError' });
+    }
+  });
+  await assert.rejects(launchOwnedBrowserWithPlatformForTests(f.platform, 5), (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.equal(error.message, 'OWNED_BROWSER_ENDPOINT_UNVERIFIED');
+    const diagnostic = getOwnedBrowserStartupDiagnostic(error);
+    assert.deepEqual(diagnostic, {
+      stage: 'STARTUP_DEADLINE',
+      reason: 'NO_RELIABLE_FAILURE_STAGE',
+      lastObservedFailure: { stage: 'VERSION_ENDPOINT', reason: 'UNAVAILABLE', observation: 'LAST_RETRY_ONLY' }
+    });
+    assert.equal(JSON.stringify(diagnostic).includes('private timeout detail'), false);
+    return true;
+  });
+  assert.equal(f.calls.killed, 1);
+  assert.deepEqual(f.calls.removedProfiles, [f.state.profilePath]);
+  assert.equal(f.state.profilePath, f.calls.removedProfiles[0]);
+  await assert.rejects(access(f.state.profilePath!));
+});
+
+test('deadline without a reliable probe stage reports no observed failure', async () => {
+  const f = setup();
+  await assert.rejects(launchOwnedBrowserWithPlatformForTests(f.platform, -1), (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.equal(error.message, 'OWNED_BROWSER_STARTUP_TIMEOUT');
+    assert.deepEqual(getOwnedBrowserStartupDiagnostic(error), {
+      stage: 'STARTUP_DEADLINE', reason: 'NO_RELIABLE_FAILURE_STAGE'
+    });
+    return true;
+  });
+  assert.equal(f.calls.killed, 1);
+  assert.deepEqual(f.calls.removedProfiles, [f.state.profilePath]);
+});
+
+test('failed-launch cleanup diagnostic is bounded and preserves fail-closed error code', async () => {
+  let removalAttempts = 0;
+  const f = setup({
+    async fetchVersion() { throw new Error('private version failure'); },
+    async removeProfile(path: string) { removalAttempts += 1; throw new Error(`private cleanup failure ${path}`); }
+  });
+  await assert.rejects(launchOwnedBrowserWithPlatformForTests(f.platform, 5), (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.equal(error.message, 'OWNED_BROWSER_LAUNCH_FAILED_CLEANUP_UNKNOWN');
+    const diagnostic = getOwnedBrowserStartupDiagnostic(error);
+    assert.deepEqual(diagnostic, { stage: 'FAILED_LAUNCH_CLEANUP', reason: 'CLEANUP_UNVERIFIED' });
+    assert.equal(JSON.stringify(diagnostic).includes('private'), false);
+    assert.equal(JSON.stringify(diagnostic).includes(f.state.profilePath ?? 'missing-profile'), false);
+    return true;
+  });
+  assert.equal(f.calls.killed, 1);
+  assert.equal(removalAttempts, 1);
 });
 
 test('endpoint mismatch and a port claimed by another listener never create a lease', async (t) => {
