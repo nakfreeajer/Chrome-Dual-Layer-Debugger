@@ -20,6 +20,33 @@ Rony Finster is the final Human authority. ChatGPT is the current Architect-Cura
 - Must stop and report when authoritative source/tests/runtime evidence contradict the Architect instruction.
 - Never accepts its own work.
 - Must not silently expand scope.
+- Every Executor report for this repository, including PASS, BLOCKED, FAILED, INCONCLUSIVE, and proposal-only reports, must begin with the exact Mandatory Executor Report Header below, before any report heading, classification, summary, or evidence. Task-specific required fields and evidence follow the header and must not be omitted.
+
+## Mandatory Executor Report Header
+
+The following text is a literal required prefix. Begin every Executor report with its first line; do not prepend a title, classification, summary, or other content:
+
+```text
+**MANDATORY ARCHITECT BOOTSTRAP — READ FIRST**
+
+Architect: Before reviewing this Executor report, making an acceptance decision, or generating another Executor instruction, you MUST open and read the Human Owner's CDLD Objective Lock:
+
+https://docs.google.com/document/d/1llagirZ6XPe9kDI57pSzqHB6P_-JGCMilfwVO0xv47E/edit
+
+Apply CDLD-OBJECTIVE-001 and its mandatory Objective Gate. Independently verify the current governing instructions and repository evidence. Do not assume prior session context establishes compliance.
+
+If the Objective Lock cannot be retrieved, return HOLD. Do not approve additional work, expand the project, or generate a successor milestone.
+
+**END MANDATORY BOOTSTRAP**
+
+---
+
+**EXECUTOR REPORT**
+
+[The Executor's normal complete report begins here.]
+```
+
+This is a reporting-format requirement only. It does not expand project scope, grant execution authority, or replace any task-specific report, safety, or evidence requirements.
 
 ## Manual Relay
 
@@ -65,17 +92,31 @@ New ideas raised during implementation are captured under the idea system and do
 
 `docs/PROJECT_BRIEF.md` is the sole objective authority: Chrome Dual-Layer Debugger Project Charter v1.1, Human-approved 2026-10-21. An ordinary milestone approval does not amend the charter. Only the Human Owner may change the objective, mandatory deliverables, Release Definition of Done, or non-goals.
 
+The Human Owner-approved **CDLD Permanent Objective Lock v1.0** records the permanent objective **CDLD-OBJECTIVE-001** (canonical source: https://docs.google.com/document/d/1llagirZ6XPe9kDI57pSzqHB6P_-JGCMilfwVO0xv47E/edit):
+
+> Integrate Playwright with the existing GAS Remote Debugger so users can perform supported Playwright-equivalent browser testing and debugging operations through one CDLD interface on both ordinary Chrome web applications and Google Apps Script applications running inside GAS/OOPIF contexts.
+
+This Objective Lock records and operationalizes the approved project objective; it does not amend or supersede Charter v1.1 or waive its mandatory CORE/Release deliverables. If a specific Objective Lock gate appears to conflict with a Charter obligation, stop and report the conflict for Human/Architect resolution; do not silently override either authority. CDLD remains an integration layer, not a new browser engine or replacement for Playwright.
+
+### Mandatory objective-alignment gate
+
+Before proposing or executing a task, identify the demonstrated supported-capability gap, inspect the relevant current implementation, and establish what Playwright and the existing GAS Remote Debugger already provide. Reuse those capabilities wherever sufficient, then choose the smallest necessary integration. Convenience, technical interest, hypothetical requirements, or additional testing alone do not justify expansion. If objective alignment or required source review is unresolved, hold the task and report the blocker.
+
 Every Architect -> Executor prompt must carry this alignment record:
 
 ```text
 PROJECT=Chrome-Dual-Layer-Debugger
 REPO=nakfreeajer/Chrome-Dual-Layer-Debugger
 CHARTER=docs/PROJECT_BRIEF.md@v1.1
+OBJECTIVE=CDLD-OBJECTIVE-001 (unchanged)
 ALIGNMENT=CORE|BLOCKER|OPTIONAL|DRIFT
 TARGET=CORE-01..CORE-07
 BASELINE=<exact verified HEAD>
-GAP=<measured missing evidence>
-OUTCOME_TEST=<observable result + exact evidence + pass/fail rule>
+GAP=<specific unsupported capability or demonstrated indispensable blocker>
+REUSE=<existing Playwright and GAS Remote Debugger capabilities sufficient to reuse>
+MINIMUM_ACTION=<smallest necessary integration or correction>
+OUTCOME_TEST=<PROOF: observable result + exact evidence + pass/fail rule>
+DECISION=IN_SCOPE|BLOCKED|REJECTED|HUMAN_SCOPE_APPROVAL_REQUIRED
 NECESSITY=<why required for the named CORE/BLOCKER>
 SIMPLER_ALTERNATIVE=<considered alternative and why insufficient>
 SUPPORT_STREAK=<count or HISTORICAL_STOP_TRIGGERED>
@@ -85,11 +126,11 @@ AUTHORIZATION=<specific Human-permitted scope>
 STOP=<conditions>
 ```
 
-For CORE/BLOCKER work, TARGET identifies the directly supported charter deliverable. If a truthful CORE target cannot be identified, classify the proposal as DRIFT and stop rather than dispatching it. OPTIONAL work requires separate prioritization; DRIFT requires Human charter amendment.
+For CORE/BLOCKER work, TARGET identifies the directly supported charter deliverable. If a truthful CORE target cannot be identified, classify the proposal as DRIFT and stop rather than dispatching it. OPTIONAL work requires separate prioritization; DRIFT requires Human charter amendment. `DECISION` records the pre-task scope gate; it does not replace `ALIGNMENT` or the Architect's later review classification.
 
-Before every Executor prompt, the Architect freshly verifies exact GitHub `AGENTS.md`, `docs/PROJECT_BRIEF.md`, and `docs/HANDOVER.md`, plus repository identity and HEAD. The Executor independently verifies project/repository identity, charter revision, baseline, CORE linkage, evidence gap, and permission before work. Identity mismatch returns `PROJECT_ID_MISMATCH`; objective contradiction or unsupported CORE/BLOCKER linkage returns `BLOCKED_OBJECTIVE_DRIFT`. The Executor does not accept its own work or amend the charter.
+Before every Executor prompt, the Architect freshly verifies exact GitHub `AGENTS.md`, `docs/PROJECT_BRIEF.md`, and `docs/HANDOVER.md`, plus repository identity and HEAD. The Executor independently reads the Objective Lock and verifies that the task directly advances CDLD-OBJECTIVE-001 or resolves a demonstrated indispensable blocker; existing Playwright and GAS Remote Debugger capabilities are reused wherever sufficient; the proposed action is the smallest necessary; no unrelated system, framework, service, launcher, or infrastructure is introduced; and target authorization and proportional safety controls remain intact. The Executor also verifies project/repository identity, Charter revision, baseline, CORE linkage, evidence gap, and permission before work. Identity mismatch returns `PROJECT_ID_MISMATCH`; objective contradiction or unsupported CORE/BLOCKER linkage returns `BLOCKED_OBJECTIVE_DRIFT`. The Executor does not accept its own work or amend the Charter.
 
-Two consecutive BLOCKER milestones without independently verified CORE advancement require STOP/REASSESS. Names, split stages, reclassification, session changes, and chat handovers never reset the support streak. Continue the same investigation only with new evidence, explicit Human permission, and a stopping rule; no automatic continuation exists. After every five milestones, including failures/blocked attempts, the Architect records accepted CORE progress, remaining deliverables, supporting effort, blockers/opportunity cost, and next recommendation. Counters persist across handovers.
+After one support-only/BLOCKER milestone without measurable CORE progress, do not automatically authorize another support-only milestone. Directly authorized CORE work remains possible under its own authorization, subject to `HISTORICAL_STOP_TRIGGERED` and any active STOP/REASSESS gate. Further support-only work is allowed only within an already Human-approved bounded batch or a separate explicit Human-approved bounded exception, each with its own attempt budget and fallback. Continue the same investigation only with new evidence and a stopping rule. The existing hard STOP/REASSESS trigger after two consecutive BLOCKER milestones without independently verified CORE advancement remains in force as an additional trigger; after it fires, continuation requires new evidence and a separate explicit Human-approved finite exception with its own attempt budget and fallback. Neither rule waives Charter obligations or existing release restrictions. Names, split stages, reclassification, session changes, and chat handovers never reset the support streak. After every five milestones, including failures/blocked attempts, the Architect records accepted CORE progress, remaining deliverables, supporting effort, blockers/opportunity cost, and next recommendation. Counters persist across handovers.
 
 The historical F36–F49 sequence has already triggered the governance STOP/REASSESS condition. Record `HISTORICAL_STOP_TRIGGERED` until the Human authorizes a separate bounded exception or independently verified CORE progression closes the stop condition. Do not invent a numeric streak or reset. Approval of this charter-adoption task does not authorize resuming F36–F50, a live trial, or another milestone.
 
