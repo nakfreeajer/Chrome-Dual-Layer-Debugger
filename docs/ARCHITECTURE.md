@@ -235,3 +235,21 @@ Independent application test project
 ```
 
 The consuming project owns business logic, test cases, fixtures, data, schedules, and application acceptance. CDLD owns the reusable browser/GAS capability boundary and its conformance evidence. Do not claim a complete Playwright API replacement. `package.json` is currently `private: true` and has no supported public export map; internal modules or CLI presence do not establish a stable third-party integration. Before external use is called qualified, demonstrate the supported installation/invocation path, a versioned contract, ordinary Playwright-path non-regression, authentic GAS OOPIF context selection, and target-safe cleanup. Independent consumer integration remains unqualified and requires separate bounded authorization.
+
+## Human-approved seamless consumer routing — 2026-11-12
+
+The Human clarified the intended external architecture. CDLD is the **only routine consumer entry point**, not a second browser automation engine. Consumers express the authorized target, supported actions/assertions and test scope; they do **not** select between Playwright and GAS Remote Debugger or write raw-CDP/OOPIF adapters. CDLD makes that decision internally from discovered native frame/target/session/context evidence and qualified capability support.
+
+```text
+Codex Executor / independent consumer
+  -> ONE CDLD operation/inspection contract (no consumer-chosen backend)
+      -> CDLD discovery, identity/authorization, internal route selection
+          -> Playwright: ordinary Chrome/Apps Script editor/accessible frames
+          -> existing GasAdapter -> pinned gas-remote-debug:
+             additional native CDP/OOPIF reach if verified runtime requires it
+      -> one normalized result/evidence model; fail closed on unsupported binding
+```
+
+A deployed GAS `/dev` or `/exec` route may contain deeper cross-origin/OOPIF contexts, but its URL and a visible iframe are **not** native OOPIF proof. CDLD must reuse existing Playwright and `gas-remote-debug` mechanisms, map actual context identity, and preserve TEST/OBSERVE authority and ownership/cleanup. This clarification does not invalidate the existing equal-peer internal capability matrix, which covers only qualified operations; it adds the intended seamless **consumer** behavior. Explicit backend selectors inside existing test harnesses remain internal implementation/qualification details and cannot substitute for independent consumer proof.
+
+Existing CDLD 1U evidence: Playwright ordinary readText passed; GAS native binding failed at `GAS_CONNECT_TEST_TARGET / GAS_DEFAULT_CONTEXT_UNAVAILABLE`, and GAS readText did not run. Read-only source assessment could not distinguish context-wait failure, post-wait registry rejection, or missing observation setup evidence. Root cause UNKNOWN; no fix justified from retained evidence. This documentation clarification authorizes neither implementation nor a live retry; `HISTORICAL_STOP_TRIGGERED` persists.

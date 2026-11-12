@@ -153,3 +153,9 @@ The capability goal remains to persist deterministic smoke/monkey suites, compar
 ## Consumer integration outcome - PROPOSED / NOT AUTHORIZED
 
 A bounded future qualification may demonstrate that one independent local browser test project invokes the same documented CDLD contract for an ordinary non-GAS fixture and an authorized synthetic GAS/OOPIF fixture, without implementing its own recursive raw-CDP GAS discovery. It must prove the real selected OOPIF context, a supported action/assertion, ordinary Playwright-path non-regression, and target preservation/cleanup. This is a measurable proposed outcome, not a framework or cloud prerequisite. Human authorization is required before implementation or browser activity.
+
+## Existing CDLD 1U — seamless consumer routing clarification (2026-11-12)
+
+The Human restated the intent of `CDLD.CORE04.REMOTE.GAS.WEBAPP.E2E.1U`: a consuming Executor must invoke ONE CDLD interface for ordinary browser and real GAS `/dev`/`/exec` operations, **without choosing a backend**. CDLD should reuse Playwright for qualified ordinary semantics and `gas-remote-debug` for deeper actual native OOPIF contexts, selected internally from evidence. No duplicate automation engine or consumer raw-CDP logic. See the 2026-11-12 Human addendum to https://docs.google.com/document/d/1xMF02nEILLStZYEtJPLUuHsxlusQjPDcfhlp-lMhnPA/edit.
+
+Acceptance remains blocked. The retained real GAS diagnostic attributed failure to `GAS_DEFAULT_CONTEXT_UNAVAILABLE` before GAS readText. The subsequent bounded read-only assessment could not establish a unique cause or justified fix. CORE-04 Outcomes A/B, CORE-06, CORE-07, Release 1 unaccepted; `HISTORICAL_STOP_TRIGGERED` persists and checkpoint is UNKNOWN. No successor milestone, new browser run, source correction, deployment or implementation is authorized by this roadmap clarification. Existing historical milestone acceptance remains unchanged.
